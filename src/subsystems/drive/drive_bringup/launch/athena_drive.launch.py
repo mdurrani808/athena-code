@@ -20,44 +20,13 @@
 #
 
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, RegisterEventHandler, TimerAction
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, RegisterEventHandler, TimerAction
 from launch.conditions import IfCondition
 from launch.event_handlers import OnProcessExit, OnProcessStart
+from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import Command, FindExecutable, LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
-
-
-def create_controller_spawner(controller_name, inactive=False):
-    """Create a controller spawner node."""
-    args = [controller_name, "-c", "/controller_manager"]
-    if inactive:
-        args.append("--inactive")
-    return Node(
-        package="controller_manager",
-        executable="spawner",
-        arguments=args,
-        output="screen"
-    )
-
-
-def create_sequential_spawners(controller_names, start_after, inactive=False):
-    """Create event handlers to spawn controllers sequentially."""
-    spawners = [create_controller_spawner(name, inactive) for name in controller_names]
-    handlers = []
-
-    for i, spawner in enumerate(spawners):
-        target = start_after if i == 0 else spawners[i - 1]
-        handlers.append(
-            RegisterEventHandler(
-                event_handler=OnProcessExit(
-                    target_action=target,
-                    on_exit=[spawner],
-                )
-            )
-        )
-
-    return handlers, spawners
 
 
 def generate_launch_description():
@@ -153,6 +122,22 @@ def generate_launch_description():
             description="Robot controller to start.",
         )
     )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "enable_teleop",
+            default_value="true",
+            choices=["true", "false"],
+            description="Enable joystick and teleop_twist nodes for manual control.",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "start_controller_switcher",
+            default_value="true",
+            choices=["true", "false"],
+            description="Start the controller switcher service for runtime switching.",
+        )
+    )
 
     # -- Initialize Arguments --
     use_sim = LaunchConfiguration("use_sim")
@@ -167,19 +152,15 @@ def generate_launch_description():
     use_mock_hardware = LaunchConfiguration("use_mock_hardware")
     mock_sensor_commands = LaunchConfiguration("mock_sensor_commands")
     robot_controller = LaunchConfiguration("robot_controller")
+    enable_teleop = LaunchConfiguration("enable_teleop")
+    start_controller_switcher = LaunchConfiguration("start_controller_switcher")
 
-     # -- Building Path Files --
+    # -- Building Path Files --
     robot_description_path = PathJoinSubstitution(
         [FindPackageShare(description_package), "urdf", description_file]
     )
     robot_controllers = PathJoinSubstitution(
         [FindPackageShare(runtime_config_package), "config", controllers_file]
-    )
-    joystick_config = PathJoinSubstitution(
-        [FindPackageShare(runtime_config_package), "config", joystick_config]
-    )
-    teleop_twist_config = PathJoinSubstitution(
-        [FindPackageShare(runtime_config_package), "config", teleop_twist_config]
     )
     rviz_config_file = PathJoinSubstitution(
         [FindPackageShare(description_package), "rviz", rviz_file]
@@ -206,7 +187,7 @@ def generate_launch_description():
 
     robot_description = {"robot_description": robot_description_content}
 
-    # -- Node Definitions -- 
+    # -- Node Definitions --
     control_node = Node(
         package="controller_manager",
         executable="ros2_control_node",
@@ -235,14 +216,6 @@ def generate_launch_description():
         condition=IfCondition(use_sim),
     )
 
-    joint_state_broadcaster_spawner = create_controller_spawner("joint_state_broadcaster")
-
-    joint_state_publisher_gui_node = Node(
-        package='joint_state_publisher_gui',
-        executable='joint_state_publisher_gui',
-        name='joint_state_publisher_gui'
-    )
-
     joint_state_publisher = Node(
         package='joint_state_publisher',
         executable='joint_state_publisher',
@@ -250,116 +223,83 @@ def generate_launch_description():
         output='screen'
     )
 
-    # Active controllers (spawned first)
-    active_controller_names = [robot_controller]
+    # CAN node for hardware communication (currently disabled)
+    # umdloop_can_node = Node(
+    #     package='umdloop_can',
+    #     executable='can_node',
+    #     name='can_node',
+    #     output='log',
+    #     arguments=['--ros-args', '--log-level', 'fatal']
+    # )
+    #
+    # delay_can_node_after_control_node = RegisterEventHandler(
+    #     event_handler=OnProcessStart(
+    #         target_action=control_node,
+    #         on_start=[
+    #             TimerAction(
+    #                 period=1.0,
+    #                 actions=[umdloop_can_node],
+    #             ),
+    #         ],
+    #     )
+    # )
 
-    # Inactive controllers (loaded but not started, for runtime switching)
-    inactive_controller_names = ["ackermann_steering_controller", "drive_velocity_controller", "drive_position_controller"]
+    # -- Include Subsystem Launch Files --
 
-    # Spawn active controllers sequentially after joint_state_broadcaster
-    active_controller_handlers, active_spawners = create_sequential_spawners(
-        active_controller_names,
-        start_after=joint_state_broadcaster_spawner
+    # Controllers launch file
+    controllers_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource([
+            PathJoinSubstitution([
+                FindPackageShare(runtime_config_package),
+                'launch',
+                'controllers.launch.py'
+            ])
+        ]),
+        launch_arguments={
+            'robot_controller': robot_controller,
+            'start_controller_switcher': start_controller_switcher,
+        }.items()
     )
 
-    # Spawn inactive controllers sequentially after active controllers
-    inactive_controller_handlers, inactive_spawners = create_sequential_spawners(
-        inactive_controller_names,
-        start_after=active_spawners[-1] if active_spawners else joint_state_broadcaster_spawner,
-        inactive=True
-    )
-
-    # Start controller switcher service after all controllers are loaded
-    controller_switcher_node = RegisterEventHandler(
-        event_handler=OnProcessExit(
-            target_action=inactive_spawners[-1],
-            on_exit=[TimerAction(
-                period=3.0,
-                actions=[Node(
-                    package="drive_bringup",
-                    executable="controller_switcher.py",
-                    name="controller_switcher",
-                    output="screen"
-                )]
-            )],
-        )
-    )
-
-    # Delay joint_state_broadcaster after control node starts
-    delay_joint_state_broadcaster_spawner_after_ros2_control_node = RegisterEventHandler(
+    # Delay controller spawning until control node is ready
+    delay_controllers_after_control_node = RegisterEventHandler(
         event_handler=OnProcessStart(
             target_action=control_node,
             on_start=[
                 TimerAction(
                     period=5.0,  # Increased delay to ensure hardware interfaces are fully initialized
-                    actions=[joint_state_broadcaster_spawner],
+                    actions=[controllers_launch],
                 ),
             ],
         )
     )
 
-    # Start RViz after joint_state_broadcaster
-    delay_rviz_after_joint_state_broadcaster_spawner = RegisterEventHandler(
-        event_handler=OnProcessExit(
-            target_action=joint_state_broadcaster_spawner,
-            on_exit=[rviz_node],
-        )
+    # Teleop launch file (optional)
+    teleop_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource([
+            PathJoinSubstitution([
+                FindPackageShare(runtime_config_package),
+                'launch',
+                'teleop.launch.py'
+            ])
+        ]),
+        launch_arguments={
+            'runtime_config_package': runtime_config_package,
+            'joystick_config': joystick_config,
+            'teleop_twist_config': teleop_twist_config,
+        }.items(),
+        condition=IfCondition(enable_teleop),
     )
-
-    umdloop_can_node = Node(
-        package='umdloop_can',
-        executable='can_node',
-        name='can_node',
-        output='log',
-        arguments=['--ros-args', '--log-level', 'fatal']
-    )
-
-    delay_can_node_after_control_node = RegisterEventHandler(
-        event_handler=OnProcessStart(
-            target_action=control_node,
-            on_start=[
-                TimerAction(
-                    period=1.0,  # Small delay to let control node initialize
-                    actions=[umdloop_can_node],
-                ),
-            ],
-        )
-    )
-
-    joystick_publisher = Node(
-        package='teleop',
-        executable='joystick',
-        name='joystick',
-        output='screen',
-        parameters = [joystick_config],
-        remappings=[
-                ('controller_input', 'joy'),
-                ('/controller_input', '/joy'),
-            ],
-    )
-
-    teleop_twist_joy = Node(
-        package='teleop_twist_joy',
-        executable='teleop_node',
-        name='teleop_twist_joy',
-        output='screen',
-        parameters = [teleop_twist_config],
-    )
-
 
     return LaunchDescription(
         declared_arguments +
         [
             control_node,
             robot_state_pub_node,
-            joystick_publisher,
-            teleop_twist_joy,
+            rviz_node,
             joint_state_publisher,
-            # delay_can_node_after_control_node,
-            delay_joint_state_broadcaster_spawner_after_ros2_control_node,
-            delay_rviz_after_joint_state_broadcaster_spawner,
-            controller_switcher_node,
+            delay_controllers_after_control_node,
+            teleop_launch,
+            # delay_can_node_after_control_node,  # Uncomment when needed
         ]
-        + active_controller_handlers
-        + inactive_controller_handlers
     )
