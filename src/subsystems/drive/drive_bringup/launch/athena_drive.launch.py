@@ -28,6 +28,38 @@ from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
 
+def create_controller_spawner(controller_name, inactive=False):
+    """Create a controller spawner node."""
+    args = [controller_name, "-c", "/controller_manager"]
+    if inactive:
+        args.append("--inactive")
+    return Node(
+        package="controller_manager",
+        executable="spawner",
+        arguments=args,
+        output="screen"
+    )
+
+
+def create_sequential_spawners(controller_names, start_after, inactive=False):
+    """Create event handlers to spawn controllers sequentially."""
+    spawners = [create_controller_spawner(name, inactive) for name in controller_names]
+    handlers = []
+
+    for i, spawner in enumerate(spawners):
+        target = start_after if i == 0 else spawners[i - 1]
+        handlers.append(
+            RegisterEventHandler(
+                event_handler=OnProcessExit(
+                    target_action=target,
+                    on_exit=[spawner],
+                )
+            )
+        )
+
+    return handlers, spawners
+
+
 def generate_launch_description():
     # -- Declare arguments --
     declared_arguments = []
@@ -203,18 +235,14 @@ def generate_launch_description():
         condition=IfCondition(use_sim),
     )
 
-    joint_state_broadcaster_spawner = Node(
-        package="controller_manager",
-        executable="spawner",
-        arguments=["joint_state_broadcaster", "--controller-manager", "/controller_manager"],
-    )
+    joint_state_broadcaster_spawner = create_controller_spawner("joint_state_broadcaster")
 
-    joint_state_publisher_gui_node = Node( 
+    joint_state_publisher_gui_node = Node(
         package='joint_state_publisher_gui',
         executable='joint_state_publisher_gui',
         name='joint_state_publisher_gui'
     )
-    
+
     joint_state_publisher = Node(
         package='joint_state_publisher',
         executable='joint_state_publisher',
@@ -222,31 +250,29 @@ def generate_launch_description():
         output='screen'
     )
 
-    robot_controller_names = [robot_controller]
-    robot_controller_spawners = []
-    for controller in robot_controller_names:
-        robot_controller_spawners += [
-            Node(
-                package="controller_manager",
-                executable="spawner",
-                arguments=[controller, "-c", "/controller_manager"],
-            )
-        ]
+    # Active controllers (spawned first)
+    active_controller_names = [robot_controller]
 
-    inactive_robot_controller_names = ["ackermann_steering_controller", "drive_velocity_controller", "drive_position_controller"]
-    inactive_robot_controller_spawners = []
-    for controller in inactive_robot_controller_names:
-        inactive_robot_controller_spawners += [
-            Node(
-                package="controller_manager",
-                executable="spawner",
-                arguments=[controller, "-c", "/controller_manager", "--inactive"],
-            )
-        ]
+    # Inactive controllers (loaded but not started, for runtime switching)
+    inactive_controller_names = ["ackermann_steering_controller", "drive_velocity_controller", "drive_position_controller"]
 
+    # Spawn active controllers sequentially after joint_state_broadcaster
+    active_controller_handlers, active_spawners = create_sequential_spawners(
+        active_controller_names,
+        start_after=joint_state_broadcaster_spawner
+    )
+
+    # Spawn inactive controllers sequentially after active controllers
+    inactive_controller_handlers, inactive_spawners = create_sequential_spawners(
+        inactive_controller_names,
+        start_after=active_spawners[-1] if active_spawners else joint_state_broadcaster_spawner,
+        inactive=True
+    )
+
+    # Start controller switcher service after all controllers are loaded
     controller_switcher_node = RegisterEventHandler(
         event_handler=OnProcessExit(
-            target_action=inactive_robot_controller_spawners[-1],
+            target_action=inactive_spawners[-1],
             on_exit=[TimerAction(
                 period=3.0,
                 actions=[Node(
@@ -259,6 +285,7 @@ def generate_launch_description():
         )
     )
 
+    # Delay joint_state_broadcaster after control node starts
     delay_joint_state_broadcaster_spawner_after_ros2_control_node = RegisterEventHandler(
         event_handler=OnProcessStart(
             target_action=control_node,
@@ -271,42 +298,13 @@ def generate_launch_description():
         )
     )
 
+    # Start RViz after joint_state_broadcaster
     delay_rviz_after_joint_state_broadcaster_spawner = RegisterEventHandler(
         event_handler=OnProcessExit(
             target_action=joint_state_broadcaster_spawner,
             on_exit=[rviz_node],
         )
     )
-
-    delay_robot_controller_spawners_after_joint_state_broadcaster_spawner = []
-    for i, controller in enumerate(robot_controller_spawners):
-        delay_robot_controller_spawners_after_joint_state_broadcaster_spawner += [
-            RegisterEventHandler(
-                event_handler=OnProcessExit(
-                    target_action=(
-                        robot_controller_spawners[i - 1]
-                        if i > 0
-                        else joint_state_broadcaster_spawner
-                    ),
-                    on_exit=[controller],
-                )
-            )
-        ]
-
-    delay_inactive_robot_controller_spawners_after_joint_state_broadcaster_spawner = []
-    for i, controller in enumerate(inactive_robot_controller_spawners):
-        delay_inactive_robot_controller_spawners_after_joint_state_broadcaster_spawner += [
-            RegisterEventHandler(
-                event_handler=OnProcessExit(
-                    target_action=(
-                        inactive_robot_controller_spawners[i - 1]
-                        if i > 0
-                        else robot_controller_spawners[-1]
-                    ),
-                    on_exit=[controller],
-                )
-            )
-        ]
 
     umdloop_can_node = Node(
         package='umdloop_can',
@@ -350,7 +348,7 @@ def generate_launch_description():
 
 
     return LaunchDescription(
-        declared_arguments + 
+        declared_arguments +
         [
             control_node,
             robot_state_pub_node,
@@ -362,6 +360,6 @@ def generate_launch_description():
             delay_rviz_after_joint_state_broadcaster_spawner,
             controller_switcher_node,
         ]
-        + delay_robot_controller_spawners_after_joint_state_broadcaster_spawner
-        + delay_inactive_robot_controller_spawners_after_joint_state_broadcaster_spawner
+        + active_controller_handlers
+        + inactive_controller_handlers
     )
