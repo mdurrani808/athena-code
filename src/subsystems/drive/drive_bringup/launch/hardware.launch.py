@@ -1,23 +1,11 @@
-"""
-Hardware-Specific Launch File
-Handles hardware interface nodes:
-- Simulation: Robot spawning in Gazebo
-- Real: CAN bus communication node
-
-Uses use_sim flag to determine which nodes to launch.
-"""
-
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, OpaqueFunction, GroupAction
 from launch.conditions import IfCondition, UnlessCondition
-from launch.substitutions import LaunchConfiguration, PythonExpression
+from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node, PushRosNamespace
 
 
 def launch_setup(context, *args, **kwargs):
-    """Generate launch description based on use_sim parameter."""
-
-    # Get launch configurations
     use_sim = LaunchConfiguration("use_sim")
     namespace = LaunchConfiguration("namespace")
     robot_name = LaunchConfiguration("robot_name")
@@ -26,7 +14,6 @@ def launch_setup(context, *args, **kwargs):
     spawn_z = LaunchConfiguration("spawn_z")
     spawn_yaw = LaunchConfiguration("spawn_yaw")
 
-    # Simulation-specific: Robot spawner
     spawn_robot_node = GroupAction(
         actions=[
             PushRosNamespace(namespace),
@@ -47,7 +34,6 @@ def launch_setup(context, *args, **kwargs):
         ]
     )
 
-    # Real hardware-specific: CAN node
     umdloop_can_node = Node(
         package="umdloop_can",
         executable="can_node",
@@ -57,7 +43,6 @@ def launch_setup(context, *args, **kwargs):
         condition=UnlessCondition(use_sim),
     )
 
-    # Joint state publisher for simulation (publishes zero states initially)
     joint_state_publisher = Node(
         package="joint_state_publisher",
         executable="joint_state_publisher",
@@ -74,7 +59,6 @@ def launch_setup(context, *args, **kwargs):
 
 
 def generate_launch_description():
-    # -- Declare arguments --
     declared_arguments = []
     declared_arguments.append(
         DeclareLaunchArgument(

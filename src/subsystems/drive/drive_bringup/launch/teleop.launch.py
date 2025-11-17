@@ -1,8 +1,3 @@
-"""
-Teleoperation Launch File
-Handles joystick input and teleoperation nodes for drive control.
-"""
-
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
@@ -11,7 +6,6 @@ from launch_ros.substitutions import FindPackageShare
 
 
 def generate_launch_description():
-    # -- Declare arguments --
     declared_arguments = []
     declared_arguments.append(
         DeclareLaunchArgument(
@@ -34,13 +28,19 @@ def generate_launch_description():
             description="YAML file with the teleop_twist_node configuration.",
         )
     )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "use_sim_time",
+            default_value="false",
+            description="Use simulation time.",
+        )
+    )
 
-    # -- Initialize Arguments --
     runtime_config_package = LaunchConfiguration("runtime_config_package")
     joystick_config = LaunchConfiguration("joystick_config")
     teleop_twist_config = LaunchConfiguration("teleop_twist_config")
+    use_sim_time = LaunchConfiguration("use_sim_time")
 
-    # -- Building Path Files --
     joystick_config_path = PathJoinSubstitution(
         [FindPackageShare(runtime_config_package), "config", joystick_config]
     )
@@ -48,13 +48,15 @@ def generate_launch_description():
         [FindPackageShare(runtime_config_package), "config", teleop_twist_config]
     )
 
-    # -- Node Definitions --
     joystick_publisher = Node(
         package="teleop",
         executable="joystick",
         name="joystick",
         output="screen",
-        parameters=[joystick_config_path],
+        parameters=[
+            joystick_config_path,
+            {"use_sim_time": use_sim_time}
+        ],
         remappings=[
             ("controller_input", "joy"),
             ("/controller_input", "/joy"),
@@ -66,7 +68,10 @@ def generate_launch_description():
         executable="teleop_node",
         name="teleop_twist_joy",
         output="screen",
-        parameters=[teleop_twist_config_path],
+        parameters=[
+            teleop_twist_config_path,
+            {"use_sim_time": use_sim_time}
+        ],
     )
 
     return LaunchDescription(
