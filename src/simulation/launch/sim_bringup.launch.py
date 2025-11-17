@@ -1,12 +1,3 @@
-"""
-Simulation Infrastructure Bringup
-Launches only simulation-related infrastructure:
-- Gazebo simulator
-- ROS-Gazebo bridges for sensors
-
-This launch file contains NO subsystem-specific logic.
-"""
-
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
@@ -31,7 +22,6 @@ ARGUMENTS = [
 def generate_launch_description():
     pkg_sim = get_package_share_directory('simulation')
 
-    # Include Gazebo simulator
     gazebo_launch = PathJoinSubstitution([pkg_sim, 'launch', 'gz_sim.launch.py'])
     gazebo = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([gazebo_launch]),
@@ -41,7 +31,6 @@ def generate_launch_description():
         ]
     )
 
-    # Include ROS-Gazebo bridges
     bridge_launch = PathJoinSubstitution([pkg_sim, 'launch', 'bridge.launch.py'])
     bridge = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([bridge_launch])

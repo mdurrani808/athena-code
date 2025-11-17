@@ -1,6 +1,6 @@
 controller_manager:
   ros__parameters:
-    update_rate: 100
+    update_rate: 100  # Hz
 
     joint_state_broadcaster:
       type: joint_state_broadcaster/JointStateBroadcaster
@@ -10,7 +10,7 @@ controller_manager:
 
     single_ackermann_controller:
       type: athena_drive_controllers/SingleAckermannController
-
+    
     drive_velocity_controller:
       type: velocity_controllers/JointGroupVelocityController
 
@@ -29,10 +29,14 @@ controller_manager:
       type: gpio_controllers/GpioCommandController
 
 
+
 ackermann_steering_controller:
+  # unsure why but ackermann controller only goes about half of scale_linear.x in teleop_twist
+  # ackermann controller turns to at max scale_angular.yaw*pi. Seems to ignore how much you input, relies more on how fast rover is going
   ros__parameters:
-    rear_wheels_names: ["propulsion_bl_joint", "propulsion_br_joint"]
-    front_wheels_names: ["steer_fl_joint", "steer_fr_joint"]
+    rear_wheels_names: ["propulsion_bl_joint", "propulsion_br_joint"] # This is traction control "propulsion_bl_joint", "propulsion_br_joint", 
+    front_wheels_names: ["steer_fl_joint", "steer_fr_joint"] # This is steering, don't ask why its just called front wheels
+    # front_steering_names: ["steer_fl_joint", "steer_fr_joint"]
     front_wheel_track: 0.6604
     rear_wheel_track: 0.6604
     wheelbase: 0.8382
