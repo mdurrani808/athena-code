@@ -19,6 +19,13 @@
 # Author: Dr. Denis
 #
 
+###############################################################################
+# UNIFIED DRIVE CONTROLLER CONFIGURATION
+# This configuration is used for BOTH simulation and real hardware.
+# Physical parameters (wheelbase, track, radius) are identical.
+# Hardware interfaces are matched between sim and real (see P0 fixes).
+###############################################################################
+
 controller_manager:
   ros__parameters:
     update_rate: 100  # Hz

@@ -43,24 +43,26 @@ def launch_setup(context, *args, **kwargs):
         use_mock_hardware = "true"
         sim_gazebo = "true"
         use_sim_time = "true"
-        controllers_file = "athena_drive_sim_controllers.yaml"
-        simulation_controllers_path = PathJoinSubstitution(
-            [FindPackageShare(description_package), "config", controllers_file]
-        ).perform(context)
     else:
         use_mock_hardware = "false"
         sim_gazebo = "false"
         use_sim_time = "false"
-        controllers_file = "athena_drive_controllers.yaml"
-        simulation_controllers_path = ""
 
     # -- Build File Paths --
     pkg_drive_bringup = FindPackageShare(runtime_config_package).perform(context)
     pkg_description = FindPackageShare(description_package).perform(context)
 
+    # Use UNIFIED controller config for both simulation and real hardware
+    controllers_file = "athena_drive_controllers.yaml"
     robot_controllers_path = PathJoinSubstitution(
         [FindPackageShare(runtime_config_package), "config", controllers_file]
     )
+
+    # For Gazebo plugin, pass the same unified config
+    if use_sim_value == "true":
+        simulation_controllers_path = robot_controllers_path.perform(context)
+    else:
+        simulation_controllers_path = ""
 
     rviz_config_file = PathJoinSubstitution(
         [FindPackageShare(description_package), "rviz", rviz_file]
