@@ -24,9 +24,10 @@ def generate_launch_description():
     )
     declared_arguments.append(
         DeclareLaunchArgument(
-            "use_sim_time",
+            "use_sim",
             default_value="false",
-            description="Use simulation time.",
+            choices=["true", "false"],
+            description="Use simulation mode (automatically sets use_sim_time).",
         )
     )
     declared_arguments.append(
@@ -39,7 +40,7 @@ def generate_launch_description():
 
     description_package = LaunchConfiguration("description_package")
     rviz_file = LaunchConfiguration("rviz_file")
-    use_sim_time = LaunchConfiguration("use_sim_time")
+    use_sim = LaunchConfiguration("use_sim")
     startup_delay = LaunchConfiguration("startup_delay")
 
     rviz_config_file = PathJoinSubstitution(
@@ -52,7 +53,7 @@ def generate_launch_description():
         name="rviz2",
         output="log",
         arguments=["-d", rviz_config_file],
-        parameters=[{"use_sim_time": use_sim_time}],
+        parameters=[{"use_sim_time": use_sim}],
     )
 
     # Delay RViz startup to allow other nodes to initialize

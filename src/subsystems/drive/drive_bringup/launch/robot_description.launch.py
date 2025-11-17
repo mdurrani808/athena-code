@@ -30,23 +30,17 @@ def generate_launch_description():
     )
     declared_arguments.append(
         DeclareLaunchArgument(
-            "use_mock_hardware",
+            "use_sim",
             default_value="false",
-            description="Start robot with mock hardware mirroring command to its states.",
+            choices=["true", "false"],
+            description="Use simulation mode (automatically sets use_sim_time, use_mock_hardware, and sim_gazebo).",
         )
     )
     declared_arguments.append(
         DeclareLaunchArgument(
             "mock_sensor_commands",
             default_value="false",
-            description="Enable mock command interfaces for sensors. Used only if 'use_mock_hardware' is true.",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "sim_gazebo",
-            default_value="false",
-            description="Enable Gazebo-specific configurations in URDF.",
+            description="Enable mock command interfaces for sensors. Used only if 'use_sim' is true.",
         )
     )
     declared_arguments.append(
@@ -56,22 +50,13 @@ def generate_launch_description():
             description="Path to simulation controllers configuration file.",
         )
     )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "use_sim_time",
-            default_value="false",
-            description="Use simulation time.",
-        )
-    )
 
     description_package = LaunchConfiguration("description_package")
     description_file = LaunchConfiguration("description_file")
     prefix = LaunchConfiguration("prefix")
-    use_mock_hardware = LaunchConfiguration("use_mock_hardware")
+    use_sim = LaunchConfiguration("use_sim")
     mock_sensor_commands = LaunchConfiguration("mock_sensor_commands")
-    sim_gazebo = LaunchConfiguration("sim_gazebo")
     simulation_controllers = LaunchConfiguration("simulation_controllers")
-    use_sim_time = LaunchConfiguration("use_sim_time")
 
     robot_description_path = PathJoinSubstitution(
         [FindPackageShare(description_package), "urdf", description_file]
@@ -86,14 +71,11 @@ def generate_launch_description():
             "prefix:=",
             prefix,
             " ",
-            "use_mock_hardware:=",
-            use_mock_hardware,
+            "use_sim:=",
+            use_sim,
             " ",
             "mock_sensor_commands:=",
             mock_sensor_commands,
-            " ",
-            "sim_gazebo:=",
-            sim_gazebo,
             " ",
             "simulation_controllers:=",
             simulation_controllers,
@@ -106,7 +88,7 @@ def generate_launch_description():
         package="robot_state_publisher",
         executable="robot_state_publisher",
         output="both",
-        parameters=[robot_description, {"use_sim_time": use_sim_time}],
+        parameters=[robot_description, {"use_sim_time": use_sim}],
     )
 
     return LaunchDescription(declared_arguments + [robot_state_pub_node])

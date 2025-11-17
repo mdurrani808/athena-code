@@ -7,7 +7,7 @@ from launch_ros.actions import Node
 
 def launch_setup(context, *args, **kwargs):
     robot_controller = LaunchConfiguration("robot_controller")
-    use_sim_time = LaunchConfiguration("use_sim_time")
+    use_sim = LaunchConfiguration("use_sim")
     controller_switcher_delay = LaunchConfiguration("controller_switcher_delay")
 
     joint_state_broadcaster_spawner = Node(
@@ -58,7 +58,7 @@ def launch_setup(context, *args, **kwargs):
                             executable="controller_switcher.py",
                             name="controller_switcher",
                             output="screen",
-                            parameters=[{"use_sim_time": use_sim_time}],
+                            parameters=[{"use_sim_time": use_sim}],
                         )
                     ],
                 )
@@ -115,9 +115,10 @@ def generate_launch_description():
     )
     declared_arguments.append(
         DeclareLaunchArgument(
-            "use_sim_time",
+            "use_sim",
             default_value="false",
-            description="Use simulation time.",
+            choices=["true", "false"],
+            description="Use simulation mode (automatically sets use_sim_time).",
         )
     )
     declared_arguments.append(

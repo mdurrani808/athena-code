@@ -30,16 +30,17 @@ def generate_launch_description():
     )
     declared_arguments.append(
         DeclareLaunchArgument(
-            "use_sim_time",
+            "use_sim",
             default_value="false",
-            description="Use simulation time.",
+            choices=["true", "false"],
+            description="Use simulation mode (automatically sets use_sim_time).",
         )
     )
 
     runtime_config_package = LaunchConfiguration("runtime_config_package")
     joystick_config = LaunchConfiguration("joystick_config")
     teleop_twist_config = LaunchConfiguration("teleop_twist_config")
-    use_sim_time = LaunchConfiguration("use_sim_time")
+    use_sim = LaunchConfiguration("use_sim")
 
     joystick_config_path = PathJoinSubstitution(
         [FindPackageShare(runtime_config_package), "config", joystick_config]
@@ -55,7 +56,7 @@ def generate_launch_description():
         output="screen",
         parameters=[
             joystick_config_path,
-            {"use_sim_time": use_sim_time}
+            {"use_sim_time": use_sim}
         ],
         remappings=[
             ("controller_input", "joy"),
@@ -70,7 +71,7 @@ def generate_launch_description():
         output="screen",
         parameters=[
             teleop_twist_config_path,
-            {"use_sim_time": use_sim_time}
+            {"use_sim_time": use_sim}
         ],
     )
 

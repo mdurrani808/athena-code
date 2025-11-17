@@ -27,15 +27,6 @@ def launch_setup(context, *args, **kwargs):
     rviz_file = LaunchConfiguration("rviz_file")
     control_node_startup_delay = LaunchConfiguration("control_node_startup_delay")
 
-    if use_sim_value == "true":
-        use_mock_hardware = "true"
-        sim_gazebo = "true"
-        use_sim_time = "true"
-    else:
-        use_mock_hardware = "false"
-        sim_gazebo = "false"
-        use_sim_time = "false"
-
     pkg_drive_bringup = FindPackageShare(runtime_config_package).perform(context)
 
     robot_controllers_path = PathJoinSubstitution(
@@ -59,11 +50,9 @@ def launch_setup(context, *args, **kwargs):
             "description_package": description_package,
             "description_file": description_file,
             "prefix": prefix,
-            "use_mock_hardware": use_mock_hardware,
+            "use_sim": use_sim,
             "mock_sensor_commands": "false",
-            "sim_gazebo": sim_gazebo,
             "simulation_controllers": simulation_controllers_path,
-            "use_sim_time": use_sim_time,
         }.items()
     )
 
@@ -75,7 +64,7 @@ def launch_setup(context, *args, **kwargs):
             "runtime_config_package": runtime_config_package,
             "joystick_config": "joystick.yaml",
             "teleop_twist_config": "teleop_twist.yaml",
-            "use_sim_time": use_sim_time,
+            "use_sim": use_sim,
         }.items()
     )
 
@@ -100,7 +89,7 @@ def launch_setup(context, *args, **kwargs):
         ]),
         launch_arguments={
             "robot_controller": robot_controller,
-            "use_sim_time": use_sim_time,
+            "use_sim": use_sim,
         }.items()
     )
 
@@ -111,7 +100,7 @@ def launch_setup(context, *args, **kwargs):
         launch_arguments={
             "description_package": description_package,
             "rviz_file": rviz_file,
-            "use_sim_time": use_sim_time,
+            "use_sim": use_sim,
         }.items(),
         condition=IfCondition(start_rviz)
     )
@@ -122,7 +111,7 @@ def launch_setup(context, *args, **kwargs):
         output="both",
         parameters=[
             robot_controllers_path.perform(context),
-            {"use_sim_time": use_sim_value == "true"}
+            {"use_sim_time": use_sim}
         ],
         remappings=[
             ("~/robot_description", "/robot_description"),
