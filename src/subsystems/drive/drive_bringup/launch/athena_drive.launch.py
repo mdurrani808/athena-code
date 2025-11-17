@@ -6,7 +6,7 @@ from launch.actions import (
     RegisterEventHandler,
     TimerAction,
 )
-from launch.conditions import IfCondition
+from launch.conditions import IfCondition, UnlessCondition
 from launch.event_handlers import OnProcessStart
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
@@ -26,8 +26,10 @@ def launch_setup(context, *args, **kwargs):
     start_rviz = LaunchConfiguration("start_rviz")
     rviz_file = LaunchConfiguration("rviz_file")
     control_node_startup_delay = LaunchConfiguration("control_node_startup_delay")
+    world = LaunchConfiguration("world")
 
     pkg_drive_bringup = FindPackageShare(runtime_config_package).perform(context)
+    pkg_simulation = FindPackageShare("simulation").find("simulation")
 
     robot_controllers_path = PathJoinSubstitution(
         [FindPackageShare(runtime_config_package), "config", "athena_drive_controllers.yaml"]
@@ -42,6 +44,18 @@ def launch_setup(context, *args, **kwargs):
         [FindPackageShare(description_package), "rviz", rviz_file]
     )
 
+    # Launch simulation infrastructure if in simulation mode
+    sim_bringup_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource([
+            PathJoinSubstitution([pkg_simulation, "launch", "sim_bringup.launch.py"])
+        ]),
+        launch_arguments={
+            "world": world,
+            "use_sim_time": "true",
+        }.items(),
+        condition=IfCondition(use_sim)
+    )
+
     robot_description_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([
             PathJoinSubstitution([pkg_drive_bringup, "launch", "robot_description.launch.py"])
@@ -51,7 +65,6 @@ def launch_setup(context, *args, **kwargs):
             "description_file": description_file,
             "prefix": prefix,
             "use_sim": use_sim,
-            "mock_sensor_commands": "false",
             "simulation_controllers": simulation_controllers_path,
         }.items()
     )
@@ -105,6 +118,8 @@ def launch_setup(context, *args, **kwargs):
         condition=IfCondition(start_rviz)
     )
 
+    # Only launch ros2_control_node for real hardware
+    # For simulation, Gazebo's GazeboSimROS2ControlPlugin manages control
     control_node = Node(
         package="controller_manager",
         executable="ros2_control_node",
@@ -116,6 +131,7 @@ def launch_setup(context, *args, **kwargs):
         remappings=[
             ("~/robot_description", "/robot_description"),
         ],
+        condition=UnlessCondition(use_sim),
     )
 
     delay_controllers_after_control_node = RegisterEventHandler(
@@ -127,16 +143,37 @@ def launch_setup(context, *args, **kwargs):
                     actions=[controllers_launch],
                 ),
             ],
-        )
+        ),
+        condition=UnlessCondition(use_sim),
     )
 
-    nodes_to_launch = [
+    # For simulation, delay controllers after hardware spawn (when Gazebo plugin loads)
+    nodes_to_launch = []
+
+    # Add sim_bringup first if in simulation mode
+    if use_sim_value == "true":
+        nodes_to_launch.append(sim_bringup_launch)
+
+    nodes_to_launch.extend([
         robot_description_launch,
         teleop_launch,
         hardware_launch,
-        control_node,
-        delay_controllers_after_control_node,
-    ]
+    ])
+
+    # Add control node and delayed controllers only for real hardware
+    if use_sim.perform(context) == "false":
+        nodes_to_launch.extend([
+            control_node,
+            delay_controllers_after_control_node,
+        ])
+    else:
+        # In simulation, launch controllers after a delay to let Gazebo initialize
+        nodes_to_launch.append(
+            TimerAction(
+                period=float(control_node_startup_delay.perform(context)),
+                actions=[controllers_launch],
+            )
+        )
 
     # Conditionally add visualization if start_rviz is true
     if start_rviz.perform(context) == "true":
@@ -200,7 +237,7 @@ def generate_launch_description():
     declared_arguments.append(
         DeclareLaunchArgument(
             "robot_controller",
-            default_value="single_ackermann_controller",
+            default_value="ackermann_steering_controller",
             choices=["single_ackermann_controller", "ackermann_steering_controller"],
             description="Robot controller to start.",
         )
@@ -220,6 +257,14 @@ def generate_launch_description():
             "control_node_startup_delay",
             default_value="5.0",
             description="Delay in seconds before starting controllers after ros2_control_node.",
+        )
+    )
+
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "world",
+            default_value="empty.sdf",
+            description="Gazebo world file to load (only used when use_sim:=true).",
         )
     )
 

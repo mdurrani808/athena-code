@@ -6,7 +6,6 @@
 
 
   <xacro:arg name="use_sim" default="false"/>
-  <xacro:arg name="mock_sensor_commands" default="false"/>
   <xacro:arg name="simulation_controllers" default=""/>
 
 
@@ -64,9 +63,7 @@
     <xacro:athena_drive_ros2_control
     name="athena_drive"
     prefix="$(arg prefix)"
-    use_mock_hardware="true"
-    mock_sensor_commands="$(arg mock_sensor_commands)"
-    sim_gazebo="true"
+    use_sim="true"
     simulation_controllers="$(arg simulation_controllers)"/>
   </xacro:if>
   <xacro:unless value="$(arg use_sim)">

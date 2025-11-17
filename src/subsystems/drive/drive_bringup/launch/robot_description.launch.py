@@ -33,14 +33,7 @@ def generate_launch_description():
             "use_sim",
             default_value="false",
             choices=["true", "false"],
-            description="Use simulation mode (automatically sets use_sim_time, use_mock_hardware, and sim_gazebo).",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "mock_sensor_commands",
-            default_value="false",
-            description="Enable mock command interfaces for sensors. Used only if 'use_sim' is true.",
+            description="Use simulation mode (Gazebo) vs real hardware.",
         )
     )
     declared_arguments.append(
@@ -55,7 +48,6 @@ def generate_launch_description():
     description_file = LaunchConfiguration("description_file")
     prefix = LaunchConfiguration("prefix")
     use_sim = LaunchConfiguration("use_sim")
-    mock_sensor_commands = LaunchConfiguration("mock_sensor_commands")
     simulation_controllers = LaunchConfiguration("simulation_controllers")
 
     robot_description_path = PathJoinSubstitution(
@@ -73,9 +65,6 @@ def generate_launch_description():
             " ",
             "use_sim:=",
             use_sim,
-            " ",
-            "mock_sensor_commands:=",
-            mock_sensor_commands,
             " ",
             "simulation_controllers:=",
             simulation_controllers,

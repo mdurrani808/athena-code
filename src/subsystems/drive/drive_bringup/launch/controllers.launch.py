@@ -7,6 +7,7 @@ from launch_ros.actions import Node
 
 def launch_setup(context, *args, **kwargs):
     robot_controller = LaunchConfiguration("robot_controller")
+    robot_controller_value = robot_controller.perform(context)
     use_sim = LaunchConfiguration("use_sim")
     controller_switcher_delay = LaunchConfiguration("controller_switcher_delay")
 
@@ -16,7 +17,7 @@ def launch_setup(context, *args, **kwargs):
         arguments=["joint_state_broadcaster", "--controller-manager", "/controller_manager"],
     )
 
-    robot_controller_names = [robot_controller]
+    robot_controller_names = [robot_controller_value]
     robot_controller_spawners = []
     for controller in robot_controller_names:
         robot_controller_spawners += [
@@ -31,11 +32,19 @@ def launch_setup(context, *args, **kwargs):
             )
         ]
 
-    inactive_robot_controller_names = [
+    # All available controllers that can be loaded as inactive
+    all_available_controllers = [
         "ackermann_steering_controller",
+        "single_ackermann_controller",
         "drive_velocity_controller",
         "drive_position_controller"
     ]
+
+    # Only spawn controllers as inactive if they're NOT the active controller
+    inactive_robot_controller_names = [
+        c for c in all_available_controllers if c != robot_controller_value
+    ]
+
     inactive_robot_controller_spawners = []
     for controller in inactive_robot_controller_names:
         inactive_robot_controller_spawners += [
