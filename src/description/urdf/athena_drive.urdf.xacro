@@ -4,9 +4,9 @@
   <!-- Use this if parameters are set from the launch file, otherwise delete -->
   <xacro:arg name="prefix" default=""/>
 
-  <xacro:arg name="use_mock_hardware" default="false"/>
+
+  <xacro:arg name="use_sim" default="false"/>
   <xacro:arg name="mock_sensor_commands" default="false"/>
-  <xacro:arg name="sim_gazebo" default="true"/>
   <xacro:arg name="simulation_controllers" default=""/>
 
 
@@ -55,21 +55,21 @@
   </xacro:gps_sensor>
 
   <xacro:ground_truth_odometry robot_base_frame="base_footprint"/>
- 
-  <xacro:depth_camera parent="base_footprint"> 
+
+  <xacro:depth_camera parent="base_footprint">
       <origin xyz=".5 0.1 0.1" rpy="0 0 0"/>
   </xacro:depth_camera>
 
-  <xacro:if value="$(arg use_mock_hardware)">
+  <xacro:if value="$(arg use_sim)">
     <xacro:athena_drive_ros2_control
     name="athena_drive"
     prefix="$(arg prefix)"
-    use_mock_hardware="$(arg use_mock_hardware)"
+    use_mock_hardware="true"
     mock_sensor_commands="$(arg mock_sensor_commands)"
-    sim_gazebo="$(arg sim_gazebo)"
+    sim_gazebo="true"
     simulation_controllers="$(arg simulation_controllers)"/>
   </xacro:if>
-  <xacro:unless value="$(arg use_mock_hardware)">
+  <xacro:unless value="$(arg use_sim)">
     <xacro:odrive_ros2_control name="odrive"/>
     <xacro:rmd_ros2_control name="rmd"/>
 

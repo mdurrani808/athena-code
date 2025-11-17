@@ -11,16 +11,6 @@
 
   <depend>ros_gz_sim</depend>
   <depend>ros_gz_bridge</depend>
-  <depend>gz_ros2_control</depend>
-  
-  <depend>xacro</depend>
-  <depend>ros2_control</depend>
-  <depend>ros2_controllers</depend>
-  <depend>controller_manager</depend>
-  <depend>ackermann_steering_controller</depend>
-  <depend>description</depend>
-  
-  <depend>robot_state_publisher</depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
