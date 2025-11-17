@@ -1,6 +1,5 @@
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, OpaqueFunction, RegisterEventHandler, TimerAction
-from launch.conditions import IfCondition
 from launch.event_handlers import OnProcessExit
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
@@ -8,8 +7,6 @@ from launch_ros.actions import Node
 
 def launch_setup(context, *args, **kwargs):
     robot_controller = LaunchConfiguration("robot_controller")
-    start_rviz = LaunchConfiguration("start_rviz")
-    rviz_config = LaunchConfiguration("rviz_config")
     use_sim_time = LaunchConfiguration("use_sim_time")
     controller_switcher_delay = LaunchConfiguration("controller_switcher_delay")
 
@@ -69,23 +66,6 @@ def launch_setup(context, *args, **kwargs):
         )
     )
 
-    rviz_node = Node(
-        package="rviz2",
-        executable="rviz2",
-        name="rviz2",
-        output="log",
-        arguments=["-d", rviz_config],
-        condition=IfCondition(start_rviz),
-        parameters=[{"use_sim_time": use_sim_time}],
-    )
-
-    delay_rviz_after_joint_state_broadcaster_spawner = RegisterEventHandler(
-        event_handler=OnProcessExit(
-            target_action=joint_state_broadcaster_spawner,
-            on_exit=[rviz_node],
-        )
-    )
-
     delay_robot_controller_spawners_after_joint_state_broadcaster_spawner = []
     for i, controller in enumerate(robot_controller_spawners):
         delay_robot_controller_spawners_after_joint_state_broadcaster_spawner += [
@@ -118,7 +98,6 @@ def launch_setup(context, *args, **kwargs):
 
     return [
         joint_state_broadcaster_spawner,
-        delay_rviz_after_joint_state_broadcaster_spawner,
         controller_switcher_node,
     ] + delay_robot_controller_spawners_after_joint_state_broadcaster_spawner \
       + delay_inactive_robot_controller_spawners_after_joint_state_broadcaster_spawner
@@ -132,21 +111,6 @@ def generate_launch_description():
             default_value="single_ackermann_controller",
             choices=["single_ackermann_controller", "ackermann_steering_controller"],
             description="Robot controller to start.",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "start_rviz",
-            default_value="false",
-            choices=["true", "false"],
-            description="Start RViz2 after controllers are loaded.",
-        )
-    )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            "rviz_config",
-            default_value="",
-            description="Path to RViz config file (optional).",
         )
     )
     declared_arguments.append(

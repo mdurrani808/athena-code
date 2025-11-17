@@ -6,6 +6,7 @@ from launch.actions import (
     RegisterEventHandler,
     TimerAction,
 )
+from launch.conditions import IfCondition
 from launch.event_handlers import OnProcessStart
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
@@ -99,10 +100,20 @@ def launch_setup(context, *args, **kwargs):
         ]),
         launch_arguments={
             "robot_controller": robot_controller,
-            "start_rviz": start_rviz,
-            "rviz_config": rviz_config_file,
             "use_sim_time": use_sim_time,
         }.items()
+    )
+
+    visualization_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource([
+            PathJoinSubstitution([pkg_drive_bringup, "launch", "visualization.launch.py"])
+        ]),
+        launch_arguments={
+            "description_package": description_package,
+            "rviz_file": rviz_file,
+            "use_sim_time": use_sim_time,
+        }.items(),
+        condition=IfCondition(start_rviz)
     )
 
     control_node = Node(
@@ -130,13 +141,19 @@ def launch_setup(context, *args, **kwargs):
         )
     )
 
-    return [
+    nodes_to_launch = [
         robot_description_launch,
         teleop_launch,
         hardware_launch,
         control_node,
         delay_controllers_after_control_node,
     ]
+
+    # Conditionally add visualization if start_rviz is true
+    if start_rviz.perform(context) == "true":
+        nodes_to_launch.append(visualization_launch)
+
+    return nodes_to_launch
 
 
 def generate_launch_description():

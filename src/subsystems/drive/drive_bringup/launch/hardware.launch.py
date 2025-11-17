@@ -43,18 +43,9 @@ def launch_setup(context, *args, **kwargs):
         condition=UnlessCondition(use_sim),
     )
 
-    joint_state_publisher = Node(
-        package="joint_state_publisher",
-        executable="joint_state_publisher",
-        name="joint_state_publisher",
-        output="screen",
-        condition=IfCondition(use_sim),
-    )
-
     return [
         spawn_robot_node,
         umdloop_can_node,
-        joint_state_publisher,
     ]
 
 
