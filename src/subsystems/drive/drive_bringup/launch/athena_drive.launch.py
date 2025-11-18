@@ -130,6 +130,8 @@ def launch_setup(context, *args, **kwargs):
         ],
         remappings=[
             ("~/robot_description", "/robot_description"),
+            ("/single_ackermann_controller/reference", "/joy"),
+            ("/ackermann_steering_controller/reference", "/cmd_vel"),
         ],
         condition=UnlessCondition(use_sim),
     )
@@ -146,6 +148,27 @@ def launch_setup(context, *args, **kwargs):
         ),
         condition=UnlessCondition(use_sim),
     )
+
+    sim_topic_remapping_nodes = []
+    if use_sim_value == "true":
+        # Remap /cmd_vel to /ackermann_steering_controller/reference for simulation
+        sim_topic_remapping_nodes = [
+            Node(
+                package="topic_tools",
+                executable="relay",
+                name="cmd_vel_to_ackermann_relay",
+                arguments=["/cmd_vel", "/ackermann_steering_controller/reference"],
+                parameters=[{"use_sim_time": True}],
+            ),
+            Node(
+                package="topic_tools",
+                executable="relay",
+                name="joy_to_single_ackermann_relay",
+                arguments=["/joy", "/single_ackermann_controller/reference"],
+                parameters=[{"use_sim_time": True}],
+            ),
+        ]
+
 
     # For simulation, delay controllers after hardware spawn (when Gazebo plugin loads)
     nodes_to_launch = []

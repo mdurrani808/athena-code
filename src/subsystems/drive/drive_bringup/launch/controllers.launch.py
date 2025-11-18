@@ -25,10 +25,6 @@ def launch_setup(context, *args, **kwargs):
                 package="controller_manager",
                 executable="spawner",
                 arguments=[controller, "-c", "/controller_manager"],
-                remappings=[
-                    ("/single_ackermann_controller/reference", "/joy"),
-                    ("/ackermann_steering_controller/reference", "/cmd_vel"),
-                ],
             )
         ]
 

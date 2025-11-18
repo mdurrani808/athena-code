@@ -34,7 +34,7 @@ ackermann_steering_controller:
   # unsure why but ackermann controller only goes about half of scale_linear.x in teleop_twist
   # ackermann controller turns to at max scale_angular.yaw*pi. Seems to ignore how much you input, relies more on how fast rover is going
   ros__parameters:
-    rear_wheels_names: ["propulsion_bl_joint", "propulsion_br_joint"] # This is traction control "propulsion_bl_joint", "propulsion_br_joint", 
+    rear_wheels_names: ["propulsion_bl_joint", "propulsion_br_joint"]
     front_wheels_names: ["steer_fl_joint", "steer_fr_joint"] # This is steering, don't ask why its just called front wheels
     # front_steering_names: ["steer_fl_joint", "steer_fr_joint"]
     front_wheel_track: 0.6604
