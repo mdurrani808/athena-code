@@ -151,20 +151,19 @@ def launch_setup(context, *args, **kwargs):
 
     sim_topic_remapping_nodes = []
     if use_sim_value == "true":
-        # Remap /cmd_vel to /ackermann_steering_controller/reference for simulation
         sim_topic_remapping_nodes = [
             Node(
                 package="topic_tools",
                 executable="relay",
                 name="cmd_vel_to_ackermann_relay",
-                arguments=["/cmd_vel", "/ackermann_steering_controller/reference"],
+                arguments=["/cmd_vel", "/ackermann_steering_controller/reference", '--ros-args', '--log-level', 'error'],
                 parameters=[{"use_sim_time": True}],
             ),
             Node(
                 package="topic_tools",
                 executable="relay",
                 name="joy_to_single_ackermann_relay",
-                arguments=["/joy", "/single_ackermann_controller/reference"],
+                arguments=["/joy", "/single_ackermann_controller/reference", '--ros-args', '--log-level', 'error'],
                 parameters=[{"use_sim_time": True}],
             ),
         ]
