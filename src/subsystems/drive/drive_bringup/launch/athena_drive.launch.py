@@ -176,7 +176,8 @@ def launch_setup(context, *args, **kwargs):
     # Add sim_bringup first if in simulation mode
     if use_sim_value == "true":
         nodes_to_launch.append(sim_bringup_launch)
-
+        nodes_to_launch.extend(sim_topic_remapping_nodes)
+    
     nodes_to_launch.extend([
         robot_description_launch,
         teleop_launch,
