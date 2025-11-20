@@ -49,9 +49,9 @@ publisher_joint_trajectory_controller:
       positions: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
     joints:
-      - suspension_left_joint
+      - suspension_front_left_joint
       - steer_fl_joint
       - propulsion_fl_joint
       - swerve_module_back_joint
       - propulsion_bl_joint
-      - suspension_right_joint
+      - suspension_front_right_joint

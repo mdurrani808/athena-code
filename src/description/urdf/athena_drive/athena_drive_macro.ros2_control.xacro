@@ -17,7 +17,7 @@
                 </xacro:unless>
             </hardware>
 
-            <joint name="${prefix}suspension_left_joint">
+            <joint name="${prefix}suspension_front_left_joint">
                 <command_interface name="position">
                     <param name="min">-1.0471975512</param>
                     <param name="max">1.0471975512</param>
@@ -28,7 +28,7 @@
                 <state_interface name="velocity"/>
             </joint>
 
-            <joint name="${prefix}suspension_right_joint">
+            <joint name="${prefix}suspension_front_right_joint">
                 <command_interface name="position">
                     <param name="min">-1.0471975512</param>
                     <param name="max">1.0471975512</param>

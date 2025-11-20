@@ -177,7 +177,7 @@
       <child link="${prefix}base_link"/>
     </joint>
     <!-- joint 1 -->
-    <joint name="${prefix}suspension_left_joint" type="revolute">
+    <joint name="${prefix}suspension_front_left_joint" type="revolute">
       <origin xyz="0 0 0.3" rpy="${pi} 0 0"/>
       <parent link="${prefix}base_link"/>
       <child link="${prefix}link1"/>
@@ -217,7 +217,7 @@
       <limit effort="0" lower="${radians(-120)}" upper="${radians(120)}" velocity="${radians(540)}"/>
     </joint>
     <!-- joint 6 -->
-    <joint name="${prefix}suspension_right_joint" type="revolute">
+    <joint name="${prefix}suspension_front_right_joint" type="revolute">
       <origin xyz="0.125 0 0" rpy="0 ${-pi/2} 0"/>
       <parent link="${prefix}link5"/>
       <child link="${prefix}link6"/>
@@ -226,7 +226,7 @@
     </joint>
 
     <!-- tool frame - fixed frame -->
-    <joint name="${prefix}suspension_right_joint-tool0" type="fixed">
+    <joint name="${prefix}suspension_front_right_joint-tool0" type="fixed">
       <parent link="${prefix}link6"/>
       <child link="${prefix}tool0"/>
       <origin xyz="0 0 -0.115" rpy="0 ${-pi} ${-pi/2}"/>
