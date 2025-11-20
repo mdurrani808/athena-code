@@ -1,8 +1,8 @@
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, GroupAction
+from launch.actions import DeclareLaunchArgument
 from launch.conditions import IfCondition, UnlessCondition
 from launch.substitutions import LaunchConfiguration
-from launch_ros.actions import Node, PushRosNamespace
+from launch_ros.actions import Node
 
 
 def generate_launch_description():
@@ -11,12 +11,6 @@ def generate_launch_description():
         default_value="false",
         choices=["true", "false"],
         description="Use simulation (spawns robot in Gazebo) or real hardware (launches CAN node).",
-    )
-
-    namespace_arg = DeclareLaunchArgument(
-        "namespace",
-        default_value="",
-        description="Robot namespace for spawning in Gazebo.",
     )
 
     robot_name_arg = DeclareLaunchArgument(
@@ -51,25 +45,23 @@ def generate_launch_description():
 
 
     spawn_robot = Node(
-                package="ros_gz_sim",
-                executable="create",
-                arguments=[
-                    "-name", robot_name,
-                    "-x", spawn_x,
-                    "-y", spawn_y,
-                    "-z", spawn_z,
-                    "-Y", spawn_yaw,
-                    "-topic", "robot_description",
-                ],
-                output="screen",
-                condition=IfCondition(use_sim)
-            ),
-        
+        package="ros_gz_sim",
+        executable="create",
+        arguments=[
+            "-name", robot_name,
+            "-x", spawn_x,
+            "-y", spawn_y,
+            "-z", spawn_z,
+            "-Y", spawn_yaw,
+            "-topic", "robot_description",
+        ],
+        output="screen",
+        condition=IfCondition(use_sim)
+    )
 
     return LaunchDescription(
         [
             use_sim_arg,
-            namespace_arg,
             robot_name_arg,
             *spawn_args,
             umdloop_can_node,

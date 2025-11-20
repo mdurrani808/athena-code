@@ -6,43 +6,34 @@ from launch_ros.substitutions import FindPackageShare
 
 
 def generate_launch_description():
-    declared_arguments = []
-    declared_arguments.append(
+    declared_arguments = [
         DeclareLaunchArgument(
             "description_package",
             default_value="description",
             description="Description package with robot URDF/xacro files.",
-        )
-    )
-    declared_arguments.append(
+        ),
         DeclareLaunchArgument(
             "description_file",
             default_value="athena_drive.urdf.xacro",
             description="URDF/XACRO description file with the robot.",
-        )
-    )
-    declared_arguments.append(
+        ),
         DeclareLaunchArgument(
             "prefix",
             default_value='""',
             description="Prefix of the joint names, useful for multi-robot setup.",
-        )
-    )
-    declared_arguments.append(
+        ),
         DeclareLaunchArgument(
             "use_sim",
             default_value="false",
             choices=["true", "false"],
             description="Use simulation mode (Gazebo) vs real hardware.",
-        )
-    )
-    declared_arguments.append(
+        ),
         DeclareLaunchArgument(
             "simulation_controllers",
             default_value="",
             description="Path to simulation controllers configuration file.",
-        )
-    )
+        ),
+    ]
 
     description_package = LaunchConfiguration("description_package")
     description_file = LaunchConfiguration("description_file")

@@ -60,7 +60,6 @@ def generate_launch_description():
         ],
         remappings=[
             ("controller_input", "joy"),
-            ("/controller_input", "/joy"),
         ],
     )
 

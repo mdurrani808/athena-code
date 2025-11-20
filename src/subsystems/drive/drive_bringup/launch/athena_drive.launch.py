@@ -2,14 +2,10 @@ from launch import LaunchDescription
 from launch.actions import (
     DeclareLaunchArgument,
     IncludeLaunchDescription,
-    RegisterEventHandler,
-    TimerAction,
 )
-from launch.conditions import IfCondition, UnlessCondition
-from launch.event_handlers import OnProcessStart
+from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
-from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
 
@@ -53,7 +49,7 @@ def generate_launch_description():
 
     robot_controller_arg = DeclareLaunchArgument(
         "robot_controller",
-        default_value="ackermann_steering_controller",
+        default_value="single_ackermann_controller",
         choices=["single_ackermann_controller", "ackermann_steering_controller"],
         description="Robot controller to start",
     )
@@ -63,12 +59,6 @@ def generate_launch_description():
         default_value="false",
         choices=["true", "false"],
         description="Start RViz2 for visualization",
-    )
-
-    control_node_startup_delay_arg = DeclareLaunchArgument(
-        "control_node_startup_delay",
-        default_value="5.0",
-        description="Delay in seconds before starting controllers",
     )
 
     world_arg = DeclareLaunchArgument(
@@ -85,7 +75,6 @@ def generate_launch_description():
     robot_controller = LaunchConfiguration("robot_controller")
     start_rviz = LaunchConfiguration("start_rviz")
     rviz_file = LaunchConfiguration("rviz_file")
-    control_node_startup_delay = LaunchConfiguration("control_node_startup_delay")
     world = LaunchConfiguration("world")
 
     robot_controllers_path = PathJoinSubstitution(
@@ -150,7 +139,6 @@ def generate_launch_description():
         ]),
         launch_arguments={
             "use_sim": use_sim,
-            "namespace": "",
             "robot_name": "rover",
             "spawn_x": "0.0",
             "spawn_y": "0.0",
@@ -170,6 +158,7 @@ def generate_launch_description():
         launch_arguments={
             "robot_controller": robot_controller,
             "use_sim": use_sim,
+            "runtime_config_package": runtime_config_package,
         }.items(),
     )
 
@@ -189,71 +178,6 @@ def generate_launch_description():
         condition=IfCondition(start_rviz),
     )
 
-    control_node = Node(
-        package="controller_manager",
-        executable="ros2_control_node",
-        output="both",
-        parameters=[
-            robot_controllers_path,
-            {"use_sim_time": use_sim}
-        ],
-        remappings=[
-            ("~/robot_description", "/robot_description"),
-            ("/single_ackermann_controller/reference", "/joy"),
-            ("/ackermann_steering_controller/reference", "/cmd_vel"),
-        ],
-        condition=UnlessCondition(use_sim),
-    )
-
-    delayed_controllers_real = RegisterEventHandler(
-        event_handler=OnProcessStart(
-            target_action=control_node,
-            on_start=[
-                TimerAction(
-                    period=control_node_startup_delay,
-                    actions=[controllers],
-                ),
-            ],
-        ),
-        condition=UnlessCondition(use_sim),
-    )
-
-    delayed_controllers_sim = TimerAction(
-        period=control_node_startup_delay,
-        actions=[controllers],
-        condition=IfCondition(use_sim),
-    )
-
-    cmd_vel_relay = Node(
-        package="topic_tools",
-        executable="relay",
-        name="cmd_vel_to_ackermann_relay",
-        arguments=[
-            "/cmd_vel",
-            "/ackermann_steering_controller/reference",
-            "--ros-args",
-            "--log-level",
-            "error"
-        ],
-        parameters=[{"use_sim_time": True}],
-        condition=IfCondition(use_sim),
-    )
-
-    joy_relay = Node(
-        package="topic_tools",
-        executable="relay",
-        name="joy_to_single_ackermann_relay",
-        arguments=[
-            "/joy",
-            "/single_ackermann_controller/reference",
-            "--ros-args",
-            "--log-level",
-            "error"
-        ],
-        parameters=[{"use_sim_time": True}],
-        condition=IfCondition(use_sim),
-    )
-
     return LaunchDescription([
         # Launch arguments
         use_sim_arg,
@@ -264,17 +188,12 @@ def generate_launch_description():
         prefix_arg,
         robot_controller_arg,
         start_rviz_arg,
-        control_node_startup_delay_arg,
         world_arg,
         # Launch files and nodes
         sim_bringup,
         robot_description,
         teleop,
         hardware,
-        control_node,
-        delayed_controllers_real,
-        delayed_controllers_sim,
-        cmd_vel_relay,
-        joy_relay,
+        controllers,
         visualization,
     ])
