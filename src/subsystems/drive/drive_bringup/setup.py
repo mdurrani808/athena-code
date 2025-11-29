@@ -28,8 +28,6 @@ setup(
     license='Apache-2.0',
     tests_require=['pytest'],
     entry_points={
-        'console_scripts': [
-            'controller_switcher = scripts.controller_switcher:main',
-        ],
+        'console_scripts': [],
     },
 )

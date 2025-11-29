@@ -34,16 +34,6 @@ def generate_launch_description():
     spawn_yaw = LaunchConfiguration("spawn_yaw")
 
 
-    umdloop_can_node = Node(
-        package="umdloop_can",
-        executable="can_node",
-        name="can_node",
-        output="log",
-        arguments=["--ros-args", "--log-level", "fatal"],
-        condition=UnlessCondition(use_sim),
-    )
-
-
     spawn_robot = Node(
         package="ros_gz_sim",
         executable="create",
@@ -64,7 +54,6 @@ def generate_launch_description():
             use_sim_arg,
             robot_name_arg,
             *spawn_args,
-            umdloop_can_node,
             spawn_robot,
         ]
     )
