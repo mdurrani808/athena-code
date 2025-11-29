@@ -167,7 +167,7 @@ def generate_launch_description():
             PathJoinSubstitution([
                 FindPackageShare(runtime_config_package),
                 "launch",
-                "visualization.launch.py"
+                "rviz.launch.py"
             ])
         ]),
         launch_arguments={
