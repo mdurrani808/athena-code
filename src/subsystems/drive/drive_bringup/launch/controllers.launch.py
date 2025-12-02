@@ -116,7 +116,7 @@ def controller_spawning_logic(context, *args, **kwargs):
         previous_action = spawner_node
 
     controller_switcher_node = Node(
-        package="drive_bringup",
+        package="bringup",
         executable="controller_switcher.py",
         name="controller_switcher",
         output="screen",
