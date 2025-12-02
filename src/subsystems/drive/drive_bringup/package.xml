@@ -26,6 +26,7 @@
     <depend>ros2_controllers</depend>
     <depend>odrive_ros2_control</depend>
     <depend>rmd_ros2_control</depend>
+    <depend>bringup</depend>
     <build_depend>builtin_interfaces</build_depend>
     <depend>teleop</depend>
     <build_depend>python3-pygame</build_depend>

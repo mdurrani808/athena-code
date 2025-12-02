@@ -37,9 +37,6 @@ def controller_spawning_logic(context, *args, **kwargs):
         condition=UnlessCondition(use_sim),
     )
 
-    # Topic relays for simulation mode
-    # In sim mode, Gazebo's ros2_control doesn't support remappings like hardware mode
-    # These relays handle the topic routing instead
     cmd_vel_relay = Node(
         package="topic_tools",
         executable="relay",
@@ -49,10 +46,10 @@ def controller_spawning_logic(context, *args, **kwargs):
             "/ackermann_steering_controller/reference",
             "--ros-args",
             "--log-level",
-            "error"
+            "fatal",
         ],
         parameters=[{"use_sim_time": use_sim}],
-        condition=IfCondition(use_sim),
+        output="log",
     )
 
     joy_relay = Node(
@@ -64,10 +61,10 @@ def controller_spawning_logic(context, *args, **kwargs):
             "/single_ackermann_controller/reference",
             "--ros-args",
             "--log-level",
-            "error"
+            "fatal",
         ],
         parameters=[{"use_sim_time": use_sim}],
-        condition=IfCondition(use_sim),
+        output="log",
     )
 
     joint_state_broadcaster_spawner = Node(
@@ -156,7 +153,13 @@ def controller_spawning_logic(context, *args, **kwargs):
         condition=IfCondition(use_sim),
     )
 
-    return [control_node, delayed_controllers_real, delayed_controllers_sim, cmd_vel_relay, joy_relay]
+    return [
+        control_node,
+        cmd_vel_relay,
+        joy_relay,
+        delayed_controllers_real,
+        delayed_controllers_sim,
+    ]
 
 
 def generate_launch_description():
