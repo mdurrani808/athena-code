@@ -41,8 +41,8 @@ joint_group_position_controller:
     joints:
       - stepper_motor_a
       - stepper_motor_b
-      #- talon_lift
-      #- talon_scoop
+      - talon_lift
+      - talon_scoop
       - scoop_a
       - scoop_b
 
@@ -55,8 +55,8 @@ joint_group_velocity_controller:
     joints:
       - stepper_motor_a
       - stepper_motor_b
-      #- talon_lift
-      #- talon_scoop
+      - talon_lift
+      - talon_scoop
       - auger
       - scoop_a
       - scoop_b
@@ -69,16 +69,16 @@ science_controller:
     joints:
       - stepper_motor_a
       - stepper_motor_b
-      #- talon_lift
-      #- talon_scoop
+      - talon_lift
+      - talon_scoop
       - scoop_a
       - scoop_b
       - auger
       - cap
     stepper_motor_a: "stepper_motor_a"
     stepper_motor_b: "stepper_motor_b"
-    #talon_lift: ["talon_lift"]
-    #talon_scoop: "talon_scoop"
+    talon_lift: ["talon_lift"]
+    talon_scoop: "talon_scoop"
     scoop_servos: ["scoop_a", "scoop_b"]
     #auger_spinner: "auger_spinner"
     auger: "auger"

@@ -61,11 +61,11 @@ controller_interface::CallbackReturn ScienceManual::on_configure(
     params_.stepper_motor_a,
     params_.stepper_motor_b
   };
-/*
+
   talon_joints_ = {
     params_.talon_lift[0],  // or flatten the array
     params_.talon_scoop
-  }; */
+  }; 
 
   servo_joints_ = params_.scoop_servos;
   servo_joints_.push_back(params_.auger);
@@ -140,10 +140,10 @@ controller_interface::InterfaceConfiguration ScienceManual::command_interface_co
   }
 
   // Talons: control velocity 
-  /*for (const auto & joint : talon_joints_)
+  for (const auto & joint : talon_joints_)
   {
     cfg.names.push_back(joint + "/velocity");
-  } */
+  } 
 
   // Servos (scoop + cap): control position
   for (const auto & joint : servo_joints_)
@@ -167,11 +167,11 @@ controller_interface::InterfaceConfiguration ScienceManual::state_interface_conf
     cfg.names.push_back(joint + "/velocity");
   }
 
-  /*for (const auto & joint : talon_joints_)
+  for (const auto & joint : talon_joints_)
   {
     cfg.names.push_back(joint + "/velocity");
     cfg.names.push_back(joint + "/position");
-  } */
+  } 
 
   for (const auto & joint : servo_joints_)
   {
@@ -204,7 +204,7 @@ controller_interface::CallbackReturn ScienceManual::on_deactivate(
     command_interfaces_[i].set_value(std::numeric_limits<double>::quiet_NaN());
   }
   stepper_joints_.clear();
-  //talon_joints_.clear();
+  talon_joints_.clear();
   servo_joints_.clear();
   state_joints_.clear();
 
@@ -228,15 +228,15 @@ controller_interface::return_type ScienceManual::update(
   int stage_idx = static_cast<int>(current_mode_);  // corresponds to STAGE1..STAGE4
 
   // Lift Talon
-  //double lift_cmd = (msg->buttons.size() > 0 && msg->buttons[0]) ? params_.velocity_limits_talon_lift[stage_idx] : 0.0;
+  double lift_cmd = (msg->buttons.size() > 0 && msg->buttons[0]) ? params_.velocity_limits_talon_lift[stage_idx] : 0.0;
 
   // Stepper motors command
   double stepper_cmd = (msg->buttons.size() > 2 && msg->buttons[2]) ? 
     params_.velocity_limits_stepper[stage_idx] : 0.0;
 
   // Scoop Talon
-  /* double scoop_cmd = (msg->buttons.size() > 4 && msg->buttons[4]) ? 
-    params_.velocity_limits_talon_scoop[stage_idx] : 0.0; */
+  double scoop_cmd = (msg->buttons.size() > 4 && msg->buttons[4]) ? 
+    params_.velocity_limits_talon_scoop[stage_idx] : 0.0;
 
   // Auger
   double auger_cmd = (msg->buttons.size() > 5 && msg->buttons[5]) ? 
@@ -249,30 +249,21 @@ controller_interface::return_type ScienceManual::update(
   scoop_position = std::clamp(scoop_position, 0.0, 1.0);
   auger_position = std::clamp(auger_position, 0.0, 1.0);
   cap_position   = std::clamp(cap_position, 0.0, 1.0);
-/*
-  // Send velocity commands
-  //command_interfaces_[IDX_LIFT_TALON_VELOCITY].set_value(lift_cmd);
-  command_interfaces_[IDX_STEPPERS_VELOCITY_START].set_value(stepper_cmd);
-  //command_interfaces_[IDX_SCOOP_TALON_VELOCITY].set_value(scoop_cmd);
-  command_interfaces_[IDX_AUGER_VELOCITY].set_value(auger_cmd);
 
-  // --- Send position commands
-  command_interfaces_[IDX_SCOOP_SERVO_POSITION].set_value(scoop_position);
-  command_interfaces_[IDX_AUGER_SERVO_POSITION].set_value(auger_position);
-  command_interfaces_[IDX_CAP_SERVO_POSITION].set_value(cap_position); */
-
-  // Apply same stepper_cmd to both steppers
+  // Stepper motors (position)
   command_interfaces_[IDX_STEPPER_A_POSITION].set_value(stepper_cmd);
   command_interfaces_[IDX_STEPPER_B_POSITION].set_value(stepper_cmd);
 
-  // Use auger_cmd however you like; right now just map to auger position or ignore
-  command_interfaces_[IDX_AUGER_POSITION].set_value(auger_position);
+  // Talons (velocity)
+  command_interfaces_[IDX_LIFT_TALON_VELOCITY].set_value(lift_cmd);
+  command_interfaces_[IDX_SCOOP_TALON_VELOCITY].set_value(scoop_cmd);
 
   // Scoop servos
   command_interfaces_[IDX_SCOOP_A_POSITION].set_value(scoop_position);
   command_interfaces_[IDX_SCOOP_B_POSITION].set_value(scoop_position);
 
-  // Cap servo
+  // Auger & cap
+  command_interfaces_[IDX_AUGER_POSITION].set_value(auger_position);
   command_interfaces_[IDX_CAP_POSITION].set_value(cap_position);
 
   reset_controller_reference_msg(*(input_ref_.readFromRT)(), params_.joints);

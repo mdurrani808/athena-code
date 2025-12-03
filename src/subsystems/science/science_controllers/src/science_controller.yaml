@@ -80,19 +80,20 @@ science_manual:
 
   talon_lift:
     type: string_array
-    default_value: []
-    description: "Lift Talon motors (optional)"
-    read_only: false       # allow overriding
+    default_value: ["talon_lift"]
+    description: "The Talon motor controller for the lift (2 motors)"
+    read_only: true
     validation:
       unique<>: null
-      # not_empty deleted
+      not_empty<>: null
 
   talon_scoop:
     type: string
-    default_value: ""
-    description: "(Optional)"
-    read_only: false
-    # no validation
+    default_value: "talon_scoop"
+    description: "Scoop Talon motor controller"
+    read_only: true
+    validation:
+      not_empty<>: null
 
   scoop_servos:
     type: string_array
