@@ -4,7 +4,7 @@
      For more information, please see http://wiki.ros.org/sw_urdf_exporter -->
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
     <xacro:macro name="description">
-        <link name="chassis_base_link">
+        <link name="base_link">
             <inertial>
                 <origin xyz="0.775305042176281 -0.0692748019047986 -0.475175318827691" rpy="0 0 0" />
                 <mass value="44.0454429414672" />
@@ -52,7 +52,7 @@
 
         <joint name="suspension_front_left_joint" type="fixed">
             <origin xyz="0.61263 0.22146 -0.74592" rpy="1.5708 0 0.094743" />
-            <parent link="chassis_base_link" />
+            <parent link="base_link" />
             <child link="suspension_front_left_link" />
             <axis xyz="0 0 -1" />
             <limit lower="-1.0471975512" upper="1.0471975512" effort="200" velocity="3" />
@@ -325,7 +325,7 @@
 
         <joint name="suspension_front_right_joint" type="fixed">
             <origin xyz="0.66803 -0.36146 -0.74592" rpy="1.5708 0 0.094743" />
-            <parent link="chassis_base_link" />
+            <parent link="base_link" />
             <child link="suspension_front_right_link" />
             <axis xyz="0 0 1" />
             <limit lower="-1.0471975512" upper="1.0471975512" effort="200" velocity="3" />

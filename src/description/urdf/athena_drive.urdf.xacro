@@ -37,6 +37,15 @@
   <!-- Contains description of drive -->
   <xacro:description/>
 
+
+  <xacro:imu_sensor parent="base_link" prefix="rover">
+    <origin xyz="0 0 0.2" rpy="0 0 0"/>
+  </xacro:imu_sensor>
+
+  <xacro:gps_sensor parent="base_link" prefix="rover">
+    <origin xyz="0 0 0.3" rpy="0 0 0"/>
+  </xacro:gps_sensor>
+
   <xacro:if value="$(arg use_mock_hardware)">
     <xacro:athena_drive_ros2_control
     name="athena_drive"
