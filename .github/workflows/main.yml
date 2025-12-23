@@ -2,27 +2,37 @@ name: ROS2 Build
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
   workflow_dispatch:
+
 jobs:
   build:
     runs-on: ubuntu-22.04
     container:
       image: ros:humble-ros-base
-    
+
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4      
-      - name: Install dependencies
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Python dependencies
+        run: python3 -m pip install -r requirements.txt
+
+      - name: Install system dependencies
         run: |
           apt-get update
-          apt-get install -y python3-colcon-common-extensions
+          bash dependencies.sh
           rosdep update
           rosdep install --from-paths . --ignore-src -r -y
         shell: bash
-      
+
       - name: Build workspace
         run: |
           source /opt/ros/humble/setup.bash
