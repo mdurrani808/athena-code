@@ -15,6 +15,7 @@
 #include <nav_msgs/msg/odometry.hpp>
 #include <tf2_ros/transform_broadcaster.h>
 #include <tf2_ros/buffer.h>
+#include <tf2_ros/transform_listener.h>
 
 // GTSAM
 #include <gtsam/geometry/Pose3.h>
@@ -98,6 +99,12 @@ private:
     StateEstimatorParams params_;
     rclcpp::Node::SharedPtr node_;
     std::unique_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
+    std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
+    std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
+
+    std::optional<gtsam::Pose3> imu_to_base_;
+    std::optional<gtsam::Point3> gnss_to_base_;
+    rclcpp::TimerBase::SharedPtr tf_timer_;
 
     // GTSAM components
     std::unique_ptr<gtsam::ISAM2> isam_;
