@@ -14,6 +14,7 @@
   <xacro:include filename="$(find description)/urdf/athena_drive/athena_drive_macro.ros2_control.xacro"/>
   <xacro:include filename="imu.xacro"/>
   <xacro:include filename="gps.xacro"/>
+  <xacro:include filename="ground_truth_odom.xacro"/>
 
 
   <!-- Load robot's macro with parameters -->
@@ -45,6 +46,8 @@
   <xacro:gps_sensor parent="base_link" prefix="rover">
     <origin xyz="0 0 0.3" rpy="0 0 0"/>
   </xacro:gps_sensor>
+
+  <xacro:ground_truth_odometry/>
 
   <xacro:if value="$(arg use_mock_hardware)">
     <xacro:athena_drive_ros2_control
