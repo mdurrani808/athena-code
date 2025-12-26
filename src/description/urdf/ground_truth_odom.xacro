@@ -2,7 +2,7 @@
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
     <xacro:macro name="ground_truth_odometry" params="odom_frame:=odom robot_base_frame:=base_link odom_topic:=/odom/ground_truth update_rate:=50">
         <gazebo>
-            <plugin filename="gz-sim-odometry-publisher-system" name="gz::sim::systems::OdometryPublisher">
+            <plugin filename="ignition-gazebo-odometry-publisher-system" name="ignition::gazebo::systems::OdometryPublisher">
                 <odom_frame>${odom_frame}</odom_frame>
                 <robot_base_frame>${robot_base_frame}</robot_base_frame>
                 <odom_topic>${odom_topic}</odom_topic>

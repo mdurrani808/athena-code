@@ -11,9 +11,11 @@ install(DIRECTORY
     config
     launch
     meshes
+    models
     rviz
     ros2_control
     urdf
+    worlds
     DESTINATION share/${PROJECT_NAME}/
 )
 
