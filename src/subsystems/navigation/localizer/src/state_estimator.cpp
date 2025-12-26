@@ -1,4 +1,4 @@
-#include "athena_localizer/state_estimator.h"
+#include "localizer/state_estimator.h"
 #include <gtsam/nonlinear/ISAM2Params.h>
 #include <gtsam/slam/PriorFactor.h>
 #include <gtsam/slam/BetweenFactor.h>
@@ -9,7 +9,7 @@
 
 using namespace gtsam;
 
-namespace athena_localizer
+namespace localizer
 {
 
 nav_msgs::msg::Odometry EstimatedState::to_odometry(const std::string& frame_id, const std::string& child_frame_id) const
@@ -82,9 +82,9 @@ geometry_msgs::msg::PoseWithCovarianceStamped EstimatedState::to_pose(const std:
     return pose_msg;
 }
 
-// StateEstimator constructor
 StateEstimator::StateEstimator()
-    : odom_to_base_(Pose3())
+    : Node("localizer_node")
+    , odom_to_base_(Pose3())
     , map_to_odom_(Pose3())
     , key_index_(0)
     , initialized_(false)
@@ -100,43 +100,40 @@ StateEstimator::StateEstimator()
     isam_ = std::make_unique<ISAM2>(isam_params);
     new_factors_ = std::make_unique<NonlinearFactorGraph>();
     new_values_ = std::make_unique<Values>();
-}
 
-// StateEstimator destructor
-StateEstimator::~StateEstimator() = default;
+    std::string imu_topic = this->declare_parameter("imu_topic", "/imu");
+    std::string gnss_topic = this->declare_parameter("gnss_topic", "/gps/fix");
+    std::string odom_topic = this->declare_parameter("odom_topic", "/odom");
+    std::string output_odom_topic = this->declare_parameter("output_odom_topic", "/localization/odometry");
+    std::string output_pose_topic = this->declare_parameter("output_pose_topic", "/localization/pose");
+    double publish_rate = this->declare_parameter("publish_rate", 50.0);
 
-void StateEstimator::initialize(const StateEstimatorParams& params, rclcpp::Node::SharedPtr node)
-{
-    params_ = params;
-    node_ = node;
+    params_.imu_accel_noise = this->declare_parameter("imu_accel_noise", params_.imu_accel_noise);
+    params_.imu_gyro_noise = this->declare_parameter("imu_gyro_noise", params_.imu_gyro_noise);
+    params_.imu_bias_noise = this->declare_parameter("imu_bias_noise", params_.imu_bias_noise);
+    params_.gnss_noise = this->declare_parameter("gnss_noise", params_.gnss_noise);
+    params_.odom_noise = this->declare_parameter("odom_noise", params_.odom_noise);
+    params_.max_time_window = this->declare_parameter("max_time_window", params_.max_time_window);
+    params_.max_states = this->declare_parameter("max_states", static_cast<int>(params_.max_states));
 
-    params_.imu_accel_noise = node_->declare_parameter("imu_accel_noise", params_.imu_accel_noise);
-    params_.imu_gyro_noise = node_->declare_parameter("imu_gyro_noise", params_.imu_gyro_noise);
-    params_.imu_bias_noise = node_->declare_parameter("imu_bias_noise", params_.imu_bias_noise);
-    params_.gnss_noise = node_->declare_parameter("gnss_noise", params_.gnss_noise);
-    params_.odom_noise = node_->declare_parameter("odom_noise", params_.odom_noise);
-    params_.max_time_window = node_->declare_parameter("max_time_window", params_.max_time_window);
-    params_.max_states = node_->declare_parameter("max_states", static_cast<int>(params_.max_states));
+    params_.frames.tf_prefix = this->declare_parameter("tf_prefix", params_.frames.tf_prefix);
+    params_.frames.map_frame = this->declare_parameter("map_frame", params_.frames.map_frame);
+    params_.frames.base_frame = this->declare_parameter("base_frame", params_.frames.base_frame);
+    params_.frames.odom_frame = this->declare_parameter("odom_frame", params_.frames.odom_frame);
+    params_.frames.imu_frame = this->declare_parameter("imu_frame", params_.frames.imu_frame);
+    params_.frames.gnss_frame = this->declare_parameter("gnss_frame", params_.frames.gnss_frame);
 
-    params_.frames.tf_prefix = node_->declare_parameter("tf_prefix", params_.frames.tf_prefix);
-    params_.frames.map_frame = node_->declare_parameter("map_frame", params_.frames.map_frame);
-    params_.frames.odom_frame = node_->declare_parameter("odom_frame", params_.frames.odom_frame);
-    params_.frames.base_frame = node_->declare_parameter("base_frame", params_.frames.base_frame);
-    params_.frames.imu_frame = node_->declare_parameter("imu_frame", params_.frames.imu_frame);
-    params_.frames.gnss_frame = node_->declare_parameter("gnss_frame", params_.frames.gnss_frame);
-
-    RCLCPP_INFO(node_->get_logger(), "Parameters: imu_accel=%.4f, imu_gyro=%.4f, gnss=%.2f",
+    RCLCPP_INFO(this->get_logger(), "Parameters: imu_accel=%.4f, imu_gyro=%.4f, gnss=%.2f",
                 params_.imu_accel_noise, params_.imu_gyro_noise, params_.gnss_noise);
 
-    tf_buffer_ = std::make_shared<tf2_ros::Buffer>(node_->get_clock());
+    tf_buffer_ = std::make_shared<tf2_ros::Buffer>(this->get_clock());
     tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
-    tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(node_);
+    tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
 
-    tf_timer_ = node_->create_wall_timer(
+    tf_timer_ = this->create_wall_timer(
         std::chrono::milliseconds(100),
         [this]() { publish_transforms(); });
 
-    // Create noise models
     Matrix33 imu_cov = Matrix33::Identity() * params_.imu_accel_noise * params_.imu_accel_noise;
     Matrix33 gyro_cov = Matrix33::Identity() * params_.imu_gyro_noise * params_.imu_gyro_noise;
     Matrix33 bias_cov = Matrix33::Identity() * params_.imu_bias_noise * params_.imu_bias_noise;
@@ -151,8 +148,35 @@ void StateEstimator::initialize(const StateEstimatorParams& params, rclcpp::Node
     gnss_noise_model_ = noiseModel::Diagonal::Sigmas((Vector3() << params_.gnss_noise, params_.gnss_noise, params_.gnss_noise).finished());
     odom_noise_model_ = noiseModel::Diagonal::Sigmas((Vector6() << params_.odom_noise, params_.odom_noise, params_.odom_noise, params_.odom_noise, params_.odom_noise, params_.odom_noise).finished());
 
-    RCLCPP_INFO(node_->get_logger(), "StateEstimator initialized");
+    imu_sub_ = this->create_subscription<sensor_msgs::msg::Imu>(
+        imu_topic, rclcpp::SensorDataQoS(),
+        std::bind(&StateEstimator::fuse_imu, this, std::placeholders::_1));
+
+    gnss_sub_ = this->create_subscription<sensor_msgs::msg::NavSatFix>(
+        gnss_topic, rclcpp::SensorDataQoS(),
+        std::bind(&StateEstimator::fuse_gnss, this, std::placeholders::_1));
+
+    odom_sub_ = this->create_subscription<nav_msgs::msg::Odometry>(
+        odom_topic, rclcpp::SensorDataQoS(),
+        std::bind(&StateEstimator::fuse_odometry, this, std::placeholders::_1));
+
+    odom_pub_ = this->create_publisher<nav_msgs::msg::Odometry>(output_odom_topic, 10);
+    pose_pub_ = this->create_publisher<geometry_msgs::msg::PoseWithCovarianceStamped>(output_pose_topic, 10);
+
+    auto period = std::chrono::duration<double>(1.0 / publish_rate);
+    publish_timer_ = this->create_wall_timer(
+        std::chrono::duration_cast<std::chrono::nanoseconds>(period),
+        std::bind(&StateEstimator::publish_state, this));
+
+    RCLCPP_INFO(this->get_logger(), "Athena Localizer Node initialized");
+    RCLCPP_INFO(this->get_logger(), "  IMU topic: %s", imu_topic.c_str());
+    RCLCPP_INFO(this->get_logger(), "  GNSS topic: %s", gnss_topic.c_str());
+    RCLCPP_INFO(this->get_logger(), "  Odom topic: %s", odom_topic.c_str());
+    RCLCPP_INFO(this->get_logger(), "  Output odom: %s", output_odom_topic.c_str());
+    RCLCPP_INFO(this->get_logger(), "  Output pose: %s", output_pose_topic.c_str());
 }
+
+StateEstimator::~StateEstimator() = default;
 
 void StateEstimator::reset()
 {
@@ -179,10 +203,29 @@ void StateEstimator::reset()
         imu_preintegrated_->resetIntegration();
     }
 
-    RCLCPP_INFO(node_->get_logger(), "StateEstimator reset");
+    RCLCPP_INFO(this->get_logger(), "StateEstimator reset");
 }
 
-void StateEstimator::fuse_imu(const sensor_msgs::msg::Imu::SharedPtr& imu_msg)
+void StateEstimator::publish_state()
+{
+    auto latest_state = get_latest_state();
+    if (!latest_state.has_value()) {
+        return;
+    }
+
+    std::string full_map_frame = params_.frames.tf_prefix.empty() ?
+        params_.frames.map_frame : params_.frames.tf_prefix + "/" + params_.frames.map_frame;
+    std::string full_base_frame = params_.frames.tf_prefix.empty() ?
+        params_.frames.base_frame : params_.frames.tf_prefix + "/" + params_.frames.base_frame;
+
+    auto odom_msg = latest_state->to_odometry(full_map_frame, full_base_frame);
+    odom_pub_->publish(odom_msg);
+
+    auto pose_msg = latest_state->to_pose(full_map_frame);
+    pose_pub_->publish(pose_msg);
+}
+
+void StateEstimator::fuse_imu(sensor_msgs::msg::Imu::SharedPtr imu_msg)
 {
     std::lock_guard<std::mutex> lock(state_mutex_);
 
@@ -196,9 +239,9 @@ void StateEstimator::fuse_imu(const sensor_msgs::msg::Imu::SharedPtr& imu_msg)
             imu_to_base_ = Pose3(
                 Rot3::Quaternion(q.w, q.x, q.y, q.z),
                 Point3(t.x, t.y, t.z));
-            RCLCPP_INFO(node_->get_logger(), "Cached IMU->base_link transform");
+            RCLCPP_INFO(this->get_logger(), "Cached IMU->base_link transform");
         } catch (const tf2::TransformException& ex) {
-            RCLCPP_DEBUG(node_->get_logger(), "IMU transform not available: %s", ex.what());
+            RCLCPP_DEBUG(this->get_logger(), "IMU transform not available: %s", ex.what());
         }
     }
 
@@ -216,7 +259,7 @@ void StateEstimator::fuse_imu(const sensor_msgs::msg::Imu::SharedPtr& imu_msg)
         dt = std::max(0.001, std::min(0.1, computed_dt));
 
         if (computed_dt <= 0.0) {
-            RCLCPP_WARN(node_->get_logger(), "Non-positive dt detected: %.6f, using default", computed_dt);
+            RCLCPP_WARN(this->get_logger(), "Non-positive dt detected: %.6f, using default", computed_dt);
             dt = 0.01;
         }
     }
@@ -245,8 +288,11 @@ void StateEstimator::fuse_imu(const sensor_msgs::msg::Imu::SharedPtr& imu_msg)
     }
 }
 
-void StateEstimator::fuse_gnss(const sensor_msgs::msg::NavSatFix::SharedPtr& gnss_msg)
+void StateEstimator::fuse_gnss(sensor_msgs::msg::NavSatFix::SharedPtr gnss_msg)
 {
+    RCLCPP_DEBUG(this->get_logger(), "Received GNSS: lat=%.6f, lon=%.6f",
+                 gnss_msg->latitude, gnss_msg->longitude);
+
     std::lock_guard<std::mutex> lock(state_mutex_);
 
     if (!gnss_to_base_) {
@@ -258,10 +304,10 @@ void StateEstimator::fuse_gnss(const sensor_msgs::msg::NavSatFix::SharedPtr& gns
                 tf.transform.translation.x,
                 tf.transform.translation.y,
                 tf.transform.translation.z);
-            RCLCPP_INFO(node_->get_logger(), "Cached GNSS->base_link offset: (%.3f, %.3f, %.3f)",
+            RCLCPP_INFO(this->get_logger(), "Cached GNSS->base_link offset: (%.3f, %.3f, %.3f)",
                         gnss_to_base_->x(), gnss_to_base_->y(), gnss_to_base_->z());
         } catch (const tf2::TransformException& ex) {
-            RCLCPP_DEBUG(node_->get_logger(), "GNSS transform not available: %s", ex.what());
+            RCLCPP_DEBUG(this->get_logger(), "GNSS transform not available: %s", ex.what());
         }
     }
 
@@ -284,7 +330,7 @@ void StateEstimator::fuse_gnss(const sensor_msgs::msg::NavSatFix::SharedPtr& gns
     marginalize_old_states();
 }
 
-void StateEstimator::fuse_odometry(const nav_msgs::msg::Odometry::SharedPtr& odom_msg)
+void StateEstimator::fuse_odometry(nav_msgs::msg::Odometry::SharedPtr odom_msg)
 {
     std::lock_guard<std::mutex> lock(state_mutex_);
 
@@ -313,12 +359,12 @@ void StateEstimator::initialize_with_gnss(const Point3& gnss_pos, const rclcpp::
         if (q.length2() > 0.01) {
             q.normalize();
             initial_rotation = Rot3::Quaternion(q.w(), q.x(), q.y(), q.z());
-            RCLCPP_INFO(node_->get_logger(), "Initializing with IMU orientation");
+            RCLCPP_INFO(this->get_logger(), "Initializing with IMU orientation");
         } else {
-            RCLCPP_WARN(node_->get_logger(), "IMU orientation invalid, using identity rotation");
+            RCLCPP_WARN(this->get_logger(), "IMU orientation invalid, using identity rotation");
         }
     } else {
-        RCLCPP_WARN(node_->get_logger(), "No IMU data available, using identity rotation");
+        RCLCPP_WARN(this->get_logger(), "No IMU data available, using identity rotation");
     }
 
     auto initial_pose = Pose3(initial_rotation, gnss_pos);
@@ -363,7 +409,7 @@ void StateEstimator::initialize_with_gnss(const Point3& gnss_pos, const rclcpp::
     initialized_ = true;
     last_optimization_time_ = timestamp;
 
-    RCLCPP_INFO(node_->get_logger(), "StateEstimator initialized with GNSS at (%.2f, %.2f, %.2f)",
+    RCLCPP_INFO(this->get_logger(), "StateEstimator initialized with GNSS at (%.2f, %.2f, %.2f)",
                 gnss_pos.x(), gnss_pos.y(), gnss_pos.z());
 }
 
@@ -462,7 +508,7 @@ void StateEstimator::optimize_graph()
 
         if (!result.empty() && result.exists(current_pose_key_) && result.exists(current_vel_key_)) {
             EstimatedState state;
-            state.timestamp = node_->get_clock()->now();
+            state.timestamp = this->get_clock()->now();
 
             auto map_to_base = result.at<Pose3>(current_pose_key_);
             auto vel = result.at<Vector3>(current_vel_key_);
@@ -482,7 +528,7 @@ void StateEstimator::optimize_graph()
                     state.covariance.block<6, 6>(0, 0) = pose_cov;
                 }
             } catch (const std::exception& e) {
-                RCLCPP_WARN(node_->get_logger(), "Failed to get covariance: %s", e.what());
+                RCLCPP_WARN(this->get_logger(), "Failed to get covariance: %s", e.what());
                 state.covariance = Eigen::Matrix<double, 15, 15>::Identity() * 0.1;
             }
 
@@ -490,7 +536,7 @@ void StateEstimator::optimize_graph()
         }
     }
     catch (const std::exception& e) {
-        RCLCPP_WARN(node_->get_logger(), "ISAM2 update failed: %s", e.what());
+        RCLCPP_WARN(this->get_logger(), "ISAM2 update failed: %s", e.what());
     }
 }
 
@@ -591,7 +637,7 @@ void StateEstimator::marginalize_old_states()
         return;
     }
 
-    auto time_threshold = node_->get_clock()->now() - rclcpp::Duration::from_seconds(params_.max_time_window);
+    auto time_threshold = this->get_clock()->now() - rclcpp::Duration::from_seconds(params_.max_time_window);
 
     while (!state_history_.empty() && state_history_.front().timestamp < time_threshold) {
         state_history_.pop_front();
@@ -618,7 +664,16 @@ void StateEstimator::set_enu_origin(double lat, double lon, double alt)
     origin_alt_ = alt;
     enu_origin_set_ = true;
 
-    RCLCPP_INFO(node_->get_logger(), "ENU origin set to (%.6f, %.6f, %.2f)", lat, lon, alt);
+    RCLCPP_INFO(this->get_logger(), "ENU origin set to (%.6f, %.6f, %.2f)", lat, lon, alt);
 }
 
-} // namespace athena_localizer
+} // namespace localizer
+
+int main(int argc, char** argv)
+{
+    rclcpp::init(argc, argv);
+    auto node = std::make_shared<localizer::StateEstimator>();
+    rclcpp::spin(node);
+    rclcpp::shutdown();
+    return 0;
+}

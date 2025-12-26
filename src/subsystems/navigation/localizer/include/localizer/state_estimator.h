@@ -1,9 +1,3 @@
-/**
- * @file   state_estimator.h
- * @brief  Simplified state estimation for IMU and GNSS fusion using ROS2 messages
- * @author Modified from MOLA StateEstimationSmoother for athena_localizer
- * @date   2025
- */
 #pragma once
 
 // ROS2
@@ -34,7 +28,7 @@
 #include <deque>
 #include <memory>
 
-namespace athena_localizer
+namespace localizer
 {
 
 struct FrameParams
@@ -75,36 +69,67 @@ struct EstimatedState
     geometry_msgs::msg::PoseWithCovarianceStamped to_pose(const std::string& frame_id) const;
 };
 
-class StateEstimator
+class StateEstimator : public rclcpp::Node
 {
 public:
     StateEstimator();
     ~StateEstimator();
 
-    void initialize(const StateEstimatorParams& params, rclcpp::Node::SharedPtr node);
     void reset();
-
-    void fuse_imu(const sensor_msgs::msg::Imu::SharedPtr& imu_msg);
-    void fuse_gnss(const sensor_msgs::msg::NavSatFix::SharedPtr& gnss_msg);
-    void fuse_odometry(const nav_msgs::msg::Odometry::SharedPtr& odom_msg);
 
     std::optional<EstimatedState> get_latest_state() const;
     std::optional<EstimatedState> get_state_at_time(const rclcpp::Time& timestamp) const;
 
-    void publish_transforms();
-
     bool is_initialized() const { return initialized_; }
 
 private:
+    // Sensor fusion (used as subscription callbacks)
+    void fuse_imu(sensor_msgs::msg::Imu::SharedPtr imu_msg);
+    void fuse_gnss(sensor_msgs::msg::NavSatFix::SharedPtr gnss_msg);
+    void fuse_odometry(nav_msgs::msg::Odometry::SharedPtr odom_msg);
+
+    // Publishing
+    void publish_state();
+    void publish_transforms();
+
+    // Graph optimization
+    void optimize_graph();
+    void add_imu_factor();
+    void add_gnss_factor(const sensor_msgs::msg::NavSatFix::SharedPtr& gnss_msg);
+    void add_odom_factor(const nav_msgs::msg::Odometry::SharedPtr& odom_msg);
+    void createNewState();
+    void marginalize_old_states();
+    void initialize_with_gnss(const gtsam::Point3& gnss_pos, const rclcpp::Time& timestamp);
+
+    // Coordinate conversion
+    gtsam::Point3 lla_to_enu(double lat, double lon, double alt) const;
+    void set_enu_origin(double lat, double lon, double alt);
+
+    // Key generation
+    gtsam::Key pose_key(size_t i) const { return gtsam::Symbol('x', i); }
+    gtsam::Key vel_key(size_t i) const { return gtsam::Symbol('v', i); }
+    gtsam::Key bias_key(size_t i) const { return gtsam::Symbol('b', i); }
+
+    // Parameters
     StateEstimatorParams params_;
-    rclcpp::Node::SharedPtr node_;
+
+    // ROS2 subscriptions and publishers
+    rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr imu_sub_;
+    rclcpp::Subscription<sensor_msgs::msg::NavSatFix>::SharedPtr gnss_sub_;
+    rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
+    rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odom_pub_;
+    rclcpp::Publisher<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr pose_pub_;
+    rclcpp::TimerBase::SharedPtr publish_timer_;
+
+    // TF2 components
     std::unique_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
     std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
     std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
+    rclcpp::TimerBase::SharedPtr tf_timer_;
 
+    // Transform caches
     std::optional<gtsam::Pose3> imu_to_base_;
     std::optional<gtsam::Point3> gnss_to_base_;
-    rclcpp::TimerBase::SharedPtr tf_timer_;
 
     // GTSAM components
     std::unique_ptr<gtsam::ISAM2> isam_;
@@ -125,30 +150,16 @@ private:
     rclcpp::Time last_optimization_time_;
     std::optional<gtsam::Pose3> prev_odom_pose_;
 
-    mutable std::mutex state_mutex_;
-
-    void optimize_graph();
-    void add_imu_factor();
-    void add_gnss_factor(const sensor_msgs::msg::NavSatFix::SharedPtr& gnss_msg);
-    void add_odom_factor(const nav_msgs::msg::Odometry::SharedPtr& odom_msg);
-    void createNewState();
-    void marginalize_old_states();
-    void initialize_with_gnss(const gtsam::Point3& gnss_pos, const rclcpp::Time& timestamp);
-
-    gtsam::Point3 lla_to_enu(double lat, double lon, double alt) const;
-    void set_enu_origin(double lat, double lon, double alt);
+    // ENU origin
     bool enu_origin_set_;
     double origin_lat_, origin_lon_, origin_alt_;
 
+    // Noise models
     gtsam::SharedNoiseModel imu_noise_model_;
     gtsam::SharedNoiseModel gnss_noise_model_;
     gtsam::SharedNoiseModel odom_noise_model_;
 
-    // Key generation
-    gtsam::Key pose_key(size_t i) const { return gtsam::Symbol('x', i); }
-    gtsam::Key vel_key(size_t i) const { return gtsam::Symbol('v', i); }
-    gtsam::Key bias_key(size_t i) const { return gtsam::Symbol('b', i); }
+    mutable std::mutex state_mutex_;
 };
 
-
-} // namespace athena_localizer
+} // namespace localizer

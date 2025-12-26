@@ -1,14 +1,13 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-    <name>athena_localizer</name>
+    <name>localizer</name>
     <version>0.0.0</version>
-    <description>TODO: Package description</description>
+    <description>IMU-GNSS fusion state estimator using GTSAM</description>
     <maintainer email="mdurrani808@gmail.com">ros</maintainer>
     <license>TODO: License declaration</license>
 
     <depend>gtsam</depend>
-    <depend>libgeographic-dev</depend>
     <depend>rclcpp</depend>
     <depend>sensor_msgs</depend>
     <depend>geometry_msgs</depend>

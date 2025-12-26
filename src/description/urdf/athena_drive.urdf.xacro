@@ -39,11 +39,11 @@
   <xacro:description/>
 
 
-  <xacro:imu_sensor parent="base_link" prefix="rover">
+  <xacro:imu_sensor parent="base_link">
     <origin xyz="0 0 0.2" rpy="0 0 0"/>
   </xacro:imu_sensor>
 
-  <xacro:gps_sensor parent="base_link" prefix="rover">
+  <xacro:gps_sensor parent="base_link">
     <origin xyz="0 0 0.3" rpy="0 0 0"/>
   </xacro:gps_sensor>
 
