@@ -5,17 +5,14 @@ from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
 def generate_launch_description():
-    # Get the directory of this launch file
     launch_file_dir = os.path.dirname(os.path.realpath(__file__))
     default_config = os.path.join(launch_file_dir, '..', 'config', 'localizer.yaml')
 
-    # Launch arguments
     namespace = LaunchConfiguration('namespace')
     use_sim_time = LaunchConfiguration('use_sim_time')
     config_file = LaunchConfiguration('config_file')
 
     return LaunchDescription([
-        # Declare launch arguments
         DeclareLaunchArgument(
             'namespace',
             default_value='',
@@ -31,8 +28,6 @@ def generate_launch_description():
             default_value=default_config,
             description='Path to the localizer configuration file'
         ),
-
-        # Athena Localizer Node
         Node(
             package='localizer',
             executable='localizer_node',

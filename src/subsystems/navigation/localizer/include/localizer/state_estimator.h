@@ -4,8 +4,6 @@
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/imu.hpp>
 #include <sensor_msgs/msg/nav_sat_fix.hpp>
-#include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
-#include <geometry_msgs/msg/transform_stamped.hpp>
 #include <nav_msgs/msg/odometry.hpp>
 #include <tf2_ros/transform_broadcaster.h>
 #include <tf2_ros/buffer.h>
@@ -66,7 +64,6 @@ struct EstimatedState
     Eigen::Matrix<double, 15, 15> covariance;
 
     nav_msgs::msg::Odometry to_odometry(const std::string& frame_id, const std::string& child_frame_id) const;
-    geometry_msgs::msg::PoseWithCovarianceStamped to_pose(const std::string& frame_id) const;
 };
 
 class StateEstimator : public rclcpp::Node
@@ -118,7 +115,6 @@ private:
     rclcpp::Subscription<sensor_msgs::msg::NavSatFix>::SharedPtr gnss_sub_;
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
     rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odom_pub_;
-    rclcpp::Publisher<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr pose_pub_;
     rclcpp::TimerBase::SharedPtr publish_timer_;
 
     // TF2 components

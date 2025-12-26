@@ -51,37 +51,6 @@ nav_msgs::msg::Odometry EstimatedState::to_odometry(const std::string& frame_id,
     return odom;
 }
 
-geometry_msgs::msg::PoseWithCovarianceStamped EstimatedState::to_pose(const std::string& frame_id) const
-{
-    geometry_msgs::msg::PoseWithCovarianceStamped pose_msg;
-    pose_msg.header.stamp = timestamp;
-    pose_msg.header.frame_id = frame_id;
-
-    auto pose = nav_state.pose();
-    pose_msg.pose.pose.position.x = pose.x();
-    pose_msg.pose.pose.position.y = pose.y();
-    pose_msg.pose.pose.position.z = pose.z();
-
-    auto quat = pose.rotation().toQuaternion();
-    pose_msg.pose.pose.orientation.w = quat.w();
-    pose_msg.pose.pose.orientation.x = quat.x();
-    pose_msg.pose.pose.orientation.y = quat.y();
-    pose_msg.pose.pose.orientation.z = quat.z();
-
-    for (int i = 0; i < 36; ++i) {
-        pose_msg.pose.covariance[i] = 0.0;
-    }
-    for (int i = 0; i < 6; ++i) {
-        for (int j = 0; j < 6; ++j) {
-            if (i < 3 && j < 3) {
-                pose_msg.pose.covariance[i*6 + j] = covariance(i, j);
-            }
-        }
-    }
-
-    return pose_msg;
-}
-
 StateEstimator::StateEstimator()
     : Node("localizer_node")
     , odom_to_base_(Pose3())
@@ -104,8 +73,7 @@ StateEstimator::StateEstimator()
     std::string imu_topic = this->declare_parameter("imu_topic", "/imu");
     std::string gnss_topic = this->declare_parameter("gnss_topic", "/gps/fix");
     std::string odom_topic = this->declare_parameter("odom_topic", "/odom");
-    std::string output_odom_topic = this->declare_parameter("output_odom_topic", "/localization/odometry");
-    std::string output_pose_topic = this->declare_parameter("output_pose_topic", "/localization/pose");
+    std::string output_odom_topic = this->declare_parameter("output_odom_topic", "/localization/odom");
     double publish_rate = this->declare_parameter("publish_rate", 50.0);
 
     params_.imu_accel_noise = this->declare_parameter("imu_accel_noise", params_.imu_accel_noise);
@@ -122,6 +90,14 @@ StateEstimator::StateEstimator()
     params_.frames.odom_frame = this->declare_parameter("odom_frame", params_.frames.odom_frame);
     params_.frames.imu_frame = this->declare_parameter("imu_frame", params_.frames.imu_frame);
     params_.frames.gnss_frame = this->declare_parameter("gnss_frame", params_.frames.gnss_frame);
+
+    double origin_lat = this->declare_parameter("origin_lat", 0.0);
+    double origin_lon = this->declare_parameter("origin_lon", 0.0);
+    double origin_alt = this->declare_parameter("origin_alt", 0.0);
+
+    if (std::abs(origin_lat) > 1e-6 || std::abs(origin_lon) > 1e-6) {
+        set_enu_origin(origin_lat, origin_lon, origin_alt);
+    }
 
     RCLCPP_INFO(this->get_logger(), "Parameters: imu_accel=%.4f, imu_gyro=%.4f, gnss=%.2f",
                 params_.imu_accel_noise, params_.imu_gyro_noise, params_.gnss_noise);
@@ -161,19 +137,17 @@ StateEstimator::StateEstimator()
         std::bind(&StateEstimator::fuse_odometry, this, std::placeholders::_1));
 
     odom_pub_ = this->create_publisher<nav_msgs::msg::Odometry>(output_odom_topic, 10);
-    pose_pub_ = this->create_publisher<geometry_msgs::msg::PoseWithCovarianceStamped>(output_pose_topic, 10);
 
     auto period = std::chrono::duration<double>(1.0 / publish_rate);
     publish_timer_ = this->create_wall_timer(
         std::chrono::duration_cast<std::chrono::nanoseconds>(period),
         std::bind(&StateEstimator::publish_state, this));
 
-    RCLCPP_INFO(this->get_logger(), "Athena Localizer Node initialized");
+    RCLCPP_INFO(this->get_logger(), "Localizer Node initialized");
     RCLCPP_INFO(this->get_logger(), "  IMU topic: %s", imu_topic.c_str());
     RCLCPP_INFO(this->get_logger(), "  GNSS topic: %s", gnss_topic.c_str());
     RCLCPP_INFO(this->get_logger(), "  Odom topic: %s", odom_topic.c_str());
     RCLCPP_INFO(this->get_logger(), "  Output odom: %s", output_odom_topic.c_str());
-    RCLCPP_INFO(this->get_logger(), "  Output pose: %s", output_pose_topic.c_str());
 }
 
 StateEstimator::~StateEstimator() = default;
@@ -218,11 +192,7 @@ void StateEstimator::publish_state()
     std::string full_base_frame = params_.frames.tf_prefix.empty() ?
         params_.frames.base_frame : params_.frames.tf_prefix + "/" + params_.frames.base_frame;
 
-    auto odom_msg = latest_state->to_odometry(full_map_frame, full_base_frame);
-    odom_pub_->publish(odom_msg);
-
-    auto pose_msg = latest_state->to_pose(full_map_frame);
-    pose_pub_->publish(pose_msg);
+    odom_pub_->publish(latest_state->to_odometry(full_map_frame, full_base_frame));
 }
 
 void StateEstimator::fuse_imu(sensor_msgs::msg::Imu::SharedPtr imu_msg)
