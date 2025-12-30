@@ -116,7 +116,7 @@
     </state_interface>
     <state_interface name="velocity"/>
   </joint>
-  
+
 
   <joint name="${prefix}propulsion_bl_joint">
     <state_interface name="position">

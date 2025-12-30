@@ -49,16 +49,18 @@ def generate_launch_description():
                     robot_description_content,
                     value_type=str
                 ),
-                'use_sim_time': LaunchConfiguration('use_sim_time')
-            }]
+                'use_sim_time': LaunchConfiguration('use_sim_time'),
+                'publish_frequency': 50.0
+            }],
+            remappings=[('/clock', '/clock')]
         ),
 
         Node(
             package='ros_gz_sim',
             executable='create',
             arguments=['-name', robot_name,
-                       '-x', '0.0',
-                       '-y', '0.0',
+                       '-x', '40.0',
+                       '-y', '40.0',
                        '-z', '3.0',
                        '-Y', '0.0',
                        '-topic', 'robot_description'],

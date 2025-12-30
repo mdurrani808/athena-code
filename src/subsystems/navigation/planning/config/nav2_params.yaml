@@ -3,6 +3,7 @@ bt_navigator:
     use_sim_time: true
     global_frame: map
     robot_base_frame: base_link
+    odom_topic: /odom/ground_truth
     default_bt_xml_filename: "$(find-pkg-share nav2_bt_navigator)/behavior_trees/navigate_w_replanning.xml"
 
 planner_server:
@@ -10,6 +11,7 @@ planner_server:
     use_sim_time: true
     expected_planner_frequency: 1.0
     planner_plugins: ["GridBased"]
+    odom_topic: /odom/ground_truth
 
     GridBased:
       plugin: "nav2_smac_planner/SmacPlannerHybrid"  
@@ -79,9 +81,14 @@ global_costmap:
 
 controller_server:
   ros__parameters:
-    odom_topic: /localization/odom
+    odom_topic: /odom/ground_truth
     use_sim_time: true
-    enable_stamped_cmd_vel: false
+    enable_stamped_cmd_vel: true
+    controller_frequency: 20.0
+    action_server_result_timeout: 10.0
+    min_x_velocity_threshold: 0.001
+    min_y_velocity_threshold: 0.5
+    min_theta_velocity_threshold: 0.001
 
     progress_checker_plugins: ["progress_checker"]
     goal_checker_plugins: ["simple_goal_checker"]
@@ -110,8 +117,66 @@ controller_server:
       transform_tolerance: 1.0
       use_velocity_scaled_lookahead_dist: false
       use_final_approach_orientation: false
-  
 
+behavior_server:
+  ros__parameters:
+    use_sim_time: true
+    local_costmap_topic: local_costmap/costmap_raw
+    local_footprint_topic: local_costmap/published_footprint
+    global_costmap_topic: global_costmap/costmap_raw
+    global_footprint_topic: global_costmap/published_footprint
+    cycle_frequency: 10.0
+    transform_tolerance: 0.5
+
+    behavior_plugins: ["spin", "backup", "drive_on_heading", "assisted_teleop", "wait"]
+
+    spin:
+      plugin: "nav2_behaviors/Spin"
+    backup:
+      plugin: "nav2_behaviors/BackUp"
+    drive_on_heading:
+      plugin: "nav2_behaviors/DriveOnHeading"
+    assisted_teleop:
+      plugin: "nav2_behaviors/AssistedTeleop"
+    wait:
+      plugin: "nav2_behaviors/Wait"
+
+smoother_server:
+  ros__parameters:
+    use_sim_time: true
+    smoother_plugins: ["simple_smoother"]
+    simple_smoother:
+      plugin: "nav2_smoother::SimpleSmoother"
+      tolerance: 1.0e-10
+      max_its: 1000
+      do_refinement: true
+
+velocity_smoother:
+  ros__parameters:
+    use_sim_time: true
+    smoothing_frequency: 20.0
+    scale_velocities: false
+    feedback: "OPEN_LOOP"
+    max_velocity: [1.0, 0.0, 2.0]
+    min_velocity: [-0.5, 0.0, -2.0]
+    max_accel: [1.0, 0.0, 1.5]
+    max_decel: [-1.0, 0.0, -1.5]
+    odom_topic: /odom/ground_truth
+    odom_duration: 0.1
+    deadband_velocity: [0.0, 0.0, 0.0]
+    velocity_timeout: 1.0
+
+waypoint_follower:
+  ros__parameters:
+    use_sim_time: true
+    loop_rate: 20
+    stop_on_failure: false
+    action_server_result_timeout: 900.0
+    waypoint_task_executor_plugin: "wait_at_waypoint"
+    wait_at_waypoint:
+      plugin: "nav2_waypoint_follower::WaitAtWaypoint"
+      enabled: true
+      waypoint_pause_duration: 200
 
 local_costmap:
   ros__parameters:
@@ -119,13 +184,27 @@ local_costmap:
     global_frame: odom
     robot_base_frame: base_link
     rolling_window: true
-    width: 6.0
-    height: 6.0
-    resolution: 1
-    plugins: ["static_layer"]
+    width: 10.0
+    height: 10.0
+    resolution: 0.05
+    update_frequency: 5.0
+    publish_frequency: 2.0
+    transform_tolerance: 0.5
+
+    # Robot footprint - adjust to your actual robot dimensions
+    footprint: "[[0.35, 0.25], [0.35, -0.25], [-0.35, -0.25], [-0.35, 0.25]]"
+
+    plugins: ["static_layer", "inflation_layer"]
+
     static_layer:
       plugin: "nav2_costmap_2d::StaticLayer"
       map_subscribe_transient_local: true
+
+    inflation_layer:
+      plugin: "nav2_costmap_2d::InflationLayer"
+      enabled: true
+      inflation_radius: 0.55
+      cost_scaling_factor: 3.0
       
 
 lifecycle_manager:
@@ -133,6 +212,10 @@ lifecycle_manager:
     use_sim_time: true
     autostart: true
     node_names:
-      - planner_server
       - controller_server
+      - smoother_server
+      - planner_server
+      - behavior_server
       - bt_navigator
+      - waypoint_follower
+      - velocity_smoother

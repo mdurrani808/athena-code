@@ -1,15 +1,15 @@
-# planning/launch/nav2.launch.py
+import os
 from launch import LaunchDescription
-from launch.actions import IncludeLaunchDescription, DeclareLaunchArgument
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
-from launch_ros.substitutions import FindPackageShare
 from launch_ros.actions import Node, SetRemap
+from launch_ros.substitutions import FindPackageShare
 from ament_index_python.packages import get_package_share_directory
-import os
+
 
 def generate_launch_description():
-    # --- Packages / paths ---
+    # Package paths
     localizer_share = get_package_share_directory('localizer')
     localizer_launch = os.path.join(localizer_share, 'launch', 'localizer.launch.py')
 
@@ -20,50 +20,34 @@ def generate_launch_description():
     nav2_nav = os.path.join(nav2_bringup_share, 'launch', 'navigation_launch.py')
 
     default_params = PathJoinSubstitution([
-        FindPackageShare('planning'), 'config', 'nav2_params.yaml'
+        FindPackageShare('planning'),
+        'config',
+        'nav2_params.yaml'
     ])
+
     params_file = LaunchConfiguration('params_file')
 
-    # --- Frame names (override if your robot uses different ones) ---
-    map_frame  = LaunchConfiguration('map_frame')
-    odom_frame = LaunchConfiguration('odom_frame')
-    base_frame = LaunchConfiguration('base_frame')
-
-    twist_stamper_node = Node(
-        package='twist_stamper',
-        executable='twist_stamper',
-        name='cmd_vel_stamper',
-        remappings=[
-            ('cmd_vel_in',  '/cmd_vel_nav2'),                      
-            ('cmd_vel_out', '/ackermann_steering_controller/reference'),
-        ],
-    )
-    
     return LaunchDescription([
-        # Params
         DeclareLaunchArgument(
-            'params_file', default_value=default_params,
+            'params_file',
+            default_value=default_params,
             description='Full path to the Nav2 params YAML'
         ),
-        DeclareLaunchArgument('map_frame',  default_value='map'),
-        DeclareLaunchArgument('odom_frame', default_value='odom'),
-        DeclareLaunchArgument('base_frame', default_value='base_link'),
 
-        SetRemap(src='cmd_vel', dst='/cmd_vel_nav2'),
+        SetRemap(src='cmd_vel', dst='/ackermann_steering_controller/reference'),
 
-        twist_stamper_node,
-
-        # Start localizer for IMU-GNSS fusion and TF publishing (map->odom->base_link)
+        # Localizer for IMU-GNSS fusion and TF publishing (map->odom->base_link)
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(localizer_launch),
-            launch_arguments={
-                'use_sim_time': 'true'
-            }.items()
+            launch_arguments={'use_sim_time': 'true'}.items()
         ),
 
-        IncludeLaunchDescription(PythonLaunchDescriptionSource(dem_launch)),
+        # DEM costmap generation
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(dem_launch)
+        ),
 
-        # Nav2 core stack (planner/controller/smoother/behavior/BT nav + lifecycle)
+        # Nav2 navigation stack
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(nav2_nav),
             launch_arguments={

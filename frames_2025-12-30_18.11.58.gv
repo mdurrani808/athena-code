@@ -1,0 +1,28 @@
+digraph G {
+"odom" -> "base_link"[label=" Broadcaster: default_authority\nAverage rate: 100.966\nBuffer length: 2.278\nMost recent transform: 85.612\nOldest transform: 83.334\n"];
+"map" -> "odom"[label=" Broadcaster: default_authority\nAverage rate: 22.388\nBuffer length: 2.278\nMost recent transform: 85.612\nOldest transform: 83.334\n"];
+"base_link" -> "gnss_link"[label=" Broadcaster: default_authority\nAverage rate: 10000.0\nBuffer length: 0.0\nMost recent transform: 0.0\nOldest transform: 0.0\n"];
+"base_link" -> "imu_link"[label=" Broadcaster: default_authority\nAverage rate: 10000.0\nBuffer length: 0.0\nMost recent transform: 0.0\nOldest transform: 0.0\n"];
+"base_link" -> "suspension_front_left_link"[label=" Broadcaster: default_authority\nAverage rate: 10000.0\nBuffer length: 0.0\nMost recent transform: 0.0\nOldest transform: 0.0\n"];
+"base_link" -> "suspension_front_right_link"[label=" Broadcaster: default_authority\nAverage rate: 10000.0\nBuffer length: 0.0\nMost recent transform: 0.0\nOldest transform: 0.0\n"];
+"suspension_front_left_link" -> "swerve_mount_1_link"[label=" Broadcaster: default_authority\nAverage rate: 10000.0\nBuffer length: 0.0\nMost recent transform: 0.0\nOldest transform: 0.0\n"];
+"suspension_front_right_link" -> "swerve_mount_2_link"[label=" Broadcaster: default_authority\nAverage rate: 10000.0\nBuffer length: 0.0\nMost recent transform: 0.0\nOldest transform: 0.0\n"];
+"suspension_front_right_link" -> "swerve_mount_3_link"[label=" Broadcaster: default_authority\nAverage rate: 10000.0\nBuffer length: 0.0\nMost recent transform: 0.0\nOldest transform: 0.0\n"];
+"suspension_front_left_link" -> "swerve_mount_4_link"[label=" Broadcaster: default_authority\nAverage rate: 10000.0\nBuffer length: 0.0\nMost recent transform: 0.0\nOldest transform: 0.0\n"];
+"steer_1_link" -> "wheel_bracket_1_link"[label=" Broadcaster: default_authority\nAverage rate: 10000.0\nBuffer length: 0.0\nMost recent transform: 0.0\nOldest transform: 0.0\n"];
+"swerve_mount_1_link" -> "steer_1_link"[label=" Broadcaster: default_authority\nAverage rate: 20.741\nBuffer length: 1.35\nMost recent transform: 85.6\nOldest transform: 84.25\n"];
+"steer_2_link" -> "wheel_bracket_2_link"[label=" Broadcaster: default_authority\nAverage rate: 10000.0\nBuffer length: 0.0\nMost recent transform: 0.0\nOldest transform: 0.0\n"];
+"swerve_mount_2_link" -> "steer_2_link"[label=" Broadcaster: default_authority\nAverage rate: 20.741\nBuffer length: 1.35\nMost recent transform: 85.6\nOldest transform: 84.25\n"];
+"steer_3_link" -> "wheel_bracket_3_link"[label=" Broadcaster: default_authority\nAverage rate: 10000.0\nBuffer length: 0.0\nMost recent transform: 0.0\nOldest transform: 0.0\n"];
+"swerve_mount_3_link" -> "steer_3_link"[label=" Broadcaster: default_authority\nAverage rate: 20.741\nBuffer length: 1.35\nMost recent transform: 85.6\nOldest transform: 84.25\n"];
+"steer_4_link" -> "wheel_bracket_4_link"[label=" Broadcaster: default_authority\nAverage rate: 10000.0\nBuffer length: 0.0\nMost recent transform: 0.0\nOldest transform: 0.0\n"];
+"swerve_mount_4_link" -> "steer_4_link"[label=" Broadcaster: default_authority\nAverage rate: 20.741\nBuffer length: 1.35\nMost recent transform: 85.6\nOldest transform: 84.25\n"];
+"wheel_bracket_4_link" -> "propulsion_4_link"[label=" Broadcaster: default_authority\nAverage rate: 20.741\nBuffer length: 1.35\nMost recent transform: 85.6\nOldest transform: 84.25\n"];
+"wheel_bracket_3_link" -> "propulsion_3_link"[label=" Broadcaster: default_authority\nAverage rate: 20.741\nBuffer length: 1.35\nMost recent transform: 85.6\nOldest transform: 84.25\n"];
+"wheel_bracket_1_link" -> "propulsion_1_link"[label=" Broadcaster: default_authority\nAverage rate: 20.741\nBuffer length: 1.35\nMost recent transform: 85.6\nOldest transform: 84.25\n"];
+"wheel_bracket_2_link" -> "propulsion_2_link"[label=" Broadcaster: default_authority\nAverage rate: 20.741\nBuffer length: 1.35\nMost recent transform: 85.6\nOldest transform: 84.25\n"];
+edge [style=invis];
+ subgraph cluster_legend { style=bold; color=black; label ="view_frames Result";
+"Recorded at time: 1767118318.068651"[ shape=plaintext ] ;
+}->"map";
+}

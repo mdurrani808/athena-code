@@ -20,13 +20,13 @@ localizer_node:
     # IMU noise parameters
     imu_accel_noise: 0.2        # m/s^2
     imu_gyro_noise: 0.01        # rad/s
-    imu_bias_noise: 0.0002      # bias random walk
+    imu_bias_noise: 0.01        # bias random walk (relaxed to prevent overconstrained system)
 
     # GNSS noise parameters
-    gnss_noise: 0.25            # meters
+    gnss_noise: 0.5             # meters (relaxed to reduce constraint conflicts)
 
     # Odometry noise parameters
-    odom_noise: 0.5             # meters
+    odom_noise: 1.0             # meters (relaxed to reduce constraint conflicts)
 
     # State estimation window parameters
     max_time_window: 10.0       # seconds
