@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(apollo_map)
+project(mapping)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -10,29 +10,41 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
-# uncomment the following section in order to fill in
-# further dependencies manually.
-# find_package(<dependency> REQUIRED)
-
+find_package(cv_bridge REQUIRED)
+find_package(OpenCV REQUIRED)
 
 set(dependencies
   rclcpp
   nav_msgs
+  sensor_msgs
+  cv_bridge
+  OpenCV
 )
-
 
 add_executable(map_node src/map_node.cpp)
 target_include_directories(map_node PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<INSTALL_INTERFACE:include>)
+  $<INSTALL_INTERFACE:include>
+  ${OpenCV_INCLUDE_DIRS})
 
 target_compile_features(map_node PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
 ament_target_dependencies(
   map_node SYSTEM
   ${dependencies}
 )
+
+target_link_libraries(map_node ${OpenCV_LIBRARIES})
+
 install(TARGETS map_node
   DESTINATION lib/${PROJECT_NAME})
+
+# Install maps directory
+install(DIRECTORY maps/
+  DESTINATION share/${PROJECT_NAME}/maps)
+
+# Install launch directory
+install(DIRECTORY launch/
+  DESTINATION share/${PROJECT_NAME}/launch)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)

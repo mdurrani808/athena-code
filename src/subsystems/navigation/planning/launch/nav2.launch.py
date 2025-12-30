@@ -1,4 +1,4 @@
-# athena_planner/launch/nav2.launch.py
+# planning/launch/nav2.launch.py
 from launch import LaunchDescription
 from launch.actions import IncludeLaunchDescription, DeclareLaunchArgument
 from launch.launch_description_sources import PythonLaunchDescriptionSource
@@ -10,14 +10,17 @@ import os
 
 def generate_launch_description():
     # --- Packages / paths ---
-    athena_map_share = get_package_share_directory('athena_map')
-    dem_launch = os.path.join(athena_map_share, 'launch', 'dem_costmap.launch.py')
+    localizer_share = get_package_share_directory('localizer')
+    localizer_launch = os.path.join(localizer_share, 'launch', 'localizer.launch.py')
+
+    mapping_share = get_package_share_directory('mapping')
+    dem_launch = os.path.join(mapping_share, 'launch', 'dem_costmap.launch.py')
 
     nav2_bringup_share = get_package_share_directory('nav2_bringup')
     nav2_nav = os.path.join(nav2_bringup_share, 'launch', 'navigation_launch.py')
 
     default_params = PathJoinSubstitution([
-        FindPackageShare('athena_planner'), 'config', 'nav2_params.yaml'
+        FindPackageShare('planning'), 'config', 'nav2_params.yaml'
     ])
     params_file = LaunchConfiguration('params_file')
 
@@ -25,17 +28,6 @@ def generate_launch_description():
     map_frame  = LaunchConfiguration('map_frame')
     odom_frame = LaunchConfiguration('odom_frame')
     base_frame = LaunchConfiguration('base_frame')
-
-    # --- Static TFs (identity transforms for bring-up/testing) ---
-    # map -> odom
-    static_map_to_odom = Node(
-        package='tf2_ros',
-        executable='static_transform_publisher',
-        name='static_map_to_odom',
-        # args: x y z roll pitch yaw parent child
-        arguments=['400', '400', '0', '0', '0', '0', map_frame, odom_frame],
-        output='screen',
-    )
 
     twist_stamper_node = Node(
         package='twist_stamper',
@@ -59,9 +51,15 @@ def generate_launch_description():
 
         SetRemap(src='cmd_vel', dst='/cmd_vel_nav2'),
 
-        # Static TFs (identity by default)
-        static_map_to_odom,
         twist_stamper_node,
+
+        # Start localizer for IMU-GNSS fusion and TF publishing (map->odom->base_link)
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(localizer_launch),
+            launch_arguments={
+                'use_sim_time': 'true'
+            }.items()
+        ),
 
         IncludeLaunchDescription(PythonLaunchDescriptionSource(dem_launch)),
 

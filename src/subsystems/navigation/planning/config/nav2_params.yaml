@@ -79,7 +79,7 @@ global_costmap:
 
 controller_server:
   ros__parameters:
-    odom_topic: /ackermann_steering_controller/odometry
+    odom_topic: /localization/odom
     use_sim_time: true
     enable_stamped_cmd_vel: false
 

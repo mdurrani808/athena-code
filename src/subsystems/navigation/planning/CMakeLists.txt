@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(athena_planner)
+project(planning)
 
 # Warnings
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")

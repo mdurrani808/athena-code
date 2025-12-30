@@ -8,7 +8,7 @@ from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
 
 def generate_launch_description():
-    pkg_dir = get_package_share_directory('athena_map')
+    pkg_dir = get_package_share_directory('mapping')
     config_file = os.path.join(pkg_dir, 'config', 'dem_costmap.yaml')
 
     # you can still expose the DEM path (if you ever want to override it)
@@ -19,7 +19,7 @@ def generate_launch_description():
     )
 
     dem_node = Node(
-        package='athena_map',
+        package='mapping',
         executable='map_node',
         name='dem_costmap_converter',
         output='screen',
