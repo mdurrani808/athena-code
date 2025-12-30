@@ -13,6 +13,7 @@
   <xacro:include filename="$(find description)/urdf/athena_drive/athena_drive_macro.ros2_control.xacro"/>
   <xacro:include filename="imu.xacro"/>
   <xacro:include filename="gps.xacro"/>
+  <xacro:include filename="ground_truth_odom.xacro"/>
 
 
   <!-- Load robot's macro with parameters -->
@@ -35,6 +36,17 @@
 
   <!-- Contains description of drive -->
   <xacro:description/>
+
+
+  <xacro:imu_sensor parent="base_link">
+    <origin xyz="0 0 0.0" rpy="0 0 0"/>
+  </xacro:imu_sensor>
+
+  <xacro:gps_sensor parent="base_link">
+    <origin xyz="0 0 0.0" rpy="0 0 0"/>
+  </xacro:gps_sensor>
+
+  <xacro:ground_truth_odometry/>
 
   <xacro:if value="$(arg use_sim)">
     <xacro:athena_drive_ros2_control

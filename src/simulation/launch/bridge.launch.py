@@ -29,7 +29,17 @@ def generate_launch_description():
             name='clock_bridge',
             output='screen',
             arguments=[
-                '/clock@rosgraph_msgs/msg/Clock@gz.msgs.Clock',
+                '/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock',
+            ]
+        ),
+
+        Node(
+            package='ros_gz_bridge',
+            executable='parameter_bridge',
+            name='ground_truth_odom_bridge',
+            output='screen',
+            arguments=[
+                '/odom/ground_truth@nav_msgs/msg/Odometry@gz.msgs.Odometry',
             ]
         ),
     ])

@@ -1,13 +1,13 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
-    <xacro:macro name="gps_sensor" params="parent prefix *origin">
-        <joint name="${prefix}_gps_joint" type="fixed">
+    <xacro:macro name="gps_sensor" params="parent *origin">
+        <joint name="gnss_joint" type="fixed">
             <xacro:insert_block name="origin" />
             <parent link="${parent}" />
-            <child link="${prefix}_gps_link" />
+            <child link="gnss_link" />
         </joint>
 
-        <link name="${prefix}_gps_link">
+        <link name="gnss_link">
             <visual>
                 <geometry>
                     <box size="0.05 0.05 0.05" />
@@ -18,13 +18,13 @@
             </visual>
         </link>
 
-        <gazebo reference="${prefix}_gps_link">
-            <sensor name="${prefix}_navsat" type="navsat">
+        <gazebo reference="gnss_link">
+            <sensor name="navsat" type="navsat">
                 <always_on>true</always_on>
-                <update_rate>10</update_rate>
-                <topic>/gps</topic>
-                <plugin filename="libgz-sim-navsat-system.so" name="gz::sim::systems::NavSat">
-                </plugin>
+                <update_rate>50</update_rate>
+                <topic>/gps/fix</topic>
+                <ign_frame_id>gnss_link</ign_frame_id>
+                <plugin filename="ignition-gazebo-navsat-system" name="ignition::gazebo::systems::NavSat"/>
             </sensor>
         </gazebo>
     </xacro:macro>

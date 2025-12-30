@@ -62,7 +62,7 @@ Visualization Manager:
         Expand Link Details: false
         Expand Tree: false
         Link Tree Style: Links in Alphabetic Order
-        chassis_base_link:
+        base_link:
           Alpha: 1
           Show Axes: false
           Show Trail: false
@@ -170,7 +170,7 @@ Visualization Manager:
       Frame Timeout: 15
       Frames:
         All Enabled: true
-        chassis_base_link:
+        base_link:
           Value: true
         propulsion_1_link:
           Value: true
@@ -214,7 +214,7 @@ Visualization Manager:
       Show Axes: true
       Show Names: true
       Tree:
-        chassis_base_link:
+        base_link:
           suspension_front_left_link:
             swerve_mount_1_link:
               steer_1_link:
@@ -242,7 +242,7 @@ Visualization Manager:
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
-    Fixed Frame: chassis_base_link
+    Fixed Frame: base_link
     Frame Rate: 30
   Name: root
   Tools:

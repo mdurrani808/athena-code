@@ -1,0 +1,37 @@
+localizer_node:
+  ros__parameters:
+    # Topic configuration
+    imu_topic: "/imu"
+    gnss_topic: "/gps/fix"
+    odom_topic: "/odom"
+    output_odom_topic: "/localization/odom"
+
+    # Publish rate (Hz)
+    publish_rate: 50.0
+
+    # Frame names
+    tf_prefix: ""
+    map_frame: "map"
+    odom_frame: "odom"
+    base_frame: "base_link"
+    imu_frame: "imu_link"
+    gnss_frame: "gnss_link"
+
+    # IMU noise parameters
+    imu_accel_noise: 0.2        # m/s^2
+    imu_gyro_noise: 0.01        # rad/s
+    imu_bias_noise: 0.0002      # bias random walk
+
+    # GNSS noise parameters
+    gnss_noise: 0.25            # meters
+
+    # Odometry noise parameters
+    odom_noise: 0.5             # meters
+
+    # State estimation window parameters
+    max_time_window: 10.0       # seconds
+    max_states: 100
+
+    origin_lat: 38.42391162772634
+    origin_lon: -110.78490558433397
+    origin_alt: 0.0
