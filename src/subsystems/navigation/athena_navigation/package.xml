@@ -1,32 +1,41 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>planning</name>
+  <name>athena_navigation</name>
   <version>0.0.0</version>
-  <description>SMAC planner interface for terrain-based navigation using DEM costmaps</description>
-  <maintainer email="rishav.a.nair@gmail.com">rishavn</maintainer>
+  <description>Minimal Nav2 configuration for Athena rover with Ackermann steering</description>
+  <maintainer email="mdurrani808@gmail.com">Mohammad Durrani</maintainer>
   <license>Apache-2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
+  <!-- Core dependencies for launch files -->
   <depend>rclcpp</depend>
-  <depend>rclcpp_action</depend>
+  <depend>rclpy</depend>
   <depend>nav2_msgs</depend>
   <depend>geometry_msgs</depend>
   <depend>nav_msgs</depend>
-  <depend>tf2</depend>
   <depend>tf2_ros</depend>
-  <depend>tf2_geometry_msgs</depend>
 
+  <!-- Python dependencies for initial pose publisher -->
+  <exec_depend>python3-scipy</exec_depend>
+
+  <!-- Nav2 runtime dependencies -->
   <exec_depend>nav2_bringup</exec_depend>
+  <exec_depend>nav2_bt_navigator</exec_depend>
   <exec_depend>nav2_planner</exec_depend>
-  <exec_depend>nav2_costmap_2d</exec_depend>
+  <exec_depend>nav2_controller</exec_depend>
+  <exec_depend>nav2_behaviors</exec_depend>
   <exec_depend>nav2_lifecycle_manager</exec_depend>
+  <exec_depend>nav2_costmap_2d</exec_depend>
+  <exec_depend>nav2_regulated_pure_pursuit_controller</exec_depend>
   <exec_depend>nav2_smac_planner</exec_depend>
+
+  <!-- Existing packages -->
   <exec_depend>localizer</exec_depend>
-  <exec_depend>mapping</exec_depend>
+
+  <!-- Twist to TwistStamped conversion -->
   <exec_depend>twist_stamper</exec_depend>
-  <exec_depend>nav2_rviz_plugins</exec_depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
