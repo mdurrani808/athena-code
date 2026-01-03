@@ -1,9 +1,49 @@
+# Minimal Nav2 Configuration for Athena Rover (Ackermann Steering)
+# Tuned for: wheelbase=0.8382m, track=0.6604m, wheel_radius=0.254m
+# Uses fused localization from /localization/odom (IMU + GPS + wheel odometry)
+# NO MAP REQUIRED - uses rolling costmaps for GPS-based outdoor navigation
+
 bt_navigator:
   ros__parameters:
     use_sim_time: true
     global_frame: map
     robot_base_frame: base_link
-    default_bt_xml_filename: "$(find-pkg-share nav2_bt_navigator)/behavior_trees/navigate_w_replanning.xml"
+    odom_topic: /odom/ground_truth
+    bt_loop_duration: 10
+    default_server_timeout: 20
+    plugin_lib_names:
+          - nav2_compute_path_to_pose_action_bt_node
+          - nav2_compute_path_through_poses_action_bt_node
+          - nav2_smooth_path_action_bt_node
+          - nav2_follow_path_action_bt_node
+          - nav2_spin_action_bt_node
+          - nav2_wait_action_bt_node
+          - nav2_assisted_teleop_action_bt_node
+          - nav2_back_up_action_bt_node
+          - nav2_drive_on_heading_bt_node
+          - nav2_clear_costmap_service_bt_node
+          - nav2_reinitialize_global_localization_service_bt_node
+          - nav2_truncate_path_action_bt_node
+          - nav2_goal_updater_node_bt_node
+          - nav2_remove_passed_goals_action_bt_node
+          - nav2_navigate_to_pose_action_bt_node
+          - nav2_navigate_through_poses_action_bt_node
+          - nav2_planner_selector_bt_node
+          - nav2_controller_selector_bt_node
+          - nav2_goal_checker_selector_bt_node
+          - nav2_is_stuck_condition_bt_node
+          - nav2_goal_reached_condition_bt_node
+          - nav2_goal_updated_condition_bt_node
+          - nav2_initial_pose_received_condition_bt_node
+          - nav2_transform_available_condition_bt_node
+          - nav2_time_expired_condition_bt_node
+          - nav2_distance_traveled_condition_bt_node
+          - nav2_rate_controller_bt_node
+          - nav2_distance_controller_bt_node
+          - nav2_speed_controller_bt_node
+          - nav2_recovery_node_bt_node
+          - nav2_pipeline_sequence_bt_node
+          - nav2_round_robin_node_bt_node
 
 planner_server:
   ros__parameters:
@@ -57,26 +97,6 @@ planner_server:
         tolerance: 1.0e-10
         do_refinement: true
         refinement_num: 2
-
-
-global_costmap:
-  ros__parameters:
-    use_sim_time: true
-    global_frame: map
-    robot_base_frame: base_link
-    update_frequency: 2.0
-    publish_frequency: 2.0
-    resolution: 1.0
-    size_x: 799
-    size_y: 799
-    origin_x: 0.0
-    origin_y: 0.0
-    rolling_window: false
-    track_unknown_space: true
-    plugins:
-      - {name: static_layer,    type: "nav2_costmap_2d::StaticLayer"}
-      - {name: inflation_layer, type: "nav2_costmap_2d::InflationLayer"}
-
 controller_server:
   ros__parameters:
     odom_topic: /ackermann_steering_controller/odometry
@@ -111,28 +131,92 @@ controller_server:
       use_velocity_scaled_lookahead_dist: false
       use_final_approach_orientation: false
   
-
-
-local_costmap:
+behavior_server:
   ros__parameters:
     use_sim_time: true
-    global_frame: odom
+    global_frame: map
     robot_base_frame: base_link
-    rolling_window: true
-    width: 6.0
-    height: 6.0
-    resolution: 1
-    plugins: ["static_layer"]
-    static_layer:
-      plugin: "nav2_costmap_2d::StaticLayer"
-      map_subscribe_transient_local: true
-      
+    transform_tolerance: 0.5
+    simulate_ahead_time: 2.0
+    max_rotational_vel: 0.5
+    min_rotational_vel: 0.1
+    rotational_acc_lim: 1.0
 
+    # Recovery behaviors required by nav2 behavior trees
+    behavior_plugins: ["spin", "backup", "drive_on_heading", "assisted_teleop", "wait"]
+
+    spin:
+      plugin: "nav2_behaviors/Spin"
+    backup:
+      plugin: "nav2_behaviors/BackUp"
+    drive_on_heading:
+      plugin: "nav2_behaviors/DriveOnHeading"
+    assisted_teleop:
+      plugin: "nav2_behaviors/AssistedTeleop"
+    wait:
+      plugin: "nav2_behaviors/Wait"
+
+# Global costmap - ROLLING WINDOW (no static map needed)
+global_costmap:
+  global_costmap:
+    ros__parameters:
+      use_sim_time: true
+      robot_base_frame: base_link
+      global_frame: map
+      update_frequency: 1.0
+      publish_frequency: 1.0
+      resolution: 0.5                   # 50cm resolution
+      width: 100                        # 50m x 50m rolling area
+      height: 100
+      rolling_window: true              # ROLLING - no static map needed
+      track_unknown_space: false
+      always_send_full_costmap: true
+
+      # Robot footprint - based on Athena rover dimensions
+      # Approximate: length=0.7m, width=0.52m (track=0.66m with margin)
+      footprint: "[[0.35, 0.26], [0.35, -0.26], [-0.35, -0.26], [-0.35, 0.26]]"
+
+      # MINIMAL PLUGINS - no static layer (no map needed)
+      plugins: ["inflation_layer"]
+      
+      inflation_layer:
+        plugin: "nav2_costmap_2d::InflationLayer"
+        cost_scaling_factor: 3.0
+        inflation_radius: 1.0
+
+# Local costmap - ROLLING WINDOW (no static map needed)
+local_costmap:
+  local_costmap:
+    ros__parameters:
+      use_sim_time: true
+      global_frame: odom
+      robot_base_frame: base_link
+      update_frequency: 5.0
+      publish_frequency: 2.0
+      rolling_window: true              # Always rolling for local costmap
+      width: 10                         # 10m x 10m local area
+      height: 10
+      resolution: 0.25                  # 25cm resolution
+      always_send_full_costmap: true
+
+      # Same footprint as global
+      footprint: "[[0.35, 0.26], [0.35, -0.26], [-0.35, -0.26], [-0.35, 0.26]]"
+
+      # MINIMAL PLUGINS - no static layer (no map needed)
+      plugins: ["inflation_layer"]
+      
+      inflation_layer:
+        plugin: "nav2_costmap_2d::InflationLayer"
+        cost_scaling_factor: 3.0
+        inflation_radius: 0.8
+
+# Lifecycle manager - manages nav2 nodes
 lifecycle_manager:
   ros__parameters:
     use_sim_time: true
     autostart: true
     node_names:
-      - planner_server
       - controller_server
+      - planner_server
+      - behavior_server
       - bt_navigator

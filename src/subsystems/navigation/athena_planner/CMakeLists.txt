@@ -18,7 +18,7 @@ install(DIRECTORY config/
   DESTINATION share/${PROJECT_NAME}/config
 )
 
-# (Optional) install behavior trees if the folder exists
+# Install behavior trees if the folder exists
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/behavior_trees)
   install(DIRECTORY behavior_trees/
     DESTINATION share/${PROJECT_NAME}/behavior_trees
