@@ -43,7 +43,8 @@ struct EstimatedState {
     gtsam::NavState nav_state;
     gtsam::imuBias::ConstantBias imu_bias;
     Eigen::Matrix<double, 15, 15> covariance;
-    
+    gtsam::Vector3 body_rate;  // Angular velocity in body frame (gyro - bias)
+
     nav_msgs::msg::Odometry to_odometry(
         const std::string& frame_id,
         const std::string& child_frame_id) const;
@@ -63,6 +64,7 @@ struct GraphStateEntry {
     rclcpp::Time timestamp;
     gtsam::NavState nav_state;
     gtsam::imuBias::ConstantBias bias;
+    gtsam::Vector3 latest_gyro;  // Most recent gyro measurement at this state
 };
 
 struct PendingGnss {
@@ -243,7 +245,8 @@ private:
     // Cached sensor transforms
     std::optional<gtsam::Pose3> imu_to_base_;
     std::optional<gtsam::Point3> gnss_to_base_;
-    
+    bool imu_extrinsic_set_;  // Flag to track if IMU extrinsic is initialized
+
     // Cached frame IDs
     CachedFrameIds cached_frames_;
     

@@ -38,11 +38,10 @@ nav_msgs::msg::Odometry EstimatedState::to_odometry(
     odom.pose.pose.orientation.y = quat.y();
     odom.pose.pose.orientation.z = quat.z();
 
-    // Transform velocity from world frame to body frame
-    gtsam::Point3 vel_body = pose.rotation().unrotate(gtsam::Point3(vel));
-    odom.twist.twist.linear.x = vel_body.x();
-    odom.twist.twist.linear.y = vel_body.y();
-    odom.twist.twist.linear.z = vel_body.z();
+    // Velocity is already in the correct frame from nav_state
+    odom.twist.twist.linear.x = vel.x();
+    odom.twist.twist.linear.y = vel.y();
+    odom.twist.twist.linear.z = vel.z();
 
     // Fill pose covariance (6x6 block from 15x15 state covariance)
     // ROS uses [x, y, z, roll, pitch, yaw], GTSAM uses [roll, pitch, yaw, x, y, z]
@@ -592,22 +591,25 @@ gtsam::Rot3 StateEstimator::estimate_initial_orientation_locked() const
     }
     avg_accel /= static_cast<double>(count);
     
-    Eigen::Vector3d gravity_body = avg_accel.normalized();
-    Eigen::Vector3d gravity_world(0.0, 0.0, -1.0);
+    // Accelerometer measures reaction to gravity, pointing UP when stationary
+    // We want to find rotation R such that: R * avg_accel = [0, 0, +9.81] (world up)
+    Eigen::Vector3d measured_up = avg_accel.normalized();
+    Eigen::Vector3d world_up(0.0, 0.0, 1.0);  // ← Changed from -1 to +1
     
-    Eigen::Vector3d axis = gravity_body.cross(gravity_world);
+    Eigen::Vector3d axis = measured_up.cross(world_up);
     double axis_norm = axis.norm();
     
     if (axis_norm < 1e-6) {
-        if (gravity_body.dot(gravity_world) > 0) {
-            return gtsam::Rot3();
+        // Vectors are parallel
+        if (measured_up.dot(world_up) > 0) {
+            return gtsam::Rot3();  // Already aligned
         } else {
-            return gtsam::Rot3::Rx(M_PI);
+            return gtsam::Rot3::Rx(M_PI);  // Upside down
         }
     }
     
     axis.normalize();
-    double angle = std::acos(std::clamp(gravity_body.dot(gravity_world), -1.0, 1.0));
+    double angle = std::acos(std::clamp(measured_up.dot(world_up), -1.0, 1.0));
     
     return gtsam::Rot3::AxisAngle(gtsam::Unit3(axis), angle);
 }
@@ -643,6 +645,15 @@ void StateEstimator::create_new_state(const rclcpp::Time& timestamp)
     gtsam::NavState predicted;
     try {
         predicted = preintegrated_imu_->predict(prev_state.nav_state, prev_state.bias);
+        RCLCPP_INFO(get_logger(), 
+    "IMU predict: dt=%.3f, delta_pos=(%.2f, %.2f, %.2f), delta_vel=(%.2f, %.2f, %.2f)",
+    preintegrated_imu_->deltaTij(),
+    preintegrated_imu_->deltaPij().x(),
+    preintegrated_imu_->deltaPij().y(),
+    preintegrated_imu_->deltaPij().z(),
+    preintegrated_imu_->deltaVij().x(),
+    preintegrated_imu_->deltaVij().y(),
+    preintegrated_imu_->deltaVij().z());
     } catch (const std::exception& e) {
         RCLCPP_ERROR(get_logger(), "IMU prediction failed: %s", e.what());
         return;
@@ -667,10 +678,10 @@ void StateEstimator::create_new_state(const rclcpp::Time& timestamp)
     // GNSS factor with proper offset handling
     if (pending_gnss_.valid) {
         gtsam::Point3 corrected_pos = pending_gnss_.position;
-        
-        // Apply antenna offset using predicted pose (best estimate at this state)
+
+        // Apply antenna offset (gnss_to_base is the offset from GNSS to base)
         if (gnss_to_base_) {
-            corrected_pos = corrected_pos - predicted.pose().rotation().rotate(*gnss_to_base_);
+            corrected_pos = corrected_pos + *gnss_to_base_;
         }
         
         auto gnss_noise = gtsam::noiseModel::Isotropic::Sigma(3, pending_gnss_.sigma);
@@ -962,7 +973,8 @@ void StateEstimator::publish_transforms()
             odom_to_base.transform.translation.z));
     
     gtsam::Pose3 T_map_base = state->nav_state.pose();
-    gtsam::Pose3 T_map_odom = T_map_base.compose(T_odom_base.inverse());
+    // T_map_odom such that T_map_base = T_map_odom * T_odom_base
+    gtsam::Pose3 T_map_odom = T_odom_base.between(T_map_base).inverse();
     
     geometry_msgs::msg::TransformStamped tf_msg;
     tf_msg.header.stamp = state->timestamp;

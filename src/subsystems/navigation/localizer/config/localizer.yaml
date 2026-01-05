@@ -5,7 +5,7 @@ state_estimator:
     # ==========================================================================
     imu_topic: "/imu"
     gnss_topic: "/gps/fix"
-    odom_topic: "/odom/ground_truth"
+    odom_topic: ""
     output_odom_topic: "/localization/odom"
 
     # ==========================================================================
@@ -21,63 +21,63 @@ state_estimator:
     # ==========================================================================
     # Publish Rates
     # ==========================================================================
-    publish_rate: 50.0          # Hz - state odometry publish rate
-    tf_publish_rate: 20.0       # Hz - map->odom transform publish rate
+    publish_rate: 100.0          # Hz - higher rate for smooth simulation
+    tf_publish_rate: 50.0        # Hz - higher tf rate for better visualization
 
     # ==========================================================================
     # IMU Noise Parameters (continuous-time spectral densities)
     # ==========================================================================
-    accel_noise_sigma: 0.2          # m/s^2/sqrt(Hz) - accelerometer noise
-    gyro_noise_sigma: 0.01          # rad/s/sqrt(Hz) - gyroscope noise
-    accel_bias_rw_sigma: 0.001      # m/s^3/sqrt(Hz) - accelerometer bias random walk
-    gyro_bias_rw_sigma: 0.0001      # rad/s^2/sqrt(Hz) - gyroscope bias random walk
+    accel_noise_sigma: 0.01         # m/s^2/sqrt(Hz) - much lower for ideal sim
+    gyro_noise_sigma: 0.001         # rad/s/sqrt(Hz) - much lower for ideal sim
+    accel_bias_rw_sigma: 1.0e-5     # m/s^3/sqrt(Hz) - minimal bias drift
+    gyro_bias_rw_sigma: 1.0e-6      # rad/s^2/sqrt(Hz) - minimal bias drift
 
     # ==========================================================================
     # GNSS Parameters
     # ==========================================================================
-    gnss_position_sigma: 0.25       # meters - minimum position uncertainty
-    gnss_max_age: 1.0               # seconds - reject measurements older than this
-    gnss_fix_quality_multiplier: 1.5  # inflate noise for single-point fix
+    gnss_position_sigma: 0.05       # meters - better accuracy in simulation
+    gnss_max_age: 0.5               # seconds - tighter timing for sim
+    gnss_fix_quality_multiplier: 1.0  # no degradation in ideal conditions
 
     # GNSS outlier rejection (Huber robust noise model)
-    use_robust_gnss_noise: true
-    gnss_huber_k: 1.345             # Huber loss parameter (1.345 = 95% efficiency)
+    use_robust_gnss_noise: false    # no outliers in ideal sim
+    gnss_huber_k: 1.345
 
     # ==========================================================================
     # Odometry Parameters
     # ==========================================================================
-    odom_position_sigma: 0.1        # meters - odometry position uncertainty
-    odom_rotation_sigma: 0.05       # radians - odometry rotation uncertainty
+    odom_position_sigma: 0.01       # meters - very accurate wheel odometry
+    odom_rotation_sigma: 0.005      # radians - very accurate rotation
 
     # ==========================================================================
     # Graph Management
     # ==========================================================================
-    state_creation_rate: 20.0       # Hz - rate of new state creation
-    max_graph_states: 100           # max states before marginalization
+    state_creation_rate: 50.0       # Hz - higher rate for better trajectory
+    max_graph_states: 200           # more states for longer optimization window
 
     # ISAM2 optimizer parameters
-    isam2_relinearize_threshold: 0.1
-    isam2_relinearize_skip: 1
+    isam2_relinearize_threshold: 0.01  # tighter convergence
+    isam2_relinearize_skip: 5          # relinearize more often
 
     # ==========================================================================
     # IMU Integration Parameters
     # ==========================================================================
-    integration_covariance: 1.0e-8  # numerical integration error covariance
-    bias_acc_omega_int: 1.0e-5      # bias integration covariance
+    integration_covariance: 1.0e-10 # very low numerical error in simulation
+    bias_acc_omega_int: 1.0e-8      # minimal bias integration error
 
     # ==========================================================================
     # Initialization Parameters
     # ==========================================================================
-    min_imu_samples_for_init: 50    # samples needed before initialization (~0.5s at 100Hz)
-    initial_velocity_sigma: 0.5     # m/s - assume starting roughly stationary
-    initial_rotation_sigma: 0.1     # rad - initial rotation uncertainty
-    initial_accel_bias_sigma: 0.05  # m/s^2 - initial accelerometer bias uncertainty
-    initial_gyro_bias_sigma: 0.005  # rad/s - initial gyroscope bias uncertainty
+    min_imu_samples_for_init: 20    # faster init in simulation (~0.2s at 100Hz)
+    initial_velocity_sigma: 0.1     # m/s - tighter initial velocity estimate
+    initial_rotation_sigma: 0.01    # rad - more confident initial orientation
+    initial_accel_bias_sigma: 0.001 # m/s^2 - minimal initial bias
+    initial_gyro_bias_sigma: 0.0001 # rad/s - minimal initial bias
 
     # ==========================================================================
     # Buffer Configuration
     # ==========================================================================
-    imu_buffer_max_size: 1000       # max IMU samples to buffer (~5s at 200Hz)
+    imu_buffer_max_size: 2000       # larger buffer for high-rate data
 
     # ==========================================================================
     # ENU Origin (optional - if not set, uses first GNSS fix)
