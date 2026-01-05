@@ -55,6 +55,8 @@ ackermann_steering_controller:
     front_wheels_radius: 0.254
     rear_wheels_radius: 0.254
     use_stamped_vel: true
+    publish_odom: true
+    publish_odom_tf: true
 
 single_ackermann_controller:
   ros__parameters:

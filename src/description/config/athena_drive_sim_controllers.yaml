@@ -29,8 +29,9 @@ ackermann_steering_controller:
 
     odom_frame_id: "odom"
     base_frame_id: "base_link"
-    publish_odom: true   
-    publish_odom_tf: true   
+    tf_frame_prefix: "testertester"
+    publish_odom: true
+    publish_odom_tf: true
     reference_timeout: 0.2
 
 
