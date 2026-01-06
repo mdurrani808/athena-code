@@ -152,7 +152,7 @@ def generate_launch_description():
                    params_file,
                    {'default_nav_to_pose_bt_xml': default_bt_xml_path}
                ],
-               arguments=['--ros-args', '--log-level', "log_level"],
+               arguments=['--ros-args', '--log-level', log_level],
                remappings=remappings,
        )
    )
