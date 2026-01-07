@@ -40,7 +40,7 @@
 
 
   <xacro:imu_sensor parent="base_link">
-    <origin xyz="0.775305042176281 -0.0692748019047986 -0.475175318827691" rpy="0 0 0"/>
+    <origin xyz="0.775305042176281 -0.0692748019047986 -0.475175318827691" rpy="0 0 -${pi}"/>
   </xacro:imu_sensor>
 
   <xacro:gps_sensor parent="base_link">

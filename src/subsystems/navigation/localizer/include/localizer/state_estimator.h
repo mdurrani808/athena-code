@@ -149,6 +149,10 @@ struct StateEstimatorParams {
     // Buffer and timing
     size_t imu_buffer_max_size = 1000;
     double tf_publish_rate = 50.0;
+
+    // IMU filtering (EMA)
+    bool enable_imu_filter = true;
+    double imu_filter_alpha = 0.3;
 };
 
 // ============================================================================
@@ -247,6 +251,11 @@ private:
     std::optional<gtsam::Point3> gnss_to_base_;
     bool imu_extrinsic_set_;  // Flag to track if IMU extrinsic is initialized
 
+    // EMA filter state (for accel x, y, z and gyro x, y, z)
+    std::optional<Eigen::Vector3d> filtered_accel_;
+    std::optional<Eigen::Vector3d> filtered_gyro_;
+    bool filter_initialized_;
+
     // Cached frame IDs
     CachedFrameIds cached_frames_;
     
@@ -259,6 +268,7 @@ private:
     rclcpp::Subscription<sensor_msgs::msg::NavSatFix>::SharedPtr gnss_sub_;
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
     rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odom_pub_;
+    rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr filtered_imu_pub_;
     
     std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
     std::shared_ptr<tf2_ros::TransformListener> tf_listener_;

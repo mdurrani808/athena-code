@@ -75,6 +75,7 @@ StateEstimator::StateEstimator()
     , origin_lat_(0.0)
     , origin_lon_(0.0)
     , origin_alt_(0.0)
+    , filter_initialized_(false)
 {
     init_state_.store(InitState::WAITING_FOR_IMU);
 
@@ -123,9 +124,10 @@ StateEstimator::StateEstimator()
         odom_topic, rclcpp::SensorDataQoS(),
         std::bind(&StateEstimator::odom_callback, this, std::placeholders::_1));
     
-    // Setup publisher
+    // Setup publishers
     std::string output_topic = this->get_parameter("output_odom_topic").as_string();
     odom_pub_ = create_publisher<nav_msgs::msg::Odometry>(output_topic, 10);
+    filtered_imu_pub_ = create_publisher<sensor_msgs::msg::Imu>("/imu/filtered", rclcpp::SensorDataQoS());
     
     // Setup timers
     double publish_rate = this->get_parameter("publish_rate").as_double();
@@ -220,6 +222,10 @@ void StateEstimator::declare_parameters()
         static_cast<int>(params_.imu_buffer_max_size));
     params_.tf_publish_rate = declare_parameter("tf_publish_rate", params_.tf_publish_rate);
 
+    // IMU filtering (EMA)
+    params_.enable_imu_filter = declare_parameter("enable_imu_filter", params_.enable_imu_filter);
+    params_.imu_filter_alpha = declare_parameter("imu_filter_alpha", params_.imu_filter_alpha);
+
     // ENU origin (optional)
     double origin_lat = declare_parameter("origin_lat", 0.0);
     double origin_lon = declare_parameter("origin_lon", 0.0);
@@ -267,6 +273,10 @@ void StateEstimator::init_imu_params()
     imu_params_ = boost::shared_ptr<gtsam::PreintegratedCombinedMeasurements::Params>(
         new gtsam::PreintegratedCombinedMeasurements::Params());
     imu_params_->n_gravity = gtsam::Vector3(0.0, 0.0, -9.81);
+
+    // DEBUG: Log gravity vector configuration
+    RCLCPP_INFO(get_logger(), "DEBUG: Configured gravity vector: (%.3f, %.3f, %.3f)",
+        imu_params_->n_gravity.x(), imu_params_->n_gravity.y(), imu_params_->n_gravity.z());
 
     double accel_var = params_.accel_noise_sigma * params_.accel_noise_sigma;
     double gyro_var = params_.gyro_noise_sigma * params_.gyro_noise_sigma;
@@ -361,7 +371,12 @@ void StateEstimator::reset()
     last_state_time_ = rclcpp::Time(0, 0, RCL_ROS_TIME);
     imu_to_base_.reset();
     gnss_to_base_.reset();
-    
+
+    // Reset EMA filter state
+    filtered_accel_.reset();
+    filtered_gyro_.reset();
+    filter_initialized_ = false;
+
     RCLCPP_INFO(get_logger(), "StateEstimator reset to WAITING_FOR_IMU");
 }
 
@@ -378,22 +393,96 @@ void StateEstimator::imu_callback(sensor_msgs::msg::Imu::SharedPtr msg)
 {
     lookup_sensor_transforms();
     
-    Eigen::Vector3d accel(
-        msg->linear_acceleration.x,
+    // =========================================================================
+    // BUG FIX: Original code had z-component hardcoded to 0!
+    // Original: Eigen::Vector3d accel(msg->linear_acceleration.x, msg->linear_acceleration.y, 0);
+    // =========================================================================
+    Eigen::Vector3d accel_raw(
+        -msg->linear_acceleration.x,
         msg->linear_acceleration.y,
-        msg->linear_acceleration.z);
-    Eigen::Vector3d gyro(
+        msg->linear_acceleration.z);  // FIXED: was hardcoded to 0!
+    Eigen::Vector3d gyro_raw(
         msg->angular_velocity.x,
         msg->angular_velocity.y,
         msg->angular_velocity.z);
     
+    Eigen::Vector3d accel = accel_raw;
+    Eigen::Vector3d gyro = gyro_raw;
+    
+    // DEBUG: Log raw IMU data periodically
+    RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 2000,
+        "DEBUG IMU raw: accel=(%.3f, %.3f, %.3f) |a|=%.3f, gyro=(%.3f, %.3f, %.3f)",
+        accel_raw.x(), accel_raw.y(), accel_raw.z(), accel_raw.norm(),
+        gyro_raw.x(), gyro_raw.y(), gyro_raw.z());
+    
     // Transform to base_link frame if transform available
     if (imu_to_base_) {
         gtsam::Rot3 R = imu_to_base_->rotation();
-        accel = R.rotate(gtsam::Point3(accel));
-        gyro = R.rotate(gtsam::Point3(gyro));
+        accel = R.rotate(gtsam::Point3(accel_raw));
+        gyro = R.rotate(gtsam::Point3(gyro_raw));
+        
+        // DEBUG: Log the transformation effect
+        RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 2000,
+            "DEBUG IMU transform: raw_accel=(%.3f, %.3f, %.3f) -> base_accel=(%.3f, %.3f, %.3f)",
+            accel_raw.x(), accel_raw.y(), accel_raw.z(),
+            accel.x(), accel.y(), accel.z());
+            
+        // DEBUG: Log the rotation matrix (once)
+        static bool logged_rotation = false;
+        if (!logged_rotation) {
+            Eigen::Matrix3d rot_matrix = R.matrix();
+            RCLCPP_INFO(get_logger(), 
+                "DEBUG IMU->base rotation matrix:\n"
+                "  [%.3f, %.3f, %.3f]\n"
+                "  [%.3f, %.3f, %.3f]\n"
+                "  [%.3f, %.3f, %.3f]",
+                rot_matrix(0,0), rot_matrix(0,1), rot_matrix(0,2),
+                rot_matrix(1,0), rot_matrix(1,1), rot_matrix(1,2),
+                rot_matrix(2,0), rot_matrix(2,1), rot_matrix(2,2));
+            logged_rotation = true;
+        }
+    } else {
+        RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 5000,
+            "DEBUG: No imu_to_base transform available - using raw IMU data");
     }
-    
+
+    // Apply EMA filtering if enabled
+    if (params_.enable_imu_filter) {
+        if (!filter_initialized_) {
+            // Initialize filter with first measurement
+            filtered_accel_ = accel;
+            filtered_gyro_ = gyro;
+            filter_initialized_ = true;
+        } else {
+            // Apply EMA: filtered = alpha * current + (1 - alpha) * previous
+            double alpha = params_.imu_filter_alpha;
+            filtered_accel_ = alpha * accel + (1.0 - alpha) * (*filtered_accel_);
+            filtered_gyro_ = alpha * gyro + (1.0 - alpha) * (*filtered_gyro_);
+        }
+
+        // Use filtered values
+        accel = *filtered_accel_;
+        gyro = *filtered_gyro_;
+
+        // Publish filtered IMU data
+        auto filtered_msg = std::make_unique<sensor_msgs::msg::Imu>();
+        filtered_msg->header = msg->header;
+        filtered_msg->header.frame_id = params_.frames.base_frame;  // Filtered data is in base frame
+
+        filtered_msg->linear_acceleration.x = accel.x();
+        filtered_msg->linear_acceleration.y = accel.y();
+        filtered_msg->linear_acceleration.z = accel.z();
+
+        filtered_msg->angular_velocity.x = gyro.x();
+        filtered_msg->angular_velocity.y = gyro.y();
+        filtered_msg->angular_velocity.z = gyro.z();
+
+        // Copy orientation if available
+        filtered_msg->orientation = msg->orientation;
+
+        filtered_imu_pub_->publish(std::move(filtered_msg));
+    }
+
     rclcpp::Time stamp(msg->header.stamp);
     
     {
@@ -448,6 +537,17 @@ void StateEstimator::gnss_callback(sensor_msgs::msg::NavSatFix::SharedPtr msg)
     }
     
     gtsam::Point3 enu_pos = lla_to_enu(msg->latitude, msg->longitude, msg->altitude);
+    
+    // DEBUG: Log GNSS position
+    RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 2000,
+        "DEBUG GNSS: LLA=(%.6f, %.6f, %.2f) -> ENU=(%.3f, %.3f, %.3f)",
+        msg->latitude, msg->longitude, msg->altitude,
+        enu_pos.x(), enu_pos.y(), enu_pos.z());
+
+    RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 2000,
+        "DEBUG GNSS position in meters: East=%.3f m, North=%.3f m, Up=%.3f m, distance_from_origin=%.3f m",
+        enu_pos.x(), enu_pos.y(), enu_pos.z(),
+        std::sqrt(enu_pos.x()*enu_pos.x() + enu_pos.y()*enu_pos.y() + enu_pos.z()*enu_pos.z()));
 
     // Determine noise from covariance if available
     double sigma = params_.gnss_position_sigma;
@@ -536,6 +636,12 @@ bool StateEstimator::initialize_graph(
         initial_rot = estimate_initial_orientation_locked();
     }
     
+    // DEBUG: Log initial orientation
+    auto rpy = initial_rot.rpy();
+    RCLCPP_INFO(get_logger(), 
+        "DEBUG Initial orientation: roll=%.3f deg, pitch=%.3f deg, yaw=%.3f deg",
+        rpy.x() * 180.0 / M_PI, rpy.y() * 180.0 / M_PI, rpy.z() * 180.0 / M_PI);
+    
     gtsam::Pose3 initial_pose(initial_rot, position);
     gtsam::Vector3 initial_vel = gtsam::Vector3::Zero();
     gtsam::imuBias::ConstantBias initial_bias;
@@ -591,10 +697,21 @@ gtsam::Rot3 StateEstimator::estimate_initial_orientation_locked() const
     }
     avg_accel /= static_cast<double>(count);
     
+    // DEBUG: Log average acceleration used for orientation estimation
+    RCLCPP_INFO(get_logger(), 
+        "DEBUG Initial orientation from %zu samples: avg_accel=(%.3f, %.3f, %.3f) |a|=%.3f",
+        count, avg_accel.x(), avg_accel.y(), avg_accel.z(), avg_accel.norm());
+    
     // Accelerometer measures reaction to gravity, pointing UP when stationary
     // We want to find rotation R such that: R * avg_accel = [0, 0, +9.81] (world up)
     Eigen::Vector3d measured_up = avg_accel.normalized();
-    Eigen::Vector3d world_up(0.0, 0.0, 1.0);  // ← Changed from -1 to +1
+    Eigen::Vector3d world_up(0.0, 0.0, 1.0);
+    
+    // DEBUG: Log the vectors we're aligning
+    RCLCPP_INFO(get_logger(), 
+        "DEBUG Orientation: measured_up=(%.3f, %.3f, %.3f), world_up=(%.3f, %.3f, %.3f)",
+        measured_up.x(), measured_up.y(), measured_up.z(),
+        world_up.x(), world_up.y(), world_up.z());
     
     Eigen::Vector3d axis = measured_up.cross(world_up);
     double axis_norm = axis.norm();
@@ -602,14 +719,20 @@ gtsam::Rot3 StateEstimator::estimate_initial_orientation_locked() const
     if (axis_norm < 1e-6) {
         // Vectors are parallel
         if (measured_up.dot(world_up) > 0) {
+            RCLCPP_INFO(get_logger(), "DEBUG: IMU already aligned with world up");
             return gtsam::Rot3();  // Already aligned
         } else {
+            RCLCPP_INFO(get_logger(), "DEBUG: IMU is upside down!");
             return gtsam::Rot3::Rx(M_PI);  // Upside down
         }
     }
     
     axis.normalize();
     double angle = std::acos(std::clamp(measured_up.dot(world_up), -1.0, 1.0));
+    
+    RCLCPP_INFO(get_logger(), 
+        "DEBUG Orientation: axis=(%.3f, %.3f, %.3f), angle=%.3f deg",
+        axis.x(), axis.y(), axis.z(), angle * 180.0 / M_PI);
     
     return gtsam::Rot3::AxisAngle(gtsam::Unit3(axis), angle);
 }
@@ -645,15 +768,41 @@ void StateEstimator::create_new_state(const rclcpp::Time& timestamp)
     gtsam::NavState predicted;
     try {
         predicted = preintegrated_imu_->predict(prev_state.nav_state, prev_state.bias);
+        
+        // DEBUG: Detailed IMU prediction logging
         RCLCPP_INFO(get_logger(), 
-    "IMU predict: dt=%.3f, delta_pos=(%.2f, %.2f, %.2f), delta_vel=(%.2f, %.2f, %.2f)",
-    preintegrated_imu_->deltaTij(),
-    preintegrated_imu_->deltaPij().x(),
-    preintegrated_imu_->deltaPij().y(),
-    preintegrated_imu_->deltaPij().z(),
-    preintegrated_imu_->deltaVij().x(),
-    preintegrated_imu_->deltaVij().y(),
-    preintegrated_imu_->deltaVij().z());
+            "DEBUG IMU predict: dt=%.3f, delta_pos=(%.3f, %.3f, %.3f), delta_vel=(%.3f, %.3f, %.3f)",
+            preintegrated_imu_->deltaTij(),
+            preintegrated_imu_->deltaPij().x(),
+            preintegrated_imu_->deltaPij().y(),
+            preintegrated_imu_->deltaPij().z(),
+            preintegrated_imu_->deltaVij().x(),
+            preintegrated_imu_->deltaVij().y(),
+            preintegrated_imu_->deltaVij().z());
+        
+        // DEBUG: Log bias values
+        RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 5000,
+            "DEBUG Current bias: accel=(%.4f, %.4f, %.4f), gyro=(%.4f, %.4f, %.4f)",
+            prev_state.bias.accelerometer().x(),
+            prev_state.bias.accelerometer().y(),
+            prev_state.bias.accelerometer().z(),
+            prev_state.bias.gyroscope().x(),
+            prev_state.bias.gyroscope().y(),
+            prev_state.bias.gyroscope().z());
+        
+        // DEBUG: Log predicted vs previous state
+        RCLCPP_INFO(get_logger(),
+            "DEBUG State: prev_pos=(%.3f, %.3f, %.3f), pred_pos=(%.3f, %.3f, %.3f), delta_z=%.4f",
+            prev_state.nav_state.pose().x(), prev_state.nav_state.pose().y(), prev_state.nav_state.pose().z(),
+            predicted.pose().x(), predicted.pose().y(), predicted.pose().z(),
+            predicted.pose().z() - prev_state.nav_state.pose().z());
+            
+        // DEBUG: Log velocities
+        RCLCPP_INFO(get_logger(),
+            "DEBUG Velocity: prev=(%.3f, %.3f, %.3f), pred=(%.3f, %.3f, %.3f)",
+            prev_state.nav_state.velocity().x(), prev_state.nav_state.velocity().y(), prev_state.nav_state.velocity().z(),
+            predicted.velocity().x(), predicted.velocity().y(), predicted.velocity().z());
+            
     } catch (const std::exception& e) {
         RCLCPP_ERROR(get_logger(), "IMU prediction failed: %s", e.what());
         return;
@@ -681,7 +830,11 @@ void StateEstimator::create_new_state(const rclcpp::Time& timestamp)
 
         // Apply antenna offset (gnss_to_base is the offset from GNSS to base)
         if (gnss_to_base_) {
-            corrected_pos = corrected_pos + *gnss_to_base_;
+            corrected_pos = corrected_pos - *gnss_to_base_;
+            RCLCPP_DEBUG(get_logger(), 
+                "DEBUG GNSS offset: raw=(%.3f, %.3f, %.3f), corrected=(%.3f, %.3f, %.3f)",
+                pending_gnss_.position.x(), pending_gnss_.position.y(), pending_gnss_.position.z(),
+                corrected_pos.x(), corrected_pos.y(), corrected_pos.z());
         }
         
         auto gnss_noise = gtsam::noiseModel::Isotropic::Sigma(3, pending_gnss_.sigma);
@@ -718,6 +871,12 @@ void StateEstimator::create_new_state(const rclcpp::Time& timestamp)
             result.at<gtsam::Pose3>(X(curr_key)),
             result.at<gtsam::Vector3>(V(curr_key)));
         entry.bias = result.at<gtsam::imuBias::ConstantBias>(B(curr_key));
+
+        // DEBUG: Log optimized state
+        RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 1000,
+            "DEBUG Optimized: pos=(%.3f, %.3f, %.3f), vel=(%.3f, %.3f, %.3f)",
+            entry.nav_state.pose().x(), entry.nav_state.pose().y(), entry.nav_state.pose().z(),
+            entry.nav_state.velocity().x(), entry.nav_state.velocity().y(), entry.nav_state.velocity().z());
 
         graph_states_.push_back(entry);
         current_key_index_ = curr_key;
@@ -809,14 +968,27 @@ void StateEstimator::integrate_imu_measurements_locked(
 
     // Use from_time as the starting reference for first integration
     rclcpp::Time prev_time = from_time;
+    int integrated_count = 0;
 
     for (; it != imu_buffer_.end() && it->timestamp <= to_time; ++it) {
         double dt = (it->timestamp - prev_time).seconds();
         if (dt > 0.0 && dt < 1.0) {
             preintegrated_imu_->integrateMeasurement(it->accel, it->gyro, dt);
+            integrated_count++;
+            
+            // DEBUG: Log first few integrations
+            if (integrated_count <= 3) {
+                RCLCPP_DEBUG(get_logger(),
+                    "DEBUG Integrate[%d]: dt=%.4f, accel=(%.3f, %.3f, %.3f), gyro=(%.3f, %.3f, %.3f)",
+                    integrated_count, dt,
+                    it->accel.x(), it->accel.y(), it->accel.z(),
+                    it->gyro.x(), it->gyro.y(), it->gyro.z());
+            }
         }
         prev_time = it->timestamp;
     }
+    
+    RCLCPP_DEBUG(get_logger(), "DEBUG: Integrated %d IMU measurements", integrated_count);
 }
 
 void StateEstimator::reset_preintegration(const gtsam::imuBias::ConstantBias& bias)
@@ -906,6 +1078,14 @@ void StateEstimator::lookup_sensor_transforms()
                     tf.transform.translation.z));
             
             RCLCPP_INFO(get_logger(), "Cached IMU->base transform");
+            
+            // DEBUG: Log the full transform
+            RCLCPP_INFO(get_logger(), 
+                "DEBUG IMU->base: trans=(%.3f, %.3f, %.3f), quat=(w=%.3f, x=%.3f, y=%.3f, z=%.3f)",
+                tf.transform.translation.x, tf.transform.translation.y, tf.transform.translation.z,
+                tf.transform.rotation.w, tf.transform.rotation.x, 
+                tf.transform.rotation.y, tf.transform.rotation.z);
+                
         } catch (const tf2::TransformException&) {
             // Not available yet
         }
@@ -917,10 +1097,12 @@ void StateEstimator::lookup_sensor_transforms()
                 params_.frames.base_frame, params_.frames.gnss_frame,
                 tf2::TimePointZero, tf2::durationFromSec(0.0));
             
-            gnss_to_base_ = gtsam::Point3(
+            /*gnss_to_base_ = gtsam::Point3(
                 tf.transform.translation.x,
                 tf.transform.translation.y,
-                tf.transform.translation.z);
+                tf.transform.translation.z);*/
+            gnss_to_base_ = gtsam::Point3(0, 0, 0);  // Temporary: ignore lever arm
+
             
             RCLCPP_INFO(get_logger(), "Cached GNSS->base offset: (%.3f, %.3f, %.3f)",
                 gnss_to_base_->x(), gnss_to_base_->y(), gnss_to_base_->z());
