@@ -39,15 +39,15 @@
   <xacro:description/>
 
 
-  <xacro:imu_sensor parent="base_link">
-    <origin xyz="0.775305042176281 -0.0692748019047986 -0.475175318827691" rpy="0 0 -${pi}"/>
+  <xacro:imu_sensor parent="base_footprint">
+    <origin xyz="0.0 0.0 0.0" rpy="0 0 0"/>
   </xacro:imu_sensor>
 
-  <xacro:gps_sensor parent="base_link">
-    <origin xyz="0.775305042176281 -0.0692748019047986 -0.475175318827691" rpy="0 0 0"/>
+  <xacro:gps_sensor parent="base_footprint">
+    <origin xyz="0.0 0.0 0.0" rpy="0 0 0"/>
   </xacro:gps_sensor>
 
-  <xacro:ground_truth_odometry/>
+  <!--<xacro:ground_truth_odometry robot_base_frame="base_footprint"/>-->
 
   <xacro:if value="$(arg use_mock_hardware)">
     <xacro:athena_drive_ros2_control

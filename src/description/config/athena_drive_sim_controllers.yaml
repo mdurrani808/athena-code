@@ -28,10 +28,10 @@ ackermann_steering_controller:
     publish_rate: 50.0
 
     odom_frame_id: "odom"
-    base_frame_id: "base_link"
-    tf_frame_prefix: "testertester"
-    publish_odom: true
-    publish_odom_tf: true
+    base_frame_id: "base_footprint"
+    tf_frame_prefix: ""
+    publish_odom: false
+    publish_odom_tf: false
     reference_timeout: 0.2
 
 
