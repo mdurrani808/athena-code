@@ -5,7 +5,7 @@ state_estimator:
     # ==========================================================================
     imu_topic: "/imu"
     gnss_topic: "/gps/fix"
-    odom_topic: ""
+    odom_topic: "/odom/ground_truth"
     output_odom_topic: "/localization/odom"
 
     # ==========================================================================
@@ -27,16 +27,16 @@ state_estimator:
     # ==========================================================================
     # IMU Noise Parameters (continuous-time spectral densities)
     # ==========================================================================
-    accel_noise_sigma: 0.9           # m/s^2/sqrt(Hz) - realistic for raw IMU data
-    gyro_noise_sigma: 0.9           # rad/s/sqrt(Hz) - realistic for raw gyro data
+    accel_noise_sigma: 3.0           # m/s^2/sqrt(Hz) - realistic for raw IMU data
+    gyro_noise_sigma: 10.0           # rad/s/sqrt(Hz) - realistic for raw gyro data
     accel_bias_rw_sigma: 5.0e-2      # m/s^3/sqrt(Hz) - allow bias adaptation for raw data
     gyro_bias_rw_sigma: 5.0e-2       # rad/s^2/sqrt(Hz) - allow gyro bias changes
 
     # ==========================================================================
     # GNSS Parameters
     # ==========================================================================
-    gnss_position_sigma: 0.0001         # meters - realistic consumer GPS uncertainty
-    gnss_altitude_sigma: 0.0001
+    gnss_position_sigma: 0.0000001         # meters - realistic consumer GPS uncertainty
+    gnss_altitude_sigma: 0.0000001
     gnss_max_age: 0.5                # seconds - moderate timing constraint
     gnss_fix_quality_multiplier: 1.0 # neutral GPS weight
 
@@ -47,8 +47,8 @@ state_estimator:
     # ==========================================================================
     # Odometry Parameters
     # ==========================================================================
-    odom_position_sigma: 0.02        # meters - realistic wheel odometry with slip
-    odom_rotation_sigma: 0.01        # radians - account for steering uncertainty
+    odom_position_sigma: 0.00001        # meters - realistic wheel odometry with slip
+    odom_rotation_sigma: 0.00001        # radians - account for steering uncertainty
 
     # ==========================================================================
     # Graph Management - MAXIMUM STABILITY FOR RAW DATA
