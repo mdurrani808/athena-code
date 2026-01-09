@@ -115,6 +115,7 @@ struct StateEstimatorParams {
     
     // Sensor noise
     double gnss_position_sigma = 1.0;
+    double gnss_altitude_sigma = 0.15;
     double odom_position_sigma = 0.1;
     double odom_rotation_sigma = 0.05;
     

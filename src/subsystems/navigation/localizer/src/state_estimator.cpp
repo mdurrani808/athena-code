@@ -162,6 +162,7 @@ namespace localizer
 
         // Sensor noise
         params_.gnss_position_sigma = declare_parameter("gnss_position_sigma", params_.gnss_position_sigma);
+        params_.gnss_altitude_sigma = declare_parameter("gnss_altitude_sigma", 0.15);
         params_.odom_position_sigma = declare_parameter("odom_position_sigma", params_.odom_position_sigma);
         params_.odom_rotation_sigma = declare_parameter("odom_rotation_sigma", params_.odom_rotation_sigma);
 
@@ -293,7 +294,7 @@ namespace localizer
         // 2. Poor observability of vertical velocity without barometer
         // 3. Rapid drift accumulation in vertical position
         // Solution: Increase Z-axis uncertainty by factor of 2-4
-        double accel_z_var = accel_xy_var * 4.0; // 2x higher standard deviation
+        double accel_z_var = accel_xy_var * 10.0; // 2x higher standard deviation
 
         gtsam::Matrix3 accel_cov = gtsam::Matrix3::Zero();
         accel_cov(0, 0) = accel_xy_var; // X (forward/back)
@@ -366,7 +367,7 @@ namespace localizer
              params_.odom_rotation_sigma,
              params_.odom_position_sigma,
              params_.odom_position_sigma,
-             params_.odom_position_sigma * 1.5)
+             params_.odom_position_sigma)
                 .finished()); // Slightly less trust in Z
 
         RCLCPP_INFO(get_logger(),
@@ -921,32 +922,24 @@ namespace localizer
 
         // GNSS factor with proper offset handling
         // GNSS factor with proper offset handling AND ANISOTROPIC NOISE
+        // ANISOTROPIC GNSS NOISE: horizontal less accurate, vertical MORE accurate
         if (pending_gnss_.valid)
         {
             gtsam::Point3 corrected_pos = pending_gnss_.position;
 
-            // Apply antenna offset (gnss_to_base is the offset from GNSS to base)
+            // Apply antenna offset if available
             if (gnss_to_base_)
             {
-                // Note: currently disabled with (0,0,0), but when enabled:
-                // Need to rotate offset by current orientation estimate
                 gtsam::Pose3 current_pose_estimate = predicted.pose();
                 gtsam::Point3 rotated_offset = current_pose_estimate.rotation().rotate(*gnss_to_base_);
                 corrected_pos = corrected_pos - rotated_offset;
-
-                RCLCPP_DEBUG(get_logger(),
-                             "DEBUG GNSS offset: raw=(%.3f, %.3f, %.3f), offset=(%.3f, %.3f, %.3f), corrected=(%.3f, %.3f, %.3f)",
-                             pending_gnss_.position.x(), pending_gnss_.position.y(), pending_gnss_.position.z(),
-                             rotated_offset.x(), rotated_offset.y(), rotated_offset.z(),
-                             corrected_pos.x(), corrected_pos.y(), corrected_pos.z());
             }
 
-            // ANISOTROPIC GNSS NOISE: horizontal more accurate than vertical
-            // Typical GNSS: horizontal accuracy ~1-2m, vertical accuracy ~2-4m
+            // CRITICAL: Trust GPS altitude much more than horizontal position
             gtsam::Vector3 gnss_sigmas;
-            gnss_sigmas << pending_gnss_.sigma, // X (East)
-                pending_gnss_.sigma,            // Y (North)
-                pending_gnss_.sigma * 2.0;      // Z (Up) - double uncertainty
+            gnss_sigmas << pending_gnss_.sigma, // X (East) - higher uncertainty
+                pending_gnss_.sigma,            // Y (North) - higher uncertainty
+                params_.gnss_altitude_sigma;    // Z (Up) - MUCH LOWER uncertainty
 
             auto gnss_noise = gtsam::noiseModel::Diagonal::Sigmas(gnss_sigmas);
             gtsam::SharedNoiseModel noise;
@@ -966,7 +959,7 @@ namespace localizer
 
             RCLCPP_DEBUG(get_logger(),
                          "Added GNSS factor at key %" PRIu64 ", sigma_xy=%.2f, sigma_z=%.2f",
-                         curr_key, pending_gnss_.sigma, pending_gnss_.sigma * 2.0);
+                         curr_key, pending_gnss_.sigma, params_.gnss_altitude_sigma);
         }
 
         // Odometry factor
@@ -1264,101 +1257,91 @@ namespace localizer
         odom_pub_->publish(state->to_odometry(cached_frames_.map, cached_frames_.base));
     }
 
-void StateEstimator::publish_transforms()
-{
-    if (init_state_.load() != InitState::RUNNING) {
-        return;
+    void StateEstimator::publish_transforms()
+    {
+        if (init_state_.load() != InitState::RUNNING)
+        {
+            return;
+        }
+
+        auto state = get_latest_state();
+        if (!state)
+        {
+            return;
+        }
+
+        // Get odom->base transform from TF tree
+        geometry_msgs::msg::TransformStamped odom_to_base;
+        try
+        {
+            odom_to_base = tf_buffer_->lookupTransform(
+                cached_frames_.odom, cached_frames_.base, tf2::TimePointZero);
+        }
+        catch (const tf2::TransformException &ex)
+        {
+            RCLCPP_DEBUG_THROTTLE(get_logger(), *get_clock(), 1000,
+                                  "Cannot lookup odom->base: %s", ex.what());
+            return;
+        }
+
+        // Convert to GTSAM Pose3
+        gtsam::Pose3 T_odom_base(
+            gtsam::Rot3::Quaternion(
+                odom_to_base.transform.rotation.w,
+                odom_to_base.transform.rotation.x,
+                odom_to_base.transform.rotation.y,
+                odom_to_base.transform.rotation.z),
+            gtsam::Point3(
+                odom_to_base.transform.translation.x,
+                odom_to_base.transform.translation.y,
+                odom_to_base.transform.translation.z));
+
+        // Get estimated pose of base_link in map frame
+        gtsam::Pose3 T_map_base = state->nav_state.pose();
+
+        // Compute map->odom transform
+        gtsam::Pose3 T_map_odom_raw = T_odom_base.between(T_map_base);
+
+        // 180° rotation around Z-axis
+        // This flips X and Y axes: X' = -X, Y' = -Y, Z' = Z
+        gtsam::Rot3 R_z_180 = gtsam::Rot3::Rz(M_PI); // 180° around Z
+
+        // Apply the rotation to the computed transform
+        // Method A: Rotate the translation and orientation
+        gtsam::Point3 rotated_translation = R_z_180.rotate(T_map_odom_raw.translation());
+        gtsam::Rot3 rotated_orientation = R_z_180.compose(T_map_odom_raw.rotation());
+        gtsam::Pose3 T_map_odom(rotated_orientation, rotated_translation);
+
+        // Publish map->odom transform
+        geometry_msgs::msg::TransformStamped tf_msg;
+        tf_msg.header.stamp = state->timestamp;
+        tf_msg.header.frame_id = cached_frames_.map;
+        tf_msg.child_frame_id = cached_frames_.odom;
+
+        tf_msg.transform.translation.x = T_map_odom.x();
+        tf_msg.transform.translation.y = T_map_odom.y();
+        tf_msg.transform.translation.z = T_map_odom.z();
+
+        auto q = T_map_odom.rotation().toQuaternion();
+        tf_msg.transform.rotation.w = q.w();
+        tf_msg.transform.rotation.x = q.x();
+        tf_msg.transform.rotation.y = q.y();
+        tf_msg.transform.rotation.z = q.z();
+
+        tf_broadcaster_->sendTransform(tf_msg);
+
+        RCLCPP_DEBUG_THROTTLE(get_logger(), *get_clock(), 2000,
+                              "Published map->odom (Z-flipped): raw=(%.3f, %.3f, %.3f) -> flipped=(%.3f, %.3f, %.3f)",
+                              T_map_odom_raw.x(), T_map_odom_raw.y(), T_map_odom_raw.z(),
+                              T_map_odom.x(), T_map_odom.y(), T_map_odom.z());
+        RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 2000,
+                             "DEBUG: When moving forward at 1 m/s:\n"
+                             "  odom->base position: (%.2f, %.2f, %.2f)\n"
+                             "  map->base position:  (%.2f, %.2f, %.2f)\n"
+                             "  Both should increase in X if aligned correctly",
+                             T_odom_base.x(), T_odom_base.y(), T_odom_base.z(),
+                             T_map_base.x(), T_map_base.y(), T_map_base.z());
     }
-    
-    auto state = get_latest_state();
-    if (!state) {
-        return;
-    }
-    
-    // Get odom->base transform from TF tree
-    geometry_msgs::msg::TransformStamped odom_to_base;
-    try {
-        odom_to_base = tf_buffer_->lookupTransform(
-            cached_frames_.odom, cached_frames_.base, tf2::TimePointZero);
-    } catch (const tf2::TransformException& ex) {
-        RCLCPP_DEBUG_THROTTLE(get_logger(), *get_clock(), 1000,
-            "Cannot lookup odom->base: %s", ex.what());
-        return;
-    }
-    
-    // Convert to GTSAM Pose3
-    gtsam::Pose3 T_odom_base(
-        gtsam::Rot3::Quaternion(
-            odom_to_base.transform.rotation.w,
-            odom_to_base.transform.rotation.x,
-            odom_to_base.transform.rotation.y,
-            odom_to_base.transform.rotation.z),
-        gtsam::Point3(
-            odom_to_base.transform.translation.x,
-            odom_to_base.transform.translation.y,
-            odom_to_base.transform.translation.z));
-    
-    // Get estimated pose of base_link in map frame
-    gtsam::Pose3 T_map_base = state->nav_state.pose();
-    
-    // DEBUG: Log what we have
-    RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 2000,
-        "DEBUG TF: odom->base=(%.2f, %.2f, %.2f), map->base=(%.2f, %.2f, %.2f)",
-        T_odom_base.x(), T_odom_base.y(), T_odom_base.z(),
-        T_map_base.x(), T_map_base.y(), T_map_base.z());
-    
-    // METHOD 1: Using between (what we currently have)
-    gtsam::Pose3 T_map_odom_method1 = T_odom_base.between(T_map_base);
-    
-    // METHOD 2: Using compose with inverse
-    gtsam::Pose3 T_map_odom_method2 = T_map_base.compose(T_odom_base.inverse());
-    
-    // METHOD 3: Original (with inverse at end)
-    gtsam::Pose3 T_map_odom_method3 = T_odom_base.between(T_map_base).inverse();
-    
-    // METHOD 4: Complete inverse
-    gtsam::Pose3 T_map_odom_method4 = T_map_base.between(T_odom_base);
-    
-    // Log all methods
-    RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 2000,
-        "DEBUG TF Methods:\n"
-        "  Method 1 (between):           (%.2f, %.2f, %.2f)\n"
-        "  Method 2 (compose+inverse):   (%.2f, %.2f, %.2f)\n"
-        "  Method 3 (between+inverse):   (%.2f, %.2f, %.2f)\n"
-        "  Method 4 (between swapped):   (%.2f, %.2f, %.2f)",
-        T_map_odom_method1.x(), T_map_odom_method1.y(), T_map_odom_method1.z(),
-        T_map_odom_method2.x(), T_map_odom_method2.y(), T_map_odom_method2.z(),
-        T_map_odom_method3.x(), T_map_odom_method3.y(), T_map_odom_method3.z(),
-        T_map_odom_method4.x(), T_map_odom_method4.y(), T_map_odom_method4.z());
-    
-    // Verify the math manually
-    gtsam::Pose3 T_map_base_reconstructed = T_map_odom_method1.compose(T_odom_base);
-    double error = (T_map_base_reconstructed.translation() - T_map_base.translation()).norm();
-    
-    RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 2000,
-        "DEBUG TF Verification: reconstruction error = %.6f m", error);
-    
-    // For now, use the ORIGINAL method (with inverse) since that worked
-    gtsam::Pose3 T_map_odom = T_odom_base.between(T_map_base);
-    
-    // Publish map->odom transform
-    geometry_msgs::msg::TransformStamped tf_msg;
-    tf_msg.header.stamp = state->timestamp;
-    tf_msg.header.frame_id = cached_frames_.map;
-    tf_msg.child_frame_id = cached_frames_.odom;
-    
-    tf_msg.transform.translation.x = T_map_odom.x();
-    tf_msg.transform.translation.y = T_map_odom.y();
-    tf_msg.transform.translation.z = T_map_odom.z();
-    
-    auto q = T_map_odom.rotation().toQuaternion();
-    tf_msg.transform.rotation.w = q.w();
-    tf_msg.transform.rotation.x = q.x();
-    tf_msg.transform.rotation.y = q.y();
-    tf_msg.transform.rotation.z = q.z();
-    
-    tf_broadcaster_->sendTransform(tf_msg);
-}
 
     std::optional<EstimatedState> StateEstimator::get_latest_state() const
     {
