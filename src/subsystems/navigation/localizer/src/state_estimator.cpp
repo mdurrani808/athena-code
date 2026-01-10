@@ -138,9 +138,12 @@ namespace localizer
 
         RCLCPP_INFO(get_logger(), "StateEstimator initialized");
         RCLCPP_INFO(get_logger(), "  State: WAITING_FOR_IMU");
-        RCLCPP_INFO(get_logger(), "  IMU topic: %s", imu_topic.c_str());
-        RCLCPP_INFO(get_logger(), "  GNSS topic: %s", gnss_topic.c_str());
-        RCLCPP_INFO(get_logger(), "  Odom topic: %s", odom_topic.c_str());
+        RCLCPP_INFO(get_logger(), "  IMU topic: %s",
+                    this->get_parameter("imu_topic").as_string().c_str());
+        RCLCPP_INFO(get_logger(), "  GNSS topic: %s",
+                    this->get_parameter("gnss_topic").as_string().c_str());
+        RCLCPP_INFO(get_logger(), "  Odom topic: %s",
+                    this->get_parameter("odom_topic").as_string().c_str());
     }
 
     StateEstimator::~StateEstimator() = default;
@@ -150,7 +153,7 @@ namespace localizer
         // Topics
         declare_parameter("imu_topic", "/imu");
         declare_parameter("gnss_topic", "/gps/fix");
-        declare_parameter("odom_topic", "/odom");
+        declare_parameter("odom_topic", "/odom/ground_truth");
         declare_parameter("output_odom_topic", "/localization/odom");
         declare_parameter("publish_rate", 50.0);
 
