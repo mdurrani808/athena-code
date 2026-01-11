@@ -57,7 +57,7 @@ namespace localizer
         }
 
         return odom;
-    } 
+    }
     StateEstimator::StateEstimator()
         : Node("state_estimator"), current_key_index_(0), oldest_key_index_(0),
           enu_origin_set_(false), origin_lat_(0.0), origin_lon_(0.0), origin_alt_(0.0),
@@ -338,11 +338,11 @@ namespace localizer
 
     void StateEstimator::reset()
     {
-\        std::scoped_lock lock(state_mutex_, imu_mutex_);
+        std::scoped_lock lock(state_mutex_, imu_mutex_);
 
         init_state_.store(InitState::WAITING_FOR_IMU);
 
-\        gtsam::ISAM2Params isam_params;
+        gtsam::ISAM2Params isam_params;
         isam_params.relinearizeThreshold = params_.isam2_relinearize_threshold;
         isam_params.relinearizeSkip = params_.isam2_relinearize_skip;
         isam_params.findUnusedFactorSlots = true;
@@ -585,10 +585,6 @@ namespace localizer
         pending_odom_.prev_pose = current_pose;
     }
 
-    // ============================================================================
-    // Initialization
-    // ============================================================================
-
     bool StateEstimator::initialize_graph(
         const gtsam::Point3 &position,
         const rclcpp::Time &timestamp)
@@ -685,9 +681,6 @@ namespace localizer
         return gtsam::Rot3::AxisAngle(gtsam::Unit3(axis), angle);
     }
 
-    // ============================================================================
-    // State Creation & Optimization
-    // ============================================================================
 
     void StateEstimator::create_new_state(const rclcpp::Time &timestamp)
     {
@@ -987,6 +980,7 @@ namespace localizer
             }
             catch (const tf2::TransformException &)
             {
+                // Transform not available yet, will retry on next callback
             }
         }
 
@@ -998,13 +992,17 @@ namespace localizer
                     params_.frames.base_frame, params_.frames.gnss_frame,
                     tf2::TimePointZero, tf2::durationFromSec(0.0));
 
-                gnss_to_base_ = gtsam::Point3(0, 0, 0);
+                gnss_to_base_ = gtsam::Point3(
+                    tf.transform.translation.x,
+                    tf.transform.translation.y,
+                    tf.transform.translation.z);
 
                 RCLCPP_INFO(get_logger(), "Cached GNSS->base offset: (%.3f, %.3f, %.3f)",
                             gnss_to_base_->x(), gnss_to_base_->y(), gnss_to_base_->z());
             }
             catch (const tf2::TransformException &)
             {
+                // Transform not available yet, will retry on next callback
             }
         }
     }
@@ -1060,7 +1058,7 @@ namespace localizer
         gtsam::Pose3 T_map_base = state->nav_state.pose();
         gtsam::Pose3 T_map_odom_raw = T_odom_base.between(T_map_base);
 
-        // Apply 180° rotation around Z-axis
+        // Apply 180° rotation around Z-axis to correct coordinate frame orientation
         gtsam::Rot3 R_z_180 = gtsam::Rot3::Rz(M_PI);
         gtsam::Point3 rotated_translation = R_z_180.rotate(T_map_odom_raw.translation());
         gtsam::Rot3 rotated_orientation = R_z_180.compose(T_map_odom_raw.rotation());
@@ -1112,6 +1110,7 @@ namespace localizer
         }
         catch (const std::exception &)
         {
+            // Covariance calculation failed, using default uncertainty values
         }
 
         return state;
