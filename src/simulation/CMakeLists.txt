@@ -19,6 +19,12 @@ foreach(dir urdf meshes config launch worlds textures models)
   endif()
 endforeach()
 
+# Install Python scripts
+install(PROGRAMS
+  scripts/ground_truth_tf_publisher.py
+  DESTINATION lib/${PROJECT_NAME}
+)
+
 ament_export_dependencies(
   ros_gz_sim
   ros_gz_bridge
