@@ -21,9 +21,11 @@ ARGUMENTS = [
 
 def generate_launch_description():
     pkg_share = get_package_share_directory('description')
-    
+    pkg_sim = get_package_share_directory('simulation')
+
     urdf_file = os.path.join(pkg_share, 'urdf', 'athena_drive.urdf.xacro')
     controllers_file = os.path.join(pkg_share, 'config', 'athena_drive_sim_controllers.yaml')
+    rviz_config_file = os.path.join(pkg_sim, 'sim_rviz.rviz')
 
     
     namespace = LaunchConfiguration('namespace')
@@ -70,6 +72,8 @@ def generate_launch_description():
             executable='rviz2',
             name='rviz2',
             output='screen',
+            arguments=['-d', rviz_config_file],
+            parameters=[{'use_sim_time': LaunchConfiguration('use_sim_time')}],
             condition=conditions.IfCondition(LaunchConfiguration('rviz'))
         ),
     ])
