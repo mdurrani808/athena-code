@@ -25,7 +25,7 @@ def generate_launch_description():
 
     urdf_file = os.path.join(pkg_share, 'urdf', 'athena_drive.urdf.xacro')
     controllers_file = os.path.join(pkg_share, 'config', 'athena_drive_sim_controllers.yaml')
-    rviz_config_file = os.path.join(pkg_sim, 'sim_rviz.rviz')
+    rviz_config_file = os.path.join(pkg_sim, 'rviz', 'sim.rviz')
 
     
     namespace = LaunchConfiguration('namespace')
