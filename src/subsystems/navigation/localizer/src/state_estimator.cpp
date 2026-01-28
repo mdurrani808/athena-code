@@ -61,7 +61,9 @@ namespace localizer
     StateEstimator::StateEstimator()
         : Node("state_estimator"), current_key_index_(0), oldest_key_index_(0),
           enu_origin_set_(false), origin_lat_(0.0), origin_lon_(0.0), origin_alt_(0.0),
-          filter_initialized_(false)
+          filter_initialized_(false),
+          odom_state_(gtsam::Pose3::Identity(), gtsam::Vector3::Zero()),
+          last_odom_propagation_time_(0, 0, RCL_ROS_TIME)
     {
         init_state_.store(InitState::WAITING_FOR_IMU);
 
@@ -361,7 +363,11 @@ namespace localizer
         imu_to_base_.reset();
         gnss_to_base_.reset();
 
-        // Reset EMA filter state
+        odom_state_ = gtsam::NavState(gtsam::Pose3::Identity(), gtsam::Vector3::Zero());
+        odom_bias_ = gtsam::imuBias::ConstantBias();
+        odom_preintegrator_.reset();
+        last_odom_propagation_time_ = rclcpp::Time(0, 0, RCL_ROS_TIME);
+
         filtered_accel_.reset();
         filtered_gyro_.reset();
         filter_initialized_ = false;
@@ -466,6 +472,16 @@ namespace localizer
             std::lock_guard<std::mutex> lock(state_mutex_);
             if (init_state_.load() == InitState::RUNNING)
             {
+                if (odom_preintegrator_ && last_odom_propagation_time_.seconds() > 0)
+                {
+                    double dt = (stamp - last_odom_propagation_time_).seconds();
+                    if (dt > 0.0 && dt < 1.0)
+                    {
+                        odom_preintegrator_->integrateMeasurement(accel, gyro, dt);
+                    }
+                }
+                last_odom_propagation_time_ = stamp;
+
                 double dt = (stamp - last_state_time_).seconds();
                 if (dt >= min_state_dt_)
                 {
@@ -582,6 +598,9 @@ namespace localizer
             pending_odom_.valid = true;
         }
 
+        gtsam::Pose3 new_pose = odom_state_.pose().compose(delta);
+        odom_state_ = gtsam::NavState(new_pose, odom_state_.velocity());
+
         pending_odom_.prev_pose = current_pose;
     }
 
@@ -630,6 +649,12 @@ namespace localizer
 
         reset_preintegration(initial_bias);
         last_state_time_ = timestamp;
+
+        odom_state_ = gtsam::NavState(gtsam::Pose3::Identity(), gtsam::Vector3::Zero());
+        odom_bias_ = initial_bias;
+        odom_preintegrator_ = std::make_unique<gtsam::PreintegratedCombinedMeasurements>(
+            imu_params_, odom_bias_);
+        last_odom_propagation_time_ = timestamp;
 
         {
             std::lock_guard<std::mutex> lock(imu_mutex_);
@@ -797,6 +822,12 @@ namespace localizer
 
             reset_preintegration(entry.bias);
             last_state_time_ = timestamp;
+
+            odom_bias_ = entry.bias;
+            if (odom_preintegrator_)
+            {
+                odom_preintegrator_->resetIntegrationAndSetBias(odom_bias_);
+            }
 
             {
                 std::lock_guard<std::mutex> lock(imu_mutex_);
@@ -1015,7 +1046,7 @@ namespace localizer
             return;
         }
 
-        odom_pub_->publish(state->to_odometry(cached_frames_.map, cached_frames_.base));
+        odom_pub_->publish(state->to_odometry(cached_frames_.odom, cached_frames_.base));
     }
 
     void StateEstimator::publish_transforms()
@@ -1025,62 +1056,61 @@ namespace localizer
             return;
         }
 
+        std::lock_guard<std::mutex> lock(state_mutex_);
+
         auto state = get_latest_state();
         if (!state)
         {
             return;
         }
 
-        geometry_msgs::msg::TransformStamped odom_to_base;
-        try
+        gtsam::NavState current_odom_state = odom_state_;
+        if (odom_preintegrator_ && odom_preintegrator_->deltaTij() > 1e-6)
         {
-            odom_to_base = tf_buffer_->lookupTransform(
-                cached_frames_.odom, cached_frames_.base, tf2::TimePointZero);
+            current_odom_state = odom_preintegrator_->predict(odom_state_, odom_bias_);
         }
-        catch (const tf2::TransformException &ex)
-        {
-            RCLCPP_DEBUG_THROTTLE(get_logger(), *get_clock(), 1000,
-                                  "Cannot lookup odom->base: %s", ex.what());
-            return;
-        }
-
-        gtsam::Pose3 T_odom_base(
-            gtsam::Rot3::Quaternion(
-                odom_to_base.transform.rotation.w,
-                odom_to_base.transform.rotation.x,
-                odom_to_base.transform.rotation.y,
-                odom_to_base.transform.rotation.z),
-            gtsam::Point3(
-                odom_to_base.transform.translation.x,
-                odom_to_base.transform.translation.y,
-                odom_to_base.transform.translation.z));
 
         gtsam::Pose3 T_map_base = state->nav_state.pose();
+        gtsam::Pose3 T_odom_base = current_odom_state.pose();
         gtsam::Pose3 T_map_odom_raw = T_odom_base.between(T_map_base);
 
-        // Apply 180° rotation around Z-axis to correct coordinate frame orientation
         gtsam::Rot3 R_z_180 = gtsam::Rot3::Rz(M_PI);
         gtsam::Point3 rotated_translation = R_z_180.rotate(T_map_odom_raw.translation());
         gtsam::Rot3 rotated_orientation = R_z_180.compose(T_map_odom_raw.rotation());
         gtsam::Pose3 T_map_odom(rotated_orientation, rotated_translation);
 
-        // Publish map->odom transform
-        geometry_msgs::msg::TransformStamped tf_msg;
-        tf_msg.header.stamp = state->timestamp;
-        tf_msg.header.frame_id = cached_frames_.map;
-        tf_msg.child_frame_id = cached_frames_.odom;
+        geometry_msgs::msg::TransformStamped map_to_odom_msg;
+        map_to_odom_msg.header.stamp = state->timestamp;
+        map_to_odom_msg.header.frame_id = cached_frames_.map;
+        map_to_odom_msg.child_frame_id = cached_frames_.odom;
 
-        tf_msg.transform.translation.x = T_map_odom.x();
-        tf_msg.transform.translation.y = T_map_odom.y();
-        tf_msg.transform.translation.z = T_map_odom.z();
+        map_to_odom_msg.transform.translation.x = T_map_odom.x();
+        map_to_odom_msg.transform.translation.y = T_map_odom.y();
+        map_to_odom_msg.transform.translation.z = T_map_odom.z();
 
-        auto q = T_map_odom.rotation().toQuaternion();
-        tf_msg.transform.rotation.w = q.w();
-        tf_msg.transform.rotation.x = q.x();
-        tf_msg.transform.rotation.y = q.y();
-        tf_msg.transform.rotation.z = q.z();
+        auto q_map_odom = T_map_odom.rotation().toQuaternion();
+        map_to_odom_msg.transform.rotation.w = q_map_odom.w();
+        map_to_odom_msg.transform.rotation.x = q_map_odom.x();
+        map_to_odom_msg.transform.rotation.y = q_map_odom.y();
+        map_to_odom_msg.transform.rotation.z = q_map_odom.z();
 
-        tf_broadcaster_->sendTransform(tf_msg);
+        geometry_msgs::msg::TransformStamped odom_to_base_msg;
+        odom_to_base_msg.header.stamp = state->timestamp;
+        odom_to_base_msg.header.frame_id = cached_frames_.odom;
+        odom_to_base_msg.child_frame_id = cached_frames_.base;
+
+        odom_to_base_msg.transform.translation.x = T_odom_base.x();
+        odom_to_base_msg.transform.translation.y = T_odom_base.y();
+        odom_to_base_msg.transform.translation.z = T_odom_base.z();
+
+        auto q_odom_base = T_odom_base.rotation().toQuaternion();
+        odom_to_base_msg.transform.rotation.w = q_odom_base.w();
+        odom_to_base_msg.transform.rotation.x = q_odom_base.x();
+        odom_to_base_msg.transform.rotation.y = q_odom_base.y();
+        odom_to_base_msg.transform.rotation.z = q_odom_base.z();
+
+        tf_broadcaster_->sendTransform(map_to_odom_msg);
+        tf_broadcaster_->sendTransform(odom_to_base_msg);
     }
 
     std::optional<EstimatedState> StateEstimator::get_latest_state() const

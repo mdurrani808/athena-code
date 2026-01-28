@@ -250,7 +250,12 @@ private:
     // Cached sensor transforms
     std::optional<gtsam::Pose3> imu_to_base_;
     std::optional<gtsam::Point3> gnss_to_base_;
-    bool imu_extrinsic_set_;  // Flag to track if IMU extrinsic is initialized
+    bool imu_extrinsic_set_;
+
+    gtsam::NavState odom_state_;
+    gtsam::imuBias::ConstantBias odom_bias_;
+    std::unique_ptr<gtsam::PreintegratedCombinedMeasurements> odom_preintegrator_;
+    rclcpp::Time last_odom_propagation_time_;
 
     // EMA filter state (for accel x, y, z and gyro x, y, z)
     std::optional<Eigen::Vector3d> filtered_accel_;
