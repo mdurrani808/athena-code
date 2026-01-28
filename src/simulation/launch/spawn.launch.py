@@ -11,25 +11,30 @@ ARGUMENTS = [
     DeclareLaunchArgument('rviz', default_value='false',
                           choices=['true', 'false'],
                           description='Start rviz.'),
+    DeclareLaunchArgument('rqt', default_value='false',
+                          description='Open RQt.'),
+    DeclareLaunchArgument('image_topic', default_value='/depth_camera',
+                          description='Topic to start viewing in RQt.'),
     DeclareLaunchArgument('use_sim_time', default_value='true',
                           choices=['true', 'false'],
                           description='use_sim_time'),
     DeclareLaunchArgument('namespace', default_value='',
                           description='Robot namespace'),
+    DeclareLaunchArgument('world_name', default_value='',
+                          description='World name'),
     
 ]
 
 def generate_launch_description():
-    pkg_share = get_package_share_directory('description')
+    pkg_description = get_package_share_directory('description')
     pkg_sim = get_package_share_directory('simulation')
 
-    urdf_file = os.path.join(pkg_share, 'urdf', 'athena_drive.urdf.xacro')
-    controllers_file = os.path.join(pkg_share, 'config', 'athena_drive_sim_controllers.yaml')
+    urdf_file = os.path.join(pkg_description, 'urdf', 'athena_drive.urdf.xacro')
+    controllers_file = os.path.join(pkg_description, 'config', 'athena_drive_sim_controllers.yaml')
     rviz_config_file = os.path.join(pkg_sim, 'rviz', 'sim.rviz')
-
     
     namespace = LaunchConfiguration('namespace')
-    robot_name = 'rover'
+    robot_name = 'athena'
 
     robot_description_content = Command([
         'xacro ', urdf_file,
@@ -59,6 +64,7 @@ def generate_launch_description():
             package='ros_gz_sim',
             executable='create',
             arguments=['-name', robot_name,
+                       '-world', LaunchConfiguration('world_name'),
                        '-x', '0.0',
                        '-y', '0.0',
                        '-z', '3.0',
@@ -75,6 +81,14 @@ def generate_launch_description():
             arguments=['-d', rviz_config_file],
             parameters=[{'use_sim_time': LaunchConfiguration('use_sim_time')}],
             condition=conditions.IfCondition(LaunchConfiguration('rviz'))
+        ),
+        
+        Node(
+            package='rqt_image_view',
+            executable='rqt_image_view',
+            name='rqt',
+            arguments=[LaunchConfiguration('image_topic')],
+            condition=conditions.IfCondition(LaunchConfiguration('rqt'))
         ),
     ])
 

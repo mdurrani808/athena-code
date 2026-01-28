@@ -40,13 +40,19 @@ ARGUMENTS = [
         choices=['true', 'false'],
         description='Publish ground truth odom -> base_link transform'
     ),
+    DeclareLaunchArgument(
+    	'rqt', 
+        default_value='false',
+        choices=['true', 'false'],
+        description='Open RQt.'
+    ),
 ]
 
 def generate_launch_description():
     pkg_sim = get_package_share_directory('simulation')
 
     gazebo_launch = PathJoinSubstitution(
-        [pkg_sim, 'launch', 'gz_sim.launch.py'])
+        [pkg_sim, 'launch', 'gz_sim.launch.py'])	
     robot_spawn_launch = PathJoinSubstitution(
         [pkg_sim, 'launch', 'spawn.launch.py'])
     bridge_launch = PathJoinSubstitution(
@@ -59,8 +65,7 @@ def generate_launch_description():
     gazebo = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([gazebo_launch]),
         launch_arguments=[
-            ('use_sim_time', LaunchConfiguration('use_sim_time')),
-            ('world', LaunchConfiguration('world')),
+            ('world', LaunchConfiguration('world')),                    # World file taken from description/worlds/
         ]
     )
 
