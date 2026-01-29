@@ -10,7 +10,7 @@ import os
 
 def generate_launch_description():
     
-    # TODO: Re-enable the map functionality once the localizer works. Also needs corresponding changes in the Nav2 Cconfig file.
+    # TODO: Re-enable the map functionality once the localizer works. Also needs corresponding changes in the Nav2 config file.
     #athena_map_share = get_package_share_directory('athena_map')
     #dem_launch = os.path.join(athena_map_share, 'launch', 'dem_costmap.launch.py')
 
