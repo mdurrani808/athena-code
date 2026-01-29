@@ -17,6 +17,11 @@ find_package(sensor_msgs REQUIRED)
 find_package(MAVSDK REQUIRED)
 add_executable(athena_gps src/PixhawkNode.cpp)
 
+install(
+  DIRECTORY config launch
+  DESTINATION share/${PROJECT_NAME}
+)
+
 ament_target_dependencies(athena_gps
         rclcpp
         std_msgs
