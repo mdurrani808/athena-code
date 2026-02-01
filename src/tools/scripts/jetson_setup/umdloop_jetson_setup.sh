@@ -3,6 +3,7 @@ set -euo pipefail
 
 trap 'echo "[ERROR] Script failed at line $LINENO"' ERR
 
+# having both of these are weird but they make sure you use sudo and you're not logged in as root (don't know the userdir if you're logged in as root)
 if [[ $EUID -ne 0 ]]; then
     echo "[ERROR] This script must be run as root (use sudo)"
     exit 1
@@ -60,7 +61,6 @@ setup_athena_code() {
 
     echo "[INFO] Building athena-code workspace..."
     
-    # Add to user's bashrc if not already present
     if ! grep -qxF 'source /opt/ros/humble/setup.bash' "$USER_HOME/.bashrc"; then
         echo 'source /opt/ros/humble/setup.bash' >> "$USER_HOME/.bashrc"
     fi
