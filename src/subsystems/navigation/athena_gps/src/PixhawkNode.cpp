@@ -18,9 +18,14 @@ class PixhawkNode : public rclcpp::Node
 {
 public:
     PixhawkNode()
-    : Node("athena_gps"), last_gps_info_{}, last_attitude_quaternion_{}, last_heading_deg_{}
+    : Node("athena_gps"),
+      last_gps_info_{},
+      last_attitude_quaternion_{},
+      last_heading_deg_{},
+      is_initialized_(false),
+      connection_added_(false)
     {
-        this->declare_parameter("usb_path", "/dev/ttyACM0");
+        this->declare_parameter("usb_path", "serial:///dev/ttyACM0:57600");
         this->declare_parameter("imu_rate", 10.0);
         this->declare_parameter("gps_info_rate", 1.0);
         this->declare_parameter("attitude_rate", 10.0);
@@ -33,10 +38,10 @@ public:
         this->declare_parameter("mavsdk_component_id", 1);
         this->declare_parameter("mavsdk_always_send_heartbeats", false);
 
-        std::string usb_path = this->get_parameter("usb_path").as_string();
-        double imu_rate = this->get_parameter("imu_rate").as_double();
-        double gps_info_rate = this->get_parameter("gps_info_rate").as_double();
-        double attitude_rate = this->get_parameter("attitude_rate").as_double();
+        usb_path_ = this->get_parameter("usb_path").as_string();
+        imu_rate_ = this->get_parameter("imu_rate").as_double();
+        gps_info_rate_ = this->get_parameter("gps_info_rate").as_double();
+        attitude_rate_ = this->get_parameter("attitude_rate").as_double();
         imu_frame_id_ = this->get_parameter("imu_frame_id").as_string();
         gps_frame_id_ = this->get_parameter("gps_frame_id").as_string();
         std::string imu_topic = this->get_parameter("imu_topic").as_string();
@@ -46,52 +51,107 @@ public:
         int mavsdk_component_id = this->get_parameter("mavsdk_component_id").as_int();
         bool mavsdk_always_send_heartbeats = this->get_parameter("mavsdk_always_send_heartbeats").as_bool();
 
+        // Create publishers unconditionally so they're always valid
+        imu_publisher_ = this->create_publisher<sensor_msgs::msg::Imu>(imu_topic, 10);
+        gps_publisher_ = this->create_publisher<sensor_msgs::msg::NavSatFix>(gps_topic, 10);
+        heading_publisher_ = this->create_publisher<std_msgs::msg::Float64>(heading_topic, 10);
+
+        // Create MAVSDK instance
         mavsdk_ = std::make_unique<Mavsdk>(Mavsdk::Configuration{
             static_cast<uint8_t>(mavsdk_system_id),
             static_cast<uint8_t>(mavsdk_component_id),
             mavsdk_always_send_heartbeats
         });
 
-        ConnectionResult conn_result = mavsdk_->add_any_connection(usb_path);
-        if (conn_result != ConnectionResult::Success) {
-            RCLCPP_ERROR(this->get_logger(), "Failed to connect to Pixhawk at %s", usb_path.c_str());
+        RCLCPP_INFO(this->get_logger(), "Pixhawk GPS node starting, will attempt to connect to %s", usb_path_.c_str());
+
+        // Start initialization timer to retry connection until successful
+        init_timer_ = this->create_wall_timer(
+            std::chrono::seconds(2),
+            std::bind(&PixhawkNode::try_initialize, this)
+        );
+    }
+
+private:
+    std::unique_ptr<Mavsdk> mavsdk_;
+    std::shared_ptr<Telemetry> telemetry_;
+
+    rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr imu_publisher_;
+    rclcpp::Publisher<sensor_msgs::msg::NavSatFix>::SharedPtr gps_publisher_;
+    rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr heading_publisher_;
+    rclcpp::TimerBase::SharedPtr init_timer_;
+
+    Telemetry::GpsInfo last_gps_info_;
+    Telemetry::Quaternion last_attitude_quaternion_;
+    double last_heading_deg_;
+
+    std::string imu_frame_id_;
+    std::string gps_frame_id_;
+    std::string usb_path_;
+    double imu_rate_;
+    double gps_info_rate_;
+    double attitude_rate_;
+    bool is_initialized_;
+    bool connection_added_;
+
+    void publish_heading() {
+        auto msg = std_msgs::msg::Float64();
+        msg.data = last_heading_deg_;
+        heading_publisher_->publish(msg);
+    }
+
+    void try_initialize() {
+        if (is_initialized_) {
             return;
         }
-        RCLCPP_INFO(this->get_logger(), "Connected to Pixhawk at %s", usb_path.c_str());
 
-        while (mavsdk_->systems().empty()) {
-            RCLCPP_INFO_THROTTLE(this->get_logger(), *this->get_clock(), 1000, "Waiting for system connection...");
-            rclcpp::sleep_for(std::chrono::seconds(1));
+        // Try to add connection (only once)
+        if (!connection_added_) {
+            ConnectionResult conn_result = mavsdk_->add_any_connection(usb_path_);
+            if (conn_result != ConnectionResult::Success) {
+                RCLCPP_WARN(this->get_logger(),
+                    "Failed to add connection at %s: error %d. Will keep trying...",
+                    usb_path_.c_str(),
+                    static_cast<int>(conn_result));
+                return;
+            }
+            connection_added_ = true;
+            RCLCPP_INFO(this->get_logger(), "Connection added at %s, waiting for system...", usb_path_.c_str());
+        }
+
+        // Wait for a system to be discovered
+        if (mavsdk_->systems().empty()) {
+            RCLCPP_INFO_THROTTLE(this->get_logger(), *this->get_clock(), 5000,
+                "Waiting for Pixhawk system to appear at %s...", usb_path_.c_str());
+            return;
         }
 
         auto system = mavsdk_->systems().at(0);
         telemetry_ = std::make_shared<Telemetry>(system);
 
-        Telemetry::Result imu_result = telemetry_->set_rate_imu(imu_rate);
-        Telemetry::Result gps_info_result = telemetry_->set_rate_gps_info(gps_info_rate);
-        Telemetry::Result attitude_result = telemetry_->set_rate_attitude_quaternion(attitude_rate);
+        // Configure telemetry rates
+        Telemetry::Result imu_result = telemetry_->set_rate_imu(imu_rate_);
+        Telemetry::Result gps_info_result = telemetry_->set_rate_gps_info(gps_info_rate_);
+        Telemetry::Result attitude_result = telemetry_->set_rate_attitude_quaternion(attitude_rate_);
 
         if (imu_result != Telemetry::Result::Success) {
-            RCLCPP_ERROR(this->get_logger(), "Failed to set IMU rate to %.1f Hz", imu_rate);
+            RCLCPP_ERROR(this->get_logger(), "Failed to set IMU rate to %.1f Hz, will retry", imu_rate_);
             return;
         }
 
         if (gps_info_result != Telemetry::Result::Success) {
-            RCLCPP_ERROR(this->get_logger(), "Failed to set GPS info rate to %.1f Hz", gps_info_rate);
+            RCLCPP_ERROR(this->get_logger(), "Failed to set GPS info rate to %.1f Hz, will retry", gps_info_rate_);
             return;
         }
 
         if (attitude_result != Telemetry::Result::Success) {
-            RCLCPP_ERROR(this->get_logger(), "Failed to set attitude rate to %.1f Hz", attitude_rate);
+            RCLCPP_ERROR(this->get_logger(), "Failed to set attitude rate to %.1f Hz, will retry", attitude_rate_);
             return;
         }
 
         RCLCPP_INFO(this->get_logger(), "Telemetry rates configured successfully");
 
-        imu_publisher_ = this->create_publisher<sensor_msgs::msg::Imu>(imu_topic, 10);
-        gps_publisher_ = this->create_publisher<sensor_msgs::msg::NavSatFix>(gps_topic, 10);
-        heading_publisher_ = this->create_publisher<std_msgs::msg::Float64>(heading_topic, 10);
-
+        // Subscribe to telemetry streams
         telemetry_->subscribe_imu([this](const Telemetry::Imu &imu) {
             imu_callback(imu);
         });
@@ -114,27 +174,10 @@ public:
         });
 
         RCLCPP_INFO(this->get_logger(), "Pixhawk GPS node initialized successfully");
-    }
+        is_initialized_ = true;
 
-private:
-    std::unique_ptr<Mavsdk> mavsdk_;
-    std::shared_ptr<Telemetry> telemetry_;
-
-    rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr imu_publisher_;
-    rclcpp::Publisher<sensor_msgs::msg::NavSatFix>::SharedPtr gps_publisher_;
-    rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr heading_publisher_;
-
-    Telemetry::GpsInfo last_gps_info_;
-    Telemetry::Quaternion last_attitude_quaternion_;
-    double last_heading_deg_;
-
-    std::string imu_frame_id_;
-    std::string gps_frame_id_;
-
-    void publish_heading() {
-        auto msg = std_msgs::msg::Float64();
-        msg.data = last_heading_deg_;
-        heading_publisher_->publish(msg);
+        // Stop the initialization timer
+        init_timer_->cancel();
     }
 
     /**
