@@ -61,9 +61,9 @@ namespace localizer
     StateEstimator::StateEstimator()
         : Node("state_estimator"), current_key_index_(0), oldest_key_index_(0),
           enu_origin_set_(false), origin_lat_(0.0), origin_lon_(0.0), origin_alt_(0.0),
-          filter_initialized_(false),
           odom_state_(gtsam::Pose3::Identity(), gtsam::Vector3::Zero()),
-          last_odom_propagation_time_(0, 0, RCL_ROS_TIME)
+          last_odom_propagation_time_(0, 0, RCL_ROS_TIME),
+          filter_initialized_(false)
     {
         init_state_.store(InitState::WAITING_FOR_IMU);
 

@@ -1,4 +1,4 @@
-state_estimator:
+localizer_node:
   ros__parameters:
     imu_topic: "/imu"
     gnss_topic: "/gps/fix"
