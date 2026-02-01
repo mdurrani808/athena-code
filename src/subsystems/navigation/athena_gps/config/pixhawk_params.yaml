@@ -1,6 +1,6 @@
 athena_gps:
   ros__parameters:
-    usb_path: "/dev/ttyACM0"
+    usb_path: "serial:///dev/ttyACM0:57600"
 
     imu_rate: 10.0
     gps_info_rate: 1.0
