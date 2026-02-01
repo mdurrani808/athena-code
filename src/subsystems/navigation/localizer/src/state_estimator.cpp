@@ -1056,13 +1056,13 @@ namespace localizer
             return;
         }
 
-        std::lock_guard<std::mutex> lock(state_mutex_);
-
         auto state = get_latest_state();
         if (!state)
         {
             return;
         }
+
+        std::lock_guard<std::mutex> lock(state_mutex_);
 
         gtsam::NavState current_odom_state = odom_state_;
         if (odom_preintegrator_ && odom_preintegrator_->deltaTij() > 1e-6)
@@ -1072,12 +1072,12 @@ namespace localizer
 
         gtsam::Pose3 T_map_base = state->nav_state.pose();
         gtsam::Pose3 T_odom_base = current_odom_state.pose();
-        gtsam::Pose3 T_map_odom_raw = T_odom_base.between(T_map_base);
+        gtsam::Pose3 T_map_odom = T_odom_base.between(T_map_base);
 
-        gtsam::Rot3 R_z_180 = gtsam::Rot3::Rz(M_PI);
+        /*gtsam::Rot3 R_z_180 = gtsam::Rot3::Rz(M_PI);
         gtsam::Point3 rotated_translation = R_z_180.rotate(T_map_odom_raw.translation());
         gtsam::Rot3 rotated_orientation = R_z_180.compose(T_map_odom_raw.rotation());
-        gtsam::Pose3 T_map_odom(rotated_orientation, rotated_translation);
+        gtsam::Pose3 T_map_odom(rotated_orientation, rotated_translation);*/
 
         geometry_msgs::msg::TransformStamped map_to_odom_msg;
         map_to_odom_msg.header.stamp = state->timestamp;
