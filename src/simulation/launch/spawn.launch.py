@@ -27,10 +27,11 @@ ARGUMENTS = [
 
 def generate_launch_description():
     pkg_description = get_package_share_directory('description')
-    
+    pkg_sim = get_package_share_directory('simulation')
+
     urdf_file = os.path.join(pkg_description, 'urdf', 'athena_drive.urdf.xacro')
     controllers_file = os.path.join(pkg_description, 'config', 'athena_drive_sim_controllers.yaml')
-
+    rviz_config_file = os.path.join(pkg_sim, 'rviz', 'sim.rviz')
     
     namespace = LaunchConfiguration('namespace')
     robot_name = 'athena'
@@ -77,8 +78,9 @@ def generate_launch_description():
             executable='rviz2',
             name='rviz2',
             output='screen',
-            condition=conditions.IfCondition(LaunchConfiguration('rviz')),
-            parameters=[{'use_sim_time': LaunchConfiguration('use_sim_time')}]
+            arguments=['-d', rviz_config_file],
+            parameters=[{'use_sim_time': LaunchConfiguration('use_sim_time')}],
+            condition=conditions.IfCondition(LaunchConfiguration('rviz'))
         ),
         
         Node(

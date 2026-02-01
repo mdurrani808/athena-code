@@ -43,9 +43,10 @@ joint_group_position_controller:
       - stepper_motor_b
       - talon_lift
       - talon_scoop
+      - rack_and_pinion_left
+      - rack_and_pinion_right
       - scoop_a
       - scoop_b
-
       - auger
       - cap
     interface_name: position
@@ -58,6 +59,8 @@ joint_group_velocity_controller:
       - talon_lift
       - talon_scoop
       - auger
+      - rack_and_pinion_left
+      - rack_and_pinion_right
       - scoop_a
       - scoop_b
       - auger
@@ -75,8 +78,12 @@ science_controller:
       - scoop_b
       - auger
       - cap
+      - rack_and_pinion_left
+      - rack_and_pinion_right
     stepper_motor_a: "stepper_motor_a"
     stepper_motor_b: "stepper_motor_b"
+    rack_and_pinion_left: "rack_and_pinion_left"
+    rack_and_pinion_right: "rack_and_pinion_right"
     talon_lift: ["talon_lift"]
     talon_scoop: "talon_scoop"
     scoop_servos: ["scoop_a", "scoop_b"]
