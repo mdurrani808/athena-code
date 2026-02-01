@@ -2,11 +2,9 @@
 
 set -euo pipefail
 
-# kill existing processes
 killall slcand 2>/dev/null || true
 sleep 1
 
-# start slcand
 if [[ -e /dev/ttyACM0 ]]; then
     slcand -o -c -s8 /dev/ttyACM0 can0
 elif [[ -e /dev/ttyACM1 ]]; then
