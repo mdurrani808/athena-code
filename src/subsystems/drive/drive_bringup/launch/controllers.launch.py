@@ -98,6 +98,18 @@ def controller_spawning_logic(context, *args, **kwargs):
                 )
             )
 
+    # Add GPIO controllers for real hardware (LED and killswitch)
+    use_sim_str = LaunchConfiguration("use_sim").perform(context)
+    if use_sim_str == "false":
+        for gpio_controller in ["led_gpio_controller", "killswitch_gpio_controller"]:
+            controllers_to_spawn.append(
+                Node(
+                    package="controller_manager",
+                    executable="spawner",
+                    arguments=[gpio_controller, "-c", "/controller_manager"],
+                )
+            )
+
     spawn_actions = [joint_state_broadcaster_spawner]
     previous_action = joint_state_broadcaster_spawner
 
