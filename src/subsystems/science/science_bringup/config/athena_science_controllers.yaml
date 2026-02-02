@@ -36,6 +36,10 @@ controller_manager:
     science_controller:
       type: science_controllers/ScienceManual
 
+    # Laser GPIO Controller (CAN-based)
+    laser_gpio_controller:
+      type: gpio_controllers/GpioCommandController
+
 joint_group_position_controller:                
   ros__parameters:
     joints:
@@ -93,3 +97,19 @@ science_controller:
     interface_name: position 
     command_interfaces: [position, velocity]
     state_interfaces: [position, velocity]
+
+# Laser GPIO Controller Configuration
+laser_gpio_controller:
+  ros__parameters:
+    gpios:
+      - spectrometry_laser
+    command_interfaces:
+      spectrometry_laser:
+        interfaces:
+          - laser_command
+    state_interfaces:
+      spectrometry_laser:
+        interfaces:
+          - laser_state
+          - temperature
+          - is_connected
