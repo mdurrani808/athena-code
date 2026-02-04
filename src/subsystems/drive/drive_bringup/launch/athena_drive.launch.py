@@ -384,7 +384,7 @@ def generate_launch_description():
             robot_state_pub_node,
             joystick_publisher,
             teleop_twist_joy,
-            joint_state_publisher,
+            # joint_state_publisher,
             # delay_can_node_after_control_node,
             delay_joint_state_broadcaster_spawner_after_ros2_control_node,
             delay_rviz_after_joint_state_broadcaster_spawner,
