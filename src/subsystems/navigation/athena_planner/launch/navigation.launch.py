@@ -59,6 +59,20 @@ def generate_launch_description():
     gps_goal_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(gps_goal_launch_file)
     )
+    point_cloud_filterer_node = Node(
+        package='point_cloud_filterer',
+        executable='point_cloud_filtered',
+        name='point_cloud_filterer',
+        parameters=[{
+            'use_sim_time': True,
+            'input_topic': '/depth_camera/points',
+            'output_topic': '/depth_camera/points_corrected',
+            'frame_override': 'depth_camera_optical_frame'
+        }],
+        output='screen',
+        emulate_tty=True
+    )
+
 
     return LaunchDescription([
         DeclareLaunchArgument(
@@ -76,6 +90,7 @@ def generate_launch_description():
         twist_stamper_node,
         dem_costmap_launch, 
         localizer_launch,
+        point_cloud_filterer_node,
         gps_goal_launch,
 
         IncludeLaunchDescription(
