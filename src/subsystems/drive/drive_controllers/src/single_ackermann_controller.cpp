@@ -138,15 +138,15 @@ controller_interface::return_type SingleAckermannController::update(
     return controller_interface::return_type::OK;
   }
 
-  double linear_vel_cmd = (*current_ref)->twist.linear.x;
+  // Clamp linear velocity first so steer angle is computed from actual execution speed
+  double linear_vel_cmd = std::clamp(
+    (*current_ref)->twist.linear.x, -params_.max_speed, params_.max_speed);
 
+  // Compute steer angle from Twist using bicycle model: delta = atan(omega * L / v)
   double steer_cmd = 0.0;
   if (std::abs(linear_vel_cmd) > 1e-4) {
-    steer_cmd = atan((*current_ref)->twist.angular.z * params_.wheelbase / linear_vel_cmd);
+    steer_cmd = std::atan((*current_ref)->twist.angular.z * params_.wheelbase / linear_vel_cmd);
   }
-
-  // Clamp linear velocity and steering angle to configured limits
-  linear_vel_cmd = std::clamp(linear_vel_cmd, -params_.max_speed, params_.max_speed);
   steer_cmd = std::clamp(steer_cmd, -params_.max_steer_angle, params_.max_steer_angle);
 
   double wheelbase = params_.wheelbase;
