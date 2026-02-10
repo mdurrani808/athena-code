@@ -128,7 +128,7 @@ controller_interface::return_type SingleAckermannController::update(
   const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/)
 {
   auto current_ref = input_ref_.readFromRT();
-  if (!current_ref || !(*current_ref) || (*current_ref)->axes.empty())
+  if (!current_ref || !(*current_ref))
   {
     // Set all command interfaces to zero when no input is available
     for (size_t i = 0; i < command_interfaces_.size(); ++i)
@@ -138,12 +138,16 @@ controller_interface::return_type SingleAckermannController::update(
     return controller_interface::return_type::OK;
   }
 
-  // Get joystick values and apply scaling and inversion from parameters
-  double linear_vel_cmd = (*current_ref)->axes[params_.forward_axis] * params_.max_speed;
-  double steer_cmd = (*current_ref)->axes[params_.steer_axis] * params_.max_steer_angle;
-  if (params_.steer_inversion) {
-    steer_cmd *= -1.0;
+  double linear_vel_cmd = (*current_ref)->twist.linear.x;
+
+  double steer_cmd = 0.0;
+  if (std::abs(linear_vel_cmd) > 1e-4) {
+    steer_cmd = atan((*current_ref)->twist.angular.z * params_.wheelbase / linear_vel_cmd);
   }
+
+  // Clamp linear velocity and steering angle to configured limits
+  linear_vel_cmd = std::clamp(linear_vel_cmd, -params_.max_speed, params_.max_speed);
+  steer_cmd = std::clamp(steer_cmd, -params_.max_steer_angle, params_.max_steer_angle);
 
   double wheelbase = params_.wheelbase;
   double track_width = params_.track_width;
