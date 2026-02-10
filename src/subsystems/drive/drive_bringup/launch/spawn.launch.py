@@ -19,6 +19,12 @@ def generate_launch_description():
         description="Name of the robot in Gazebo.",
     )
 
+    world_name_arg = DeclareLaunchArgument(
+        "world_name",
+        default_value="",
+        description="Name of the world inside Gazebo (optional).",
+    )
+
     spawn_args = [
         DeclareLaunchArgument("spawn_x", default_value="0.0", description="Spawn X"),
         DeclareLaunchArgument("spawn_y", default_value="0.0", description="Spawn Y"),
@@ -28,6 +34,7 @@ def generate_launch_description():
 
     use_sim = LaunchConfiguration("use_sim")
     robot_name = LaunchConfiguration("robot_name")
+    world_name = LaunchConfiguration("world_name")
     spawn_x = LaunchConfiguration("spawn_x")
     spawn_y = LaunchConfiguration("spawn_y")
     spawn_z = LaunchConfiguration("spawn_z")
@@ -39,6 +46,7 @@ def generate_launch_description():
         executable="create",
         arguments=[
             "-name", robot_name,
+            "-world", world_name,
             "-x", spawn_x,
             "-y", spawn_y,
             "-z", spawn_z,
@@ -53,6 +61,7 @@ def generate_launch_description():
         [
             use_sim_arg,
             robot_name_arg,
+            world_name_arg,
             *spawn_args,
             spawn_robot,
         ]

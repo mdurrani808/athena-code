@@ -67,6 +67,32 @@ def generate_launch_description():
         description="Gazebo world file to load (only used when use_sim:=true)",
     )
 
+    world_name_arg = DeclareLaunchArgument(
+        "world_name",
+        default_value="",
+        description="Name of the world inside Gazebo (optional)",
+    )
+
+    rqt_arg = DeclareLaunchArgument(
+        "rqt",
+        default_value="false",
+        choices=["true", "false"],
+        description="Start rqt_image_view for camera topics",
+    )
+
+    image_topic_arg = DeclareLaunchArgument(
+        "image_topic",
+        default_value="/depth_camera",
+        description="Image topic to view in rqt_image_view",
+    )
+
+    publish_ground_truth_tf_arg = DeclareLaunchArgument(
+        "publish_ground_truth_tf",
+        default_value="true",
+        choices=["true", "false"],
+        description="Publish ground truth TF in simulation",
+    )
+
     use_sim = LaunchConfiguration("use_sim")
     runtime_config_package = LaunchConfiguration("runtime_config_package")
     description_package = LaunchConfiguration("description_package")
@@ -76,6 +102,10 @@ def generate_launch_description():
     start_rviz = LaunchConfiguration("start_rviz")
     rviz_file = LaunchConfiguration("rviz_file")
     world = LaunchConfiguration("world")
+    world_name = LaunchConfiguration("world_name")
+    rqt = LaunchConfiguration("rqt")
+    image_topic = LaunchConfiguration("image_topic")
+    publish_ground_truth_tf = LaunchConfiguration("publish_ground_truth_tf")
 
     robot_controllers_path = PathJoinSubstitution(
         [FindPackageShare(runtime_config_package), "config", "athena_drive_controllers.yaml"]
@@ -91,7 +121,7 @@ def generate_launch_description():
         ]),
         launch_arguments={
             "world": world,
-            "use_sim_time": "true",
+            "publish_ground_truth_tf": publish_ground_truth_tf,
         }.items(),
         condition=IfCondition(use_sim),
     )
@@ -129,17 +159,18 @@ def generate_launch_description():
         }.items(),
     )
 
-    hardware = IncludeLaunchDescription(
+    spawn_robot = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([
             PathJoinSubstitution([
                 FindPackageShare(runtime_config_package),
                 "launch",
-                "hardware.launch.py"
+                "spawn.launch.py"
             ])
         ]),
         launch_arguments={
             "use_sim": use_sim,
             "robot_name": "rover",
+            "world_name": world_name,
             "spawn_x": "0.0",
             "spawn_y": "0.0",
             "spawn_z": "3.0",
@@ -174,6 +205,8 @@ def generate_launch_description():
             "description_package": description_package,
             "rviz_file": rviz_file,
             "use_sim": use_sim,
+            "rqt": rqt,
+            "image_topic": image_topic,
         }.items(),
         condition=IfCondition(start_rviz),
     )
@@ -189,11 +222,15 @@ def generate_launch_description():
         robot_controller_arg,
         start_rviz_arg,
         world_arg,
+        world_name_arg,
+        rqt_arg,
+        image_topic_arg,
+        publish_ground_truth_tf_arg,
         # Launch files and nodes
         sim_bringup,
         robot_description,
         teleop,
-        hardware,
+        spawn_robot,
         controllers,
         visualization,
     ])
