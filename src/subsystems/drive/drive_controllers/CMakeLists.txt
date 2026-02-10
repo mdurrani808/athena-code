@@ -9,6 +9,7 @@ endif()
 set(THIS_PACKAGE_INCLUDE_DEPENDS
   control_msgs
   controller_interface
+  geometry_msgs
   hardware_interface
   pluginlib
   rclcpp
