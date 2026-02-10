@@ -18,6 +18,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <deque>
 
 #include "controller_interface/controller_interface.hpp"
 #include "single_ackermann_controller_parameters.hpp"
@@ -27,6 +28,9 @@
 #include "realtime_tools/realtime_buffer.h"
 #include "geometry_msgs/msg/twist.hpp"
 #include "geometry_msgs/msg/twist_stamped.hpp"
+#include "geometry_msgs/msg/transform_stamped.hpp"
+#include "nav_msgs/msg/odometry.hpp"
+#include "tf2_msgs/msg/tf_message.hpp"
 
 namespace drive_controllers
 {
@@ -71,12 +75,32 @@ protected:
   std::vector<std::string> drive_joint_names_;
   std::vector<std::string> steer_joint_names_;
 
+  // Subscriber for Twist reference input
   rclcpp::Subscription<ControllerReferenceMsg>::SharedPtr ref_subscriber_ = nullptr;
   realtime_tools::RealtimeBuffer<std::shared_ptr<ControllerReferenceMsg>> input_ref_;
+
+  // Odometry publishers
+  rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odom_publisher_ = nullptr;
+  rclcpp::Publisher<tf2_msgs::msg::TFMessage>::SharedPtr tf_odom_publisher_ = nullptr;
+
+  // Odometry state (integrated pose)
+  double odom_x_ = 0.0;
+  double odom_y_ = 0.0;
+  double odom_heading_ = 0.0;
+  bool prev_time_set_ = false;
+  rclcpp::Time prev_time_;
+
+  // Velocity rolling average buffer
+  std::deque<double> linear_vel_buffer_;
+  std::deque<double> angular_vel_buffer_;
 
 private:
   ATHENA_DRIVE_CONTROLLERS__VISIBILITY_LOCAL
   void reference_callback(const std::shared_ptr<ControllerReferenceMsg> msg);
+
+  // Helper to find a state interface index by full name (e.g., "joint/velocity")
+  ATHENA_DRIVE_CONTROLLERS__VISIBILITY_LOCAL
+  bool find_state_interface_index(const std::string & name, size_t & index) const;
 };
 
 }  // namespace drive_controllers

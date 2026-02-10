@@ -35,3 +35,30 @@ single_ackermann_controller:
     default_value: 0.785,
     description: "Maximum steering angle in radians."
   }
+
+  # Odometry parameters
+  open_loop: {
+    type: bool,
+    default_value: false,
+    description: "Use commanded velocities for odom (true) or actual encoder feedback (false)."
+  }
+  enable_odom_tf: {
+    type: bool,
+    default_value: false,
+    description: "Publish odom -> base_link TF transform."
+  }
+  odom_frame_id: {
+    type: string,
+    default_value: "odom",
+    description: "Frame ID for odometry."
+  }
+  base_frame_id: {
+    type: string,
+    default_value: "base_link",
+    description: "Child frame ID for odometry (robot base)."
+  }
+  velocity_rolling_window_size: {
+    type: int,
+    default_value: 10,
+    description: "Rolling window size for velocity smoothing."
+  }
