@@ -319,7 +319,7 @@ controller_interface::return_type SingleAckermannController::update(
   }
 
   // Rolling average for velocity smoothing
-  size_t window = static_cast<size_t>(std::max(1, params_.velocity_rolling_window_size));
+  size_t window = static_cast<size_t>(std::max<int64_t>(1, params_.velocity_rolling_window_size));
   linear_vel_buffer_.push_back(odom_linear_vel);
   angular_vel_buffer_.push_back(odom_angular_vel);
   while (linear_vel_buffer_.size() > window) { linear_vel_buffer_.pop_front(); }
