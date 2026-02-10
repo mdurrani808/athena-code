@@ -1,6 +1,7 @@
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 
@@ -11,10 +12,10 @@ ARGUMENTS = [
         description='Gazebo world file to load'
     ),
     DeclareLaunchArgument(
-        'use_sim_time',
+        'publish_ground_truth_tf',
         default_value='true',
         choices=['true', 'false'],
-        description='Use simulation time from Gazebo'
+        description='Publish ground truth odom -> base_footprint transform'
     ),
 ]
 
@@ -26,7 +27,6 @@ def generate_launch_description():
     gazebo = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([gazebo_launch]),
         launch_arguments=[
-            ('use_sim_time', LaunchConfiguration('use_sim_time')),
             ('world', LaunchConfiguration('world'))
         ]
     )
@@ -36,7 +36,14 @@ def generate_launch_description():
         PythonLaunchDescriptionSource([bridge_launch])
     )
 
+    ground_truth_tf_launch = PathJoinSubstitution([pkg_sim, 'launch', 'ground_truth_tf.launch.py'])
+    ground_truth_tf = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource([ground_truth_tf_launch]),
+        condition=IfCondition(LaunchConfiguration('publish_ground_truth_tf'))
+    )
+
     ld = LaunchDescription(ARGUMENTS)
     ld.add_action(gazebo)
     ld.add_action(bridge)
+    ld.add_action(ground_truth_tf)
     return ld

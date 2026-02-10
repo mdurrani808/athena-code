@@ -34,38 +34,44 @@ def controller_spawning_logic(context, *args, **kwargs):
         remappings=[
             ("~/robot_description", "/robot_description"),
         ],
-        condition=UnlessCondition(use_sim),
+        #condition=UnlessCondition(use_sim),
     )
 
-    cmd_vel_relay = Node(
-        package="topic_tools",
-        executable="relay",
-        name="cmd_vel_to_ackermann_relay",
-        arguments=[
-            "/cmd_vel",
-            "/ackermann_steering_controller/reference",
-            "--ros-args",
-            "--log-level",
-            "fatal",
-        ],
-        parameters=[{"use_sim_time": use_sim}],
-        output="log",
-    )
+    # Relay nodes: route cmd_vel to the correct controller's reference topic
+    relay_nodes = []
 
-    joy_relay = Node(
-        package="topic_tools",
-        executable="relay",
-        name="joy_to_single_ackermann_relay",
-        arguments=[
-            "/joy",
-            "/single_ackermann_controller/reference",
-            "--ros-args",
-            "--log-level",
-            "fatal",
-        ],
-        parameters=[{"use_sim_time": use_sim}],
-        output="log",
-    )
+    if robot_controller == "ackermann_steering_controller":
+        # For ackermann_steering_controller: relay cmd_vel to its reference topic
+        relay_nodes.append(Node(
+            package="topic_tools",
+            executable="relay",
+            name="cmd_vel_relay",
+            arguments=[
+                "/cmd_vel",
+                "/ackermann_steering_controller/reference",
+                "--ros-args",
+                "--log-level",
+                "fatal",
+            ],
+            parameters=[{"use_sim_time": use_sim}],
+            output="log",
+        ))
+    elif robot_controller == "single_ackermann_controller":
+        # For single_ackermann_controller: relay cmd_vel to its reference topic
+        relay_nodes.append(Node(
+            package="topic_tools",
+            executable="relay",
+            name="cmd_vel_relay",
+            arguments=[
+                "/cmd_vel",
+                "/single_ackermann_controller/reference",
+                "--ros-args",
+                "--log-level",
+                "fatal",
+            ],
+            parameters=[{"use_sim_time": use_sim}],
+            output="log",
+        ))
 
     joint_state_broadcaster_spawner = Node(
         package="controller_manager",
@@ -155,8 +161,7 @@ def controller_spawning_logic(context, *args, **kwargs):
 
     return [
         control_node,
-        cmd_vel_relay,
-        joy_relay,
+        *relay_nodes,
         delayed_controllers_real,
         delayed_controllers_sim,
     ]
