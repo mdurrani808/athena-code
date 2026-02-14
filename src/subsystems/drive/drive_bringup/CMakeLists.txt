@@ -16,11 +16,6 @@ install(
   DESTINATION share/${PROJECT_NAME}
 )
 
-install(PROGRAMS
-  scripts/controller_switcher.py
-  DESTINATION lib/${PROJECT_NAME}
-)
-
 if(BUILD_TESTING)
 endif()
 

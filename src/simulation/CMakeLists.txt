@@ -6,12 +6,6 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 endif()
 
 find_package(ament_cmake REQUIRED)
-find_package(rclcpp REQUIRED)
-find_package(std_msgs REQUIRED)
-find_package(xacro REQUIRED)
-find_package(robot_state_publisher REQUIRED)
-find_package(ros2_control REQUIRED)
-find_package(ros2_controllers REQUIRED)
 find_package(ros_gz_sim REQUIRED)
 find_package(ros_gz_bridge REQUIRED)
 
@@ -32,12 +26,6 @@ install(PROGRAMS
 )
 
 ament_export_dependencies(
-  rclcpp 
-  std_msgs 
-  xacro 
-  robot_state_publisher 
-  ros2_control 
-  ros2_controllers
   ros_gz_sim
   ros_gz_bridge
 )

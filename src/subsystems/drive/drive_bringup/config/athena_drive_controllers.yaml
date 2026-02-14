@@ -1,24 +1,3 @@
-# Copyright (c) 20224 Stogl Robotics Consulting UG (haftungsbeschränkt)
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-#
-# Source of this file are templates in
-# [RosTeamWorkspace](https://github.com/StoglRobotics/ros_team_workspace) repository.
-#
-# Author: Dr. Denis
-#
-
 controller_manager:
   ros__parameters:
     update_rate: 100  # Hz
@@ -48,13 +27,14 @@ controller_manager:
     # Killswitch GPIO Controller
     killswitch_gpio_controller:
       type: gpio_controllers/GpioCommandController
-    
+
+
 
 ackermann_steering_controller:
   # unsure why but ackermann controller only goes about half of scale_linear.x in teleop_twist
   # ackermann controller turns to at max scale_angular.yaw*pi. Seems to ignore how much you input, relies more on how fast rover is going
   ros__parameters:
-    rear_wheels_names: ["propulsion_bl_joint", "propulsion_br_joint"] # This is traction control "propulsion_bl_joint", "propulsion_br_joint", 
+    rear_wheels_names: ["propulsion_bl_joint", "propulsion_br_joint"]
     front_wheels_names: ["steer_fl_joint", "steer_fr_joint"] # This is steering, don't ask why its just called front wheels
     # front_steering_names: ["steer_fl_joint", "steer_fr_joint"]
     front_wheel_track: 0.6604
@@ -63,6 +43,12 @@ ackermann_steering_controller:
     front_wheels_radius: 0.254
     rear_wheels_radius: 0.254
     use_stamped_vel: true
+    base_frame_id: "base_footprint"
+    odom_frame_id: "odom"
+    enable_odom_tf: false
+    position_feedback: false
+    twist_covariance_diagonal: [0.0, 7.0, 14.0, 21.0, 28.0, 35.0]
+    pose_covariance_diagonal: [0.0, 7.0, 14.0, 21.0, 28.0, 35.0]
 
 single_ackermann_controller:
   ros__parameters:
