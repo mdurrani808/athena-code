@@ -183,8 +183,6 @@ private:
     /**
      * convert quaternion from FRD (Forward-Right-Down) to FLU (Forward-Left-Up) frame.
      */
-    // FRD→FLU is a 180° rotation around the X axis: q_flu = [0,1,0,0] * q_frd
-    // Derivation: w=−x, x=w, y=−z, z=y
     void quaternion_frd_to_flu(const Telemetry::Quaternion &frd,
                                double &w_out, double &x_out, double &y_out, double &z_out) {
         w_out = -frd.x;

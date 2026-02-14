@@ -9,7 +9,6 @@
   <xacro:arg name="simulation_controllers" default=""/>
 
 
-  <xacro:include filename="$(find description)/urdf/athena_drive/athena_drive_macro.xacro"/>
   <xacro:include filename="$(find description)/urdf/athena_drive/athena_drive_macro.ros2_control.xacro"/>
   <xacro:include filename="imu.xacro"/>
   <xacro:include filename="gps.xacro"/>

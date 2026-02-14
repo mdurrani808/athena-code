@@ -25,8 +25,7 @@
 #include "rclcpp_lifecycle/node_interfaces/lifecycle_node_interface.hpp"
 #include "rclcpp_lifecycle/state.hpp"
 #include "realtime_tools/realtime_buffer.h"
-#include "geometry_msgs/msg/twist.hpp"
-#include "geometry_msgs/msg/twist_stamped.hpp"
+#include "sensor_msgs/msg/joy.hpp"
 
 namespace drive_controllers
 {
@@ -62,7 +61,7 @@ public:
   controller_interface::return_type update(
     const rclcpp::Time & time, const rclcpp::Duration & period) override;
 
-  using ControllerReferenceMsg = geometry_msgs::msg::TwistStamped;
+  using ControllerReferenceMsg = sensor_msgs::msg::Joy;
 
 protected:
   std::shared_ptr<single_ackermann_controller::ParamListener> param_listener_;

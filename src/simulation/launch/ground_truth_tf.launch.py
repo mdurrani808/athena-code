@@ -23,7 +23,7 @@ def generate_launch_description():
             output='screen',
             parameters=[{
                 'child_frame_id': LaunchConfiguration('child_frame_id'),
-                'use_sim_time': True  # Always true since this only runs in simulation
+                'use_sim_time': True
             }]
         ),
     ])
