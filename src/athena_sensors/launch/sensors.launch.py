@@ -36,9 +36,11 @@ def generate_launch_description():
             os.path.join(athena_sensors_launch_dir, 'zed.launch.py')
         ),
         launch_arguments={
-            'sim':          sim,
-            'use_sim_time': sim,
-            'camera_model': camera_model,
+            'sim':             sim,
+            'use_sim_time':    sim,
+            'camera_model':    camera_model,
+            'publish_tf':      'true',
+            'publish_map_tf':  'false',
         }.items(),
     )
 
