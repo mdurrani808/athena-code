@@ -1,6 +1,7 @@
 import os
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
@@ -11,6 +12,13 @@ def generate_launch_description():
     namespace = LaunchConfiguration('namespace')
     use_sim_time = LaunchConfiguration('use_sim_time')
     config_file = LaunchConfiguration('config_file')
+
+    sensors_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(launch_file_dir, 'sensors.launch.py')
+        ),
+        launch_arguments={'sim': LaunchConfiguration('sim')}.items()
+    )
 
     return LaunchDescription([
         DeclareLaunchArgument(
@@ -24,10 +32,17 @@ def generate_launch_description():
             description='Use simulation time'
         ),
         DeclareLaunchArgument(
+            'sim',
+            default_value='false',
+            choices=['true', 'false'],
+            description='Use simulation bridges instead of real hardware'
+        ),
+        DeclareLaunchArgument(
             'config_file',
             default_value=default_config,
             description='Path to the localizer configuration file'
         ),
+        sensors_launch,
         Node(
             package='localizer',
             executable='localizer_node',
