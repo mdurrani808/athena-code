@@ -24,7 +24,6 @@ def generate_launch_description():
             PathJoinSubstitution([FindExecutable(name="xacro")]),
             " ",
             robot_description_path,
-            " use_mock_hardware:=true",
         ]
     )
 

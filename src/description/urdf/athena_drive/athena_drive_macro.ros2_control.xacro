@@ -1,144 +1,112 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <robot xmlns:xacro="http://wiki.ros.org/xacro">
 
-  <xacro:macro name="athena_drive_ros2_control" params="
+    <xacro:macro name="athena_drive_ros2_control" params="
                name
-               prefix
-               use_mock_hardware:=false
-               mock_sensor_commands:=false
-               sim_gazebo:=false
-               simulation_controllers"
-               >
+               prefix use_sim:=false
+               simulation_controllers">
 
-    <ros2_control name="${name}" type="system">
-  <hardware>
-    <xacro:if value="${sim_gazebo}">
-      <plugin>gz_ros2_control/GazeboSimSystem</plugin>
-    </xacro:if>
-    
-    <xacro:if value="${use_mock_hardware and not sim_gazebo}">
-      <plugin>mock_components/GenericSystem</plugin>
-      <param name="mock_sensor_commands">${mock_sensor_commands}</param>
-    </xacro:if>
-    
-    <xacro:unless value="${use_mock_hardware or sim_gazebo}">
-      <plugin>mock_components/GenericSystem</plugin>
-    </xacro:unless>
-  </hardware>
-  
-  <joint name="${prefix}suspension_front_left_joint">
-    <command_interface name="position">
-      <param name="min">-1.0471975512</param>
-      <param name="max">1.0471975512</param>
-    </command_interface>
-    <state_interface name="position">
-      <param name="initial_value">0.0</param>
-    </state_interface>
-    <state_interface name="velocity"/>
-  </joint>
-  
-  <joint name="${prefix}suspension_front_right_joint">
-    <command_interface name="position">
-      <param name="min">-1.0471975512</param>
-      <param name="max">1.0471975512</param>
-    </command_interface>
-    <state_interface name="position">
-      <param name="initial_value">0.0</param>
-    </state_interface>
-    <state_interface name="velocity"/>
-  </joint>
-  
-  <joint name="${prefix}steer_fl_joint">
-    <command_interface name="position">
-      <param name="min">-0.78539816339</param>
-      <param name="max">0.78539816339</param>
-    </command_interface>
-    <state_interface name="position">
-      <param name="initial_value">0.0</param>
-    </state_interface>
-    <state_interface name="velocity"/>
-  </joint>
-  
-  <joint name="${prefix}steer_fr_joint">
-    <command_interface name="position">
-      <param name="min">-0.78539816339</param>
-      <param name="max">0.78539816339</param>
-    </command_interface>
-    <state_interface name="position">
-      <param name="initial_value">0.0</param>
-    </state_interface>
-    <state_interface name="velocity"/>
-  </joint>
-  
-  <joint name="${prefix}steer_br_joint">
-    <command_interface name="position">
-      <param name="min">0.78539816339</param>
-      <param name="max">-0.78539816339</param>
-    </command_interface>
-    <state_interface name="position">
-      <param name="initial_value">0.0</param>
-    </state_interface>
-    <state_interface name="velocity"/>
-  </joint>
-  
-  <joint name="${prefix}steer_bl_joint">
-    <command_interface name="position">
-      <param name="min">-0.78539816339</param>
-      <param name="max">0.78539816339</param>
-    </command_interface>
-    <state_interface name="position">
-      <param name="initial_value">0.0</param>
-    </state_interface>
-    <state_interface name="velocity"/>
-  </joint>
-  
+        <ros2_control name="${name}" type="system">
+            <hardware>
+                <xacro:if value="${use_sim}">
+                    <plugin>gz_ros2_control/GazeboSimSystem</plugin>
+                </xacro:if>
 
-  <joint name="${prefix}propulsion_fl_joint">
-    <command_interface name="velocity"/>
-    <state_interface name="position">
-      <param name="initial_value">0.0</param>
-    </state_interface>
-    <state_interface name="velocity"/>
-  </joint>
+                <xacro:unless value="${use_sim}">
+                    <plugin>mock_components/GenericSystem</plugin>
+                </xacro:unless>
+            </hardware>
 
-  <joint name="${prefix}propulsion_fr_joint">
-    <command_interface name="velocity"/>
-    <state_interface name="position">
-      <param name="initial_value">0.0</param>
-    </state_interface>
-    <state_interface name="velocity"/>
-  </joint>
-  
+            <joint name="${prefix}steer_fl_joint">
+                <command_interface name="position">
+                    <param name="min">0</param>
+                    <param name="max">6.2832</param>
+                </command_interface>
+                <state_interface name="position">
+                    <param name="initial_value">0.0</param>
+                </state_interface>
+                <state_interface name="velocity"/>
+            </joint>
 
-  <joint name="${prefix}propulsion_br_joint">
-    <state_interface name="position">
-      <param name="initial_value">0.0</param>
-    </state_interface>
-    <state_interface name="velocity"/>
-  </joint>
-  
+            <joint name="${prefix}steer_fr_joint">
+                <command_interface name="position">
+                    <param name="min">0</param>
+                    <param name="max">6.2832</param>
+                </command_interface>
+                <state_interface name="position">
+                    <param name="initial_value">0.0</param>
+                </state_interface>
+                <state_interface name="velocity"/>
+            </joint>
 
-  <joint name="${prefix}propulsion_bl_joint">
-    <state_interface name="position">
-      <param name="initial_value">0.0</param>
-    </state_interface>
-    <state_interface name="velocity"/>
-  </joint>
-</ros2_control>
+            <joint name="${prefix}steer_br_joint">
+                <command_interface name="position">
+                    <param name="min">0</param>
+                    <param name="max">6.28318530718</param>
+                </command_interface>
+                <state_interface name="position">
+                    <param name="initial_value">0.0</param>
+                </state_interface>
+                <state_interface name="velocity"/>
+            </joint>
 
-    <xacro:if value="$(arg sim_gazebo)">
-      <gazebo>
-        <plugin filename="gz_ros2_control-system" name="gz_ros2_control::GazeboSimROS2ControlPlugin">
-          <xacro:if value="${simulation_controllers != ''}">
-            <parameters>${simulation_controllers}</parameters>
-          </xacro:if>
-          <controller_manager_node_name>${prefix}controller_manager</controller_manager_node_name>
-          <ros>
-            <remapping>ackermann_steering_controller/tf_odometry:=/tf</remapping>
-          </ros>
-        </plugin>
-      </gazebo>
-    </xacro:if>
+            <joint name="${prefix}steer_bl_joint">
+                <command_interface name="position">
+                    <param name="min">0</param>
+                    <param name="max">6.2832</param>
+                </command_interface>
+                <state_interface name="position">
+                    <param name="initial_value">0.0</param>
+                </state_interface>
+                <state_interface name="velocity"/>
+            </joint>
 
-  </xacro:macro>
+
+            <joint name="${prefix}propulsion_fl_joint">
+                <command_interface name="velocity"/>
+                <state_interface name="position">
+                    <param name="initial_value">0.0</param>
+                </state_interface>
+                <state_interface name="velocity"/>
+            </joint>
+
+            <joint name="${prefix}propulsion_fr_joint">
+                <command_interface name="velocity"/>
+                <state_interface name="position">
+                    <param name="initial_value">0.0</param>
+                </state_interface>
+                <state_interface name="velocity"/>
+            </joint>
+
+
+            <joint name="${prefix}propulsion_br_joint">
+                <command_interface name="velocity"/>
+                <state_interface name="position">
+                    <param name="initial_value">0.0</param>
+                </state_interface>
+                <state_interface name="velocity"/>
+            </joint>
+
+
+            <joint name="${prefix}propulsion_bl_joint">
+                <command_interface name="velocity"/>
+                <state_interface name="position">
+                    <param name="initial_value">0.0</param>
+                </state_interface>
+                <state_interface name="velocity"/>
+            </joint>
+        </ros2_control>
+
+        <xacro:if value="${use_sim}">
+            <gazebo>
+                <plugin filename="gz_ros2_control-system" name="gz_ros2_control::GazeboSimROS2ControlPlugin">
+                    <xacro:if value="${simulation_controllers != ''}">
+                        <parameters>${simulation_controllers}</parameters>
+                    </xacro:if>
+                    <controller_manager_node_name>${prefix}controller_manager</controller_manager_node_name>
+                </plugin>
+            </gazebo>
+        </xacro:if>
+
+    </xacro:macro>
 </robot>
