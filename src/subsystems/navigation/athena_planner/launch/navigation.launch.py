@@ -65,9 +65,9 @@ def generate_launch_description():
         name='point_cloud_filterer',
         parameters=[{
             'use_sim_time': True,
-            'input_topic': '/depth_camera/points',
-            'output_topic': '/depth_camera/points_corrected',
-            'frame_override': 'depth_camera_optical_frame'
+            'input_topic': '/zed/zed_node/point_cloud/cloud_registered',
+            'output_topic': '/zed/zed_node/point_cloud/cloud_registered_corrected',
+            'frame_override': 'zed_left_camera_frame_optical'
         }],
         output='screen',
         emulate_tty=True
