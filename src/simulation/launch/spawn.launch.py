@@ -28,9 +28,10 @@ ARGUMENTS = [
 def generate_launch_description():
     pkg_description = get_package_share_directory('description')
     pkg_sim = get_package_share_directory('simulation')
+    pkg_drive_bringup = get_package_share_directory('drive_bringup')
 
     urdf_file = os.path.join(pkg_description, 'urdf', 'athena_drive.urdf.xacro')
-    controllers_file = os.path.join(pkg_description, 'config', 'athena_drive_sim_controllers.yaml')
+    controllers_file = os.path.join(pkg_drive_bringup, 'config', 'athena_drive_controllers.yaml')
     rviz_config_file = os.path.join(pkg_sim, 'rviz', 'sim.rviz')
     
     namespace = LaunchConfiguration('namespace')
@@ -38,8 +39,7 @@ def generate_launch_description():
 
     robot_description_content = Command([
         'xacro ', urdf_file,
-        ' use_mock_hardware:=true',
-        ' sim_gazebo:=true',
+        ' use_sim:=true',
         f' simulation_controllers:={controllers_file}'
     ])
 
