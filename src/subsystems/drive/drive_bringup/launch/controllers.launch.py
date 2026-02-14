@@ -88,8 +88,6 @@ def controller_spawning_logic(context, *args, **kwargs):
     for controller in [
         "ackermann_steering_controller",
         "single_ackermann_controller",
-        "drive_velocity_controller",
-        "drive_position_controller",
     ]:
         if controller != robot_controller:
             controllers_to_spawn.append(
