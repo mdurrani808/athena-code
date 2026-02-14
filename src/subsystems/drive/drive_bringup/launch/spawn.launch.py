@@ -1,8 +1,40 @@
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument
-from launch.conditions import IfCondition, UnlessCondition
+from launch.actions import DeclareLaunchArgument, OpaqueFunction
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
+
+
+def spawn_robot_logic(context, *args, **kwargs):
+    use_sim = LaunchConfiguration("use_sim").perform(context)
+    if use_sim != "true":
+        return []
+
+    robot_name = LaunchConfiguration("robot_name").perform(context)
+    world_name = LaunchConfiguration("world_name").perform(context)
+    spawn_x = LaunchConfiguration("spawn_x").perform(context)
+    spawn_y = LaunchConfiguration("spawn_y").perform(context)
+    spawn_z = LaunchConfiguration("spawn_z").perform(context)
+    spawn_yaw = LaunchConfiguration("spawn_yaw").perform(context)
+
+    spawn_args = [
+        "-name", robot_name,
+        "-x", spawn_x,
+        "-y", spawn_y,
+        "-z", spawn_z,
+        "-Y", spawn_yaw,
+        "-topic", "robot_description",
+    ]
+    if world_name:
+        spawn_args = ["-name", robot_name, "-world", world_name,
+                      "-x", spawn_x, "-y", spawn_y, "-z", spawn_z,
+                      "-Y", spawn_yaw, "-topic", "robot_description"]
+
+    return [Node(
+        package="ros_gz_sim",
+        executable="create",
+        arguments=spawn_args,
+        output="screen",
+    )]
 
 
 def generate_launch_description():
@@ -22,7 +54,7 @@ def generate_launch_description():
     world_name_arg = DeclareLaunchArgument(
         "world_name",
         default_value="",
-        description="Name of the world inside Gazebo (optional).",
+        description="Name of the world inside Gazebo (optional; omitted from create args if empty).",
     )
 
     spawn_args = [
@@ -32,37 +64,12 @@ def generate_launch_description():
         DeclareLaunchArgument("spawn_yaw", default_value="0.0", description="Spawn Yaw"),
     ]
 
-    use_sim = LaunchConfiguration("use_sim")
-    robot_name = LaunchConfiguration("robot_name")
-    world_name = LaunchConfiguration("world_name")
-    spawn_x = LaunchConfiguration("spawn_x")
-    spawn_y = LaunchConfiguration("spawn_y")
-    spawn_z = LaunchConfiguration("spawn_z")
-    spawn_yaw = LaunchConfiguration("spawn_yaw")
-
-
-    spawn_robot = Node(
-        package="ros_gz_sim",
-        executable="create",
-        arguments=[
-            "-name", robot_name,
-            "-world", world_name,
-            "-x", spawn_x,
-            "-y", spawn_y,
-            "-z", spawn_z,
-            "-Y", spawn_yaw,
-            "-topic", "robot_description",
-        ],
-        output="screen",
-        condition=IfCondition(use_sim)
-    )
-
     return LaunchDescription(
         [
             use_sim_arg,
             robot_name_arg,
             world_name_arg,
             *spawn_args,
-            spawn_robot,
+            OpaqueFunction(function=spawn_robot_logic),
         ]
     )

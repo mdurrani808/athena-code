@@ -34,7 +34,7 @@ def controller_spawning_logic(context, *args, **kwargs):
         remappings=[
             ("~/robot_description", "/robot_description"),
         ],
-        #condition=UnlessCondition(use_sim),
+        condition=UnlessCondition(use_sim),
     )
 
     # Relay nodes: route cmd_vel to the correct controller's reference topic
@@ -49,10 +49,8 @@ def controller_spawning_logic(context, *args, **kwargs):
             arguments=[
                 "/cmd_vel",
                 "/ackermann_steering_controller/reference",
-                "--ros-args",
-                "--log-level",
-                "fatal",
             ],
+            ros_arguments=["--log-level", "fatal"],
             parameters=[{"use_sim_time": use_sim}],
             output="log",
         ))
@@ -65,10 +63,8 @@ def controller_spawning_logic(context, *args, **kwargs):
             arguments=[
                 "/cmd_vel",
                 "/single_ackermann_controller/reference",
-                "--ros-args",
-                "--log-level",
-                "fatal",
             ],
+            ros_arguments=["--log-level", "fatal"],
             parameters=[{"use_sim_time": use_sim}],
             output="log",
         ))

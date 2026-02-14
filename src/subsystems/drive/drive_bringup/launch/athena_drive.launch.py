@@ -49,7 +49,7 @@ def generate_launch_description():
 
     robot_controller_arg = DeclareLaunchArgument(
         "robot_controller",
-        default_value="ackermann_steering_controller",
+        default_value="single_ackermann_controller",
         choices=["single_ackermann_controller", "ackermann_steering_controller"],
         description="Robot controller to start",
     )
@@ -93,6 +93,12 @@ def generate_launch_description():
         description="Publish ground truth TF in simulation",
     )
 
+    rviz_startup_delay_arg = DeclareLaunchArgument(
+        "rviz_startup_delay",
+        default_value="2.0",
+        description="Delay in seconds before starting RViz",
+    )
+
     use_sim = LaunchConfiguration("use_sim")
     runtime_config_package = LaunchConfiguration("runtime_config_package")
     description_package = LaunchConfiguration("description_package")
@@ -106,6 +112,7 @@ def generate_launch_description():
     rqt = LaunchConfiguration("rqt")
     image_topic = LaunchConfiguration("image_topic")
     publish_ground_truth_tf = LaunchConfiguration("publish_ground_truth_tf")
+    rviz_startup_delay = LaunchConfiguration("rviz_startup_delay")
 
     robot_controllers_path = PathJoinSubstitution(
         [FindPackageShare(runtime_config_package), "config", "athena_drive_controllers.yaml"]
@@ -205,6 +212,7 @@ def generate_launch_description():
             "description_package": description_package,
             "rviz_file": rviz_file,
             "use_sim": use_sim,
+            "startup_delay": rviz_startup_delay,
             "rqt": rqt,
             "image_topic": image_topic,
         }.items(),
@@ -226,6 +234,7 @@ def generate_launch_description():
         rqt_arg,
         image_topic_arg,
         publish_ground_truth_tf_arg,
+        rviz_startup_delay_arg,
         # Launch files and nodes
         sim_bringup,
         robot_description,
