@@ -25,6 +25,15 @@ jobs:
       - name: Install Python dependencies
         run: python3 -m pip install -r requirements.txt
 
+      - name: Install ZED SDK
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends zstd wget
+          wget -q -O ZED_SDK.run https://download.stereolabs.com/zedsdk/5.2/cu12/ubuntu22
+          chmod +x ZED_SDK.run
+          ./ZED_SDK.run -- silent skip_cuda skip_od_module skip_python skip_hub skip_tools
+          rm ZED_SDK.run
+        shell: bash
+
       - name: Install system dependencies
         run: |
           apt-get update
