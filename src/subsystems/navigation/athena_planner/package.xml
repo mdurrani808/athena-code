@@ -33,6 +33,12 @@
   <exec_depend>nav2_lifecycle_manager</exec_depend>
   <exec_depend>nav2_smac_planner</exec_depend>
   <exec_depend>athena_map</exec_depend>
+  <exec_depend>athena_sensors</exec_depend>
+  <exec_depend>localizer</exec_depend>
+  <exec_depend>gps_goal</exec_depend>
+  <exec_depend>point_cloud_filterer</exec_depend>
+  <exec_depend>twist_stamper</exec_depend>
+  <exec_depend>topic_tools</exec_depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
