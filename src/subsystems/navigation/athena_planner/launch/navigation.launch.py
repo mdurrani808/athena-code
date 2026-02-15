@@ -26,6 +26,9 @@ def generate_launch_description():
     gps_goal_share = get_package_share_directory('gps_goal')
     gps_goal_launch_file = os.path.join(gps_goal_share, 'launch', 'gps_goal_server.launch.py')
     
+    gps_share = get_package_share_directory('athena_gps')
+    gps_launch_file = os.path.join(gps_share, "launch", "gps_launch.py")
+    
     default_params = PathJoinSubstitution([
         FindPackageShare('athena_planner'), 'config', 'nav2_params.yaml'
     ])
@@ -53,6 +56,13 @@ def generate_launch_description():
         PythonLaunchDescriptionSource(localizer_launch_file),
         launch_arguments={
             'use_sim_time': 'true',
+        }.items()
+    )
+    
+    gps_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(gps_launch_file),
+        launch_arguments={
+            'sim': 'true',
         }.items()
     )
 
@@ -92,6 +102,7 @@ def generate_launch_description():
         localizer_launch,
         point_cloud_filterer_node,
         gps_goal_launch,
+        gps_launch,
 
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(nav2_nav),
