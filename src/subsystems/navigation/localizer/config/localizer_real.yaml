@@ -1,6 +1,6 @@
 state_estimator:
   ros__parameters:
-    imu_topic: "/imu"
+    imu_topic: "/zed/zed_node/imu/data"
     gnss_topic: "/gps/fix"
     odom_topic: "/zed/zed_node/odom"
     output_odom_topic: "/localization/odom"

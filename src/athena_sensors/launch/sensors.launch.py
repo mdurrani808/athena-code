@@ -41,6 +41,7 @@ def generate_launch_description():
             'camera_model':    camera_model,
             'publish_tf':      'true',
             'publish_map_tf':  'false',
+            'publish_urdf':   'false',
         }.items(),
     )
 
