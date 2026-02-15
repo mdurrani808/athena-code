@@ -91,12 +91,6 @@ def generate_launch_description():
         choices=['true', 'false'],
         description='Enable intra-process communication'
     )
-    declare_use_sim_time = DeclareLaunchArgument(
-        'use_sim_time',
-        default_value='false',
-        choices=['true', 'false'],
-        description='Use simulation clock from /clock topic'
-    )
     declare_sim_mode = DeclareLaunchArgument(
         'sim_mode',
         default_value='false',
@@ -167,7 +161,7 @@ def generate_launch_description():
             'enable_gnss':              LaunchConfiguration('enable_gnss'),
             'gnss_antenna_offset':      LaunchConfiguration('gnss_antenna_offset'),
             'enable_ipc':               LaunchConfiguration('enable_ipc'),
-            'use_sim_time':             LaunchConfiguration('use_sim_time'),
+            'use_sim_time':             sim,
             'sim_mode':                 LaunchConfiguration('sim_mode'),
             'sim_address':              LaunchConfiguration('sim_address'),
             'sim_port':                 LaunchConfiguration('sim_port'),
@@ -196,7 +190,6 @@ def generate_launch_description():
         declare_enable_gnss,
         declare_gnss_antenna_offset,
         declare_enable_ipc,
-        declare_use_sim_time,
         declare_sim_mode,
         declare_sim_address,
         declare_sim_port,

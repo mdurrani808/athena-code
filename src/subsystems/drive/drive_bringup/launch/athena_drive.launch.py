@@ -152,6 +152,9 @@ def generate_launch_description():
     rviz_config_file = PathJoinSubstitution(
         [FindPackageShare(description_package), "rviz", rviz_file]
     )
+    twist_mux_config = PathJoinSubstitution(
+        [FindPackageShare(runtime_config_package), "config", "twist_mux.yaml"]
+    )
 
     # -- Additional Configuration Setup --
     robot_description_content = Command(
@@ -374,7 +377,21 @@ def generate_launch_description():
         executable='teleop_node',
         name='teleop_twist_joy',
         output='screen',
-        parameters = [teleop_twist_config],
+        parameters=[teleop_twist_config],
+        remappings=[
+            ('cmd_vel', '/cmd_vel_joy'),
+        ],
+    )
+
+    twist_mux_node = Node(
+        package='twist_mux',
+        executable='twist_mux',
+        name='twist_mux',
+        output='screen',
+        parameters=[twist_mux_config, {'use_stamped': True}],
+        remappings=[
+            ('cmd_vel_out', '/cmd_vel'),
+        ],
     )
 
 
@@ -385,6 +402,7 @@ def generate_launch_description():
             robot_state_pub_node,
             joystick_publisher,
             teleop_twist_joy,
+            twist_mux_node,
             # joint_state_publisher,
             # delay_can_node_after_control_node,
             delay_joint_state_broadcaster_spawner_after_ros2_control_node,

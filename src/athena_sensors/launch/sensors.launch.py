@@ -37,7 +37,6 @@ def generate_launch_description():
         ),
         launch_arguments={
             'sim':             sim,
-            'use_sim_time':    sim,
             'camera_model':    camera_model,
             'publish_tf':      'true',
             'publish_map_tf':  'false',

@@ -11,7 +11,6 @@ def generate_launch_description():
     real_config = os.path.join(launch_file_dir, '..', 'config', 'localizer_real.yaml')
 
     sim = LaunchConfiguration('sim')
-    use_sim_time = LaunchConfiguration('use_sim_time')
     namespace = LaunchConfiguration('namespace')
 
     return LaunchDescription([
@@ -20,11 +19,6 @@ def generate_launch_description():
             default_value='false',
             choices=['true', 'false'],
             description='Select sim config (localizer.yaml) or real config (localizer_real.yaml)'
-        ),
-        DeclareLaunchArgument(
-            'use_sim_time',
-            default_value='false',
-            description='Use simulation time'
         ),
         DeclareLaunchArgument(
             'namespace',
@@ -38,7 +32,7 @@ def generate_launch_description():
             name='localizer_node',
             parameters=[
                 sim_config,
-                {'use_sim_time': use_sim_time},
+                {'use_sim_time': sim},
             ],
             output='screen',
             emulate_tty=True,
@@ -51,7 +45,7 @@ def generate_launch_description():
             name='localizer_node',
             parameters=[
                 real_config,
-                {'use_sim_time': use_sim_time},
+                {'use_sim_time': sim},
             ],
             output='screen',
             emulate_tty=True,

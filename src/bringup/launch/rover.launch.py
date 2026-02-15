@@ -36,7 +36,6 @@ def generate_launch_description():
                 'launch', 'navigation.launch.py',
             )
         ),
-        launch_arguments={'sim': 'false'}.items(),
     )
 
     return LaunchDescription([
