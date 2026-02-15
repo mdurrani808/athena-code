@@ -170,7 +170,7 @@ global_costmap:
         observation_sources: obstacles
         obstacles:
           data_type: "PointCloud2"
-          topic: "/depth_camera/points_corrected"
+          topic: "/zed/zed_node/point_cloud/cloud_registered_corrected"
           marking: true
           clearing: true
           min_obstacle_height: 0.0
@@ -216,7 +216,7 @@ local_costmap:
         observation_sources: obstacles
         obstacles:
           data_type: "PointCloud2"
-          topic: "/depth_camera/points_corrected"
+          topic: "/zed/zed_node/point_cloud/cloud_registered_corrected"
           marking: true
           clearing: true
           min_obstacle_height: 0.0
