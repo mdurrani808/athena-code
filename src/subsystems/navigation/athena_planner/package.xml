@@ -33,7 +33,7 @@
   <exec_depend>nav2_lifecycle_manager</exec_depend>
   <exec_depend>nav2_smac_planner</exec_depend>
   <exec_depend>athena_map</exec_depend>
-  <exec_depend>athena_sensors</exec_depend>
+  <!-- <exec_depend>athena_sensors</exec_depend> We remove this dependency so when we run rosdep in Ci it works properly (we can't build the zed components dependency of athena_sensors so we fade the whole thing) -->
   <exec_depend>localizer</exec_depend>
   <exec_depend>gps_goal</exec_depend>
   <exec_depend>point_cloud_filterer</exec_depend>
