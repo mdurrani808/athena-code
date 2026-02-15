@@ -39,7 +39,7 @@ def generate_launch_description():
             'sim':             sim,
             'use_sim_time':    sim,
             'camera_model':    camera_model,
-            'publish_tf':      'true',
+            'publish_tf':      'false',
             'publish_map_tf':  'false',
             'publish_urdf':   'false',
         }.items(),

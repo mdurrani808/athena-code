@@ -2,7 +2,7 @@ from ament_index_python.packages import get_package_share_directory
 
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
-from launch.conditions import UnlessCondition
+from launch.conditions import IfCondition, UnlessCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
@@ -181,6 +181,17 @@ def generate_launch_description():
         condition=UnlessCondition(sim),
     )
 
+    zed_point_cloud_bridge = Node(
+        package='ros_gz_bridge',
+        executable='parameter_bridge',
+        name='zed_point_cloud_bridge',
+        output='screen',
+        arguments=[
+            '/zed/zed_node/point_cloud/cloud_registered@sensor_msgs/msg/PointCloud2@gz.msgs.PointCloudPacked',
+        ],
+        condition=IfCondition(sim),
+    )
+
     return LaunchDescription([
         declare_sim,
         declare_camera_model,
@@ -207,4 +218,5 @@ def generate_launch_description():
         declare_ros_params_override_path,
         declare_node_log_type,
         zed_real,
+        zed_point_cloud_bridge,
     ])

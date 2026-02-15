@@ -6,16 +6,6 @@ def generate_launch_description():
         Node(
             package='ros_gz_bridge',
             executable='parameter_bridge',
-            name='zed_point_cloud_bridge',
-            output='screen',
-            arguments=[
-                '/zed/zed_node/point_cloud/cloud_registered@sensor_msgs/msg/PointCloud2@gz.msgs.PointCloudPacked',
-            ],
-        ),
-
-        Node(
-            package='ros_gz_bridge',
-            executable='parameter_bridge',
             name='clock_bridge',
             output='screen',
             arguments=[
