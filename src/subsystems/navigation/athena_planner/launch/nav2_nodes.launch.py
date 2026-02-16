@@ -92,7 +92,7 @@ def generate_launch_description():
                respawn_delay=2.0,
                parameters=[params_file, sim_time_param],
                arguments=['--ros-args', '--log-level', log_level],
-               remappings=remappings + [('cmd_vel', 'cmd_vel_nav_stamped')],
+               remappings=remappings + [('cmd_vel', 'cmd_vel_nav')],
        )
    )
 
@@ -137,7 +137,7 @@ def generate_launch_description():
                respawn_delay=2.0,
                parameters=[params_file, sim_time_param],
                arguments=['--ros-args', '--log-level', log_level],
-               remappings=remappings + [('cmd_vel', 'cmd_vel_nav_stamped')],
+               remappings=remappings + [('cmd_vel', 'cmd_vel_nav')],
        )
    )
 
@@ -187,7 +187,7 @@ def generate_launch_description():
                respawn_delay=2.0,
                parameters=[params_file, sim_time_param],
                arguments=['--ros-args', '--log-level', log_level],
-               remappings=remappings + [('cmd_vel', 'cmd_vel_nav_stamped')],
+               remappings=remappings + [('cmd_vel', 'cmd_vel_nav')],
        )
    )
 

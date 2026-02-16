@@ -36,6 +36,17 @@ def generate_launch_description():
     use_respawn = LaunchConfiguration('use_respawn')
     log_level = LaunchConfiguration('log_level')
 
+    twist_stamper_node = Node(
+        package='twist_stamper',
+        executable='twist_stamper',
+        name='cmd_vel_stamper',
+        parameters=[{'use_sim_time': sim}],
+        remappings=[
+            ('cmd_vel_in', '/cmd_vel_nav'),
+            ('cmd_vel_out', '/ackermann_steering_controller/reference'),
+        ],
+    )
+
     localizer_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(localizer_launch_file),
         launch_arguments={'sim': sim}.items(),
@@ -100,6 +111,7 @@ def generate_launch_description():
         DeclareLaunchArgument('log_level', default_value='info',
             description='Log level for nav2 nodes'),
 
+        twist_stamper_node,
         localizer_launch,
         sensors_launch,
         point_cloud_filterer_sim,

@@ -2,6 +2,7 @@ from ament_index_python.packages import get_package_share_directory
 
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.conditions import UnlessCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
 
@@ -42,6 +43,7 @@ def generate_launch_description():
             'publish_map_tf':  'false',
             'publish_urdf':   'false',
         }.items(),
+        condition=UnlessCondition(sim),
     )
 
     gps_launch = IncludeLaunchDescription(
