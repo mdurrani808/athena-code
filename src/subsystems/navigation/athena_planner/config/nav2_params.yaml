@@ -154,8 +154,8 @@ global_costmap:
       update_frequency: 5.0
       publish_frequency: 2.0
       resolution: 0.1
-      width: 800
-      height: 800
+      width: 100
+      height: 100
       rolling_window: true
       track_unknown_space: false
       always_send_full_costmap: true
