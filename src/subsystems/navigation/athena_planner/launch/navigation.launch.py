@@ -10,9 +10,8 @@ import os
 
 def generate_launch_description():
 
-    # TODO: Re-enable the map functionality once the localizer works. Also needs corresponding changes in the Nav2 config file.
-    #athena_map_share = get_package_share_directory('athena_map')
-    #dem_launch = os.path.join(athena_map_share, 'launch', 'dem_costmap.launch.py')
+    athena_map_share = get_package_share_directory('athena_map')
+    dem_launch_file = os.path.join(athena_map_share, 'launch', 'dem_costmap.launch.py')
 
     
     athena_planner_share = get_package_share_directory('athena_planner')
@@ -47,6 +46,11 @@ def generate_launch_description():
         ],
     )
 
+
+    dem_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(dem_launch_file),
+        condition=IfCondition(LaunchConfiguration('use_dem'))
+    )
     localizer_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(localizer_launch_file),
         launch_arguments={'sim': sim}.items(),
@@ -89,6 +93,7 @@ def generate_launch_description():
         output='screen',
         condition=UnlessCondition(sim),
     )
+    
 
     return LaunchDescription([
         DeclareLaunchArgument(
@@ -110,8 +115,12 @@ def generate_launch_description():
         ),
         DeclareLaunchArgument('log_level', default_value='info',
             description='Log level for nav2 nodes'),
+        DeclareLaunchArgument('use_dem', default_value='false',
+            choices=['true', 'false'],
+            description='Enable DEM costmap layer'),
 
         twist_stamper_node,
+        dem_launch,
         localizer_launch,
         sensors_launch,
         point_cloud_filterer_sim,
