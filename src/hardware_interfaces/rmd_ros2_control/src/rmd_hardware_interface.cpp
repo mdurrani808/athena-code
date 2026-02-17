@@ -227,8 +227,6 @@ void RMDHardwareInterface::on_can_message(const CANLib::CanFrame& frame) {
   std::string result;
 
   std::vector<int> data(8, 0x00);
-  double raw_motor_velocity = 0.0;
-  double raw_motor_position = 0.0;
 
   for(int i = 0; i < num_joints; i++){
     if(can_rx_frame_.id == joint_node_read_ids[i] && 
@@ -333,7 +331,7 @@ hardware_interface::return_type RMDHardwareInterface::read(
 
 
 hardware_interface::return_type rmd_ros2_control::RMDHardwareInterface::write(
-  const rclcpp::Time & time, const rclcpp::Duration & period)
+  const rclcpp::Time & /*time*/, const rclcpp::Duration & period)
 {
   elapsed_update_time+=period.seconds();
   double update_period = 1.0/update_rate;

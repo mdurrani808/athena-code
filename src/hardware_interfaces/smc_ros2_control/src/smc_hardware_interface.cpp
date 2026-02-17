@@ -216,7 +216,7 @@ void SMCHardwareInterface::on_can_message(const CANLib::CanFrame& frame) {
   int data[8] = {0x00};
 
   for(int i = 0; i < num_joints; i++){  
-    if(can_rx_frame_.id == joint_node_ids[i] && 
+    if(can_rx_frame_.id == static_cast<uint32_t>(joint_node_ids[i]) && 
       (can_rx_frame_.data[0] == SPEED_CONTROL_CMD  || 
        can_rx_frame_.data[0] == ABSOLUTE_POS_CONTROL_CMD  || 
        can_rx_frame_.data[0] == MOTOR_STATUS_2_CMD) &&
@@ -245,7 +245,7 @@ void SMCHardwareInterface::on_can_message(const CANLib::CanFrame& frame) {
       // TORQUE CURRENT (16-bit signed, 0.01A per LSB)
       motor_torque_current_[i] = static_cast<double>(static_cast<int16_t>((data[3] << 8) | data[2])) * 0.01;
     }
-    else if(can_rx_frame_.id == joint_node_ids[i] && can_rx_frame_.data[0] == 0x92){
+    else if(can_rx_frame_.id == static_cast<uint32_t>(joint_node_ids[i]) && can_rx_frame_.data[0] == 0x92){
       data[0] = 0x92;
       data[1] = can_rx_frame_.data[1]; // Multi-turn low byte
       data[2] = can_rx_frame_.data[2];
