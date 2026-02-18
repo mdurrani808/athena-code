@@ -62,3 +62,32 @@ single_ackermann_controller:
     default_value: 10,
     description: "Rolling window size for velocity smoothing."
   }
+
+  # Set to true in simulation so per-wheel inversion is ignored
+  use_sim: {
+    type: bool,
+    default_value: false,
+    description: "When true, per-wheel drive inversion is disabled (simulation mode)."
+  }
+
+  # Per-wheel drive inversion (ignored when use_sim is true)
+  invert_drive_fl: {
+    type: bool,
+    default_value: false,
+    description: "Invert the front-left drive wheel velocity."
+  }
+  invert_drive_fr: {
+    type: bool,
+    default_value: false,
+    description: "Invert the front-right drive wheel velocity."
+  }
+  invert_drive_rl: {
+    type: bool,
+    default_value: false,
+    description: "Invert the rear-left drive wheel velocity."
+  }
+  invert_drive_rr: {
+    type: bool,
+    default_value: false,
+    description: "Invert the rear-right drive wheel velocity."
+  }

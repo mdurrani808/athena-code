@@ -248,6 +248,13 @@ controller_interface::return_type SingleAckermannController::update(
   double rl_wheel_ang_vel = rear_left_vel / wheel_radius;
   double rr_wheel_ang_vel = rear_right_vel / wheel_radius;
 
+  if (!params_.use_sim) {
+    if (params_.invert_drive_fl) { fl_wheel_ang_vel = -fl_wheel_ang_vel; }
+    if (params_.invert_drive_fr) { fr_wheel_ang_vel = -fr_wheel_ang_vel; }
+    if (params_.invert_drive_rl) { rl_wheel_ang_vel = -rl_wheel_ang_vel; }
+    if (params_.invert_drive_rr) { rr_wheel_ang_vel = -rr_wheel_ang_vel; }
+  }
+
   // Set steering positions
   command_interfaces_[0].set_value(front_left_steer_angle);
   command_interfaces_[1].set_value(front_right_steer_angle);

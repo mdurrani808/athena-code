@@ -83,6 +83,10 @@ single_ackermann_controller:
     odom_frame_id: "odom"
     base_frame_id: "base_footprint"
     velocity_rolling_window_size: 10
+    invert_drive_fl: false
+    invert_drive_fr: false
+    invert_drive_rl: false
+    invert_drive_rr: false
 
 drive_velocity_controller:
   ros__parameters:

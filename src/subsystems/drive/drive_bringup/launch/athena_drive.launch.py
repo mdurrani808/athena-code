@@ -174,7 +174,7 @@ def generate_launch_description():
 
     robot_description = {"robot_description": robot_description_content}
 
-    # -- Node Definitions -- 
+    # -- Node Definitions --
     control_node = Node(
         package="controller_manager",
         executable="ros2_control_node",
