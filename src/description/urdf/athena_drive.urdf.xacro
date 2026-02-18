@@ -56,7 +56,7 @@
 
   <xacro:ground_truth_odometry robot_base_frame="base_footprint"/>
  
-  <xacro:zed_camera_sensor parent="base_footprint" camera_name="zed" camera_model="zed2i" sim_gazebo="$(arg sim_gazebo)">
+  <xacro:zed_camera_sensor parent="base_footprint" camera_name="zed" sim_gazebo="$(arg sim_gazebo)">
     <origin xyz=".5 0.1 0.1" rpy="0 0 0"/>
   </xacro:zed_camera_sensor>
 
