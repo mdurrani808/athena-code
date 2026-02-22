@@ -139,7 +139,7 @@ controller_interface::return_type SingleAckermannController::update(
   }
 
   // Get joystick values and apply scaling and inversion from parameters
-  double linear_vel_cmd = (*current_ref)->axes[params_.forward_axis] * params_.max_speed;
+  double linear_vel_cmd = 0.75*(*current_ref)->axes[params_.forward_axis] * params_.max_speed;
   double steer_cmd = (*current_ref)->axes[params_.steer_axis] * params_.max_steer_angle;
   if (params_.steer_inversion) {
     steer_cmd *= -1.0;
