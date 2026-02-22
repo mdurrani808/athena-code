@@ -7,7 +7,7 @@
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/imu.hpp"
 #include "sensor_msgs/msg/nav_sat_fix.hpp"
-#include "std_msgs/msg/float64.hpp"
+#include "msgs/msg/azimuth.hpp"
 #include <mavsdk/mavsdk.h>
 #include <mavsdk/plugins/telemetry/telemetry.h>
 
@@ -54,7 +54,7 @@ public:
         // Create publishers unconditionally so they're always valid
         imu_publisher_ = this->create_publisher<sensor_msgs::msg::Imu>(imu_topic, 10);
         gps_publisher_ = this->create_publisher<sensor_msgs::msg::NavSatFix>(gps_topic, 10);
-        heading_publisher_ = this->create_publisher<std_msgs::msg::Float64>(heading_topic, 10);
+        heading_publisher_ = this->create_publisher<msgs::msg::Azimuth>(heading_topic, 10);
 
         // Create MAVSDK instance
         mavsdk_ = std::make_unique<Mavsdk>(Mavsdk::Configuration{
@@ -78,7 +78,7 @@ private:
 
     rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr imu_publisher_;
     rclcpp::Publisher<sensor_msgs::msg::NavSatFix>::SharedPtr gps_publisher_;
-    rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr heading_publisher_;
+    rclcpp::Publisher<msgs::msg::Azimuth>::SharedPtr heading_publisher_;
     rclcpp::TimerBase::SharedPtr init_timer_;
 
     Telemetry::GpsInfo last_gps_info_;
@@ -95,8 +95,14 @@ private:
     bool connection_added_;
 
     void publish_heading() {
-        auto msg = std_msgs::msg::Float64();
-        msg.data = last_heading_deg_;
+        auto msg = msgs::msg::Azimuth();
+        msg.header.stamp = this->now();
+        msg.header.frame_id = gps_frame_id_;
+        msg.azimuth = last_heading_deg_;
+        msg.variance = 0.0;  // not provided by MAVSDK; localizer falls back to heading_sigma
+        msg.unit = msgs::msg::Azimuth::UNIT_DEG;
+        msg.orientation = msgs::msg::Azimuth::ORIENTATION_NED;  // 0=North, CW positive
+        msg.reference = msgs::msg::Azimuth::REFERENCE_MAGNETIC;
         heading_publisher_->publish(msg);
     }
 
@@ -132,6 +138,7 @@ private:
         // Configure telemetry rates
         Telemetry::Result imu_result = telemetry_->set_rate_imu(imu_rate_);
         Telemetry::Result gps_info_result = telemetry_->set_rate_gps_info(gps_info_rate_);
+        Telemetry::Result position_result = telemetry_->set_rate_position(gps_info_rate_);
         Telemetry::Result attitude_result = telemetry_->set_rate_attitude_quaternion(attitude_rate_);
 
         if (imu_result != Telemetry::Result::Success) {
@@ -141,6 +148,11 @@ private:
 
         if (gps_info_result != Telemetry::Result::Success) {
             RCLCPP_ERROR(this->get_logger(), "Failed to set GPS info rate to %.1f Hz, will retry", gps_info_rate_);
+            return;
+        }
+
+        if (position_result != Telemetry::Result::Success) {
+            RCLCPP_ERROR(this->get_logger(), "Failed to set position rate to %.1f Hz, will retry", gps_info_rate_);
             return;
         }
 
@@ -165,8 +177,8 @@ private:
             publish_heading();
         });
 
-        telemetry_->subscribe_raw_gps([this](const Telemetry::RawGps &raw_gps) {
-            raw_gps_callback(raw_gps);
+        telemetry_->subscribe_position([this](const Telemetry::Position &position) {
+            position_callback(position);
         });
 
         telemetry_->subscribe_gps_info([this](const Telemetry::GpsInfo &gps_info) {
@@ -227,20 +239,16 @@ private:
         imu_publisher_->publish(msg);
     }
 
-    void raw_gps_callback(const Telemetry::RawGps raw_gps) {
+    void position_callback(const Telemetry::Position position) {
         auto msg = sensor_msgs::msg::NavSatFix();
-
-        // convert microsections to nanoseconds for ros time
-        auto unix_epoch_time = std::chrono::microseconds(raw_gps.timestamp_us);
-        auto ros_time = rclcpp::Time(unix_epoch_time.count() * 1000);
-        msg.header.stamp = ros_time;
+        msg.header.stamp = this->now();
         msg.header.frame_id = gps_frame_id_;
 
-        msg.latitude = raw_gps.latitude_deg;
-        msg.longitude = raw_gps.longitude_deg;
-        msg.altitude = raw_gps.altitude_ellipsoid_m;
+        msg.latitude = position.latitude_deg;
+        msg.longitude = position.longitude_deg;
+        msg.altitude = static_cast<double>(position.absolute_altitude_m);
 
-        // Map GPS fix to ROS fix 
+        // Map GpsInfo fix type to ROS NavSatStatus
         if (last_gps_info_.num_satellites > 0) {
             switch (last_gps_info_.fix_type) {
                 case Telemetry::FixType::NoGps:
@@ -265,28 +273,8 @@ private:
 
         msg.status.service = sensor_msgs::msg::NavSatStatus::SERVICE_GPS;
 
-        // calcilate variances
-        if (!std::isnan(raw_gps.horizontal_uncertainty_m) &&
-            !std::isnan(raw_gps.vertical_uncertainty_m)) {
-
-            double h_variance = raw_gps.horizontal_uncertainty_m * raw_gps.horizontal_uncertainty_m;
-            double v_variance = raw_gps.vertical_uncertainty_m * raw_gps.vertical_uncertainty_m;
-
-            msg.position_covariance[0] = h_variance;
-            msg.position_covariance[4] = h_variance;
-            msg.position_covariance[8] = v_variance;
-
-            // refine estimate using doppler
-            if (!std::isnan(raw_gps.hdop) && !std::isnan(raw_gps.vdop)) {
-                msg.position_covariance[0] = h_variance * (raw_gps.hdop / 2.0);
-                msg.position_covariance[4] = h_variance * (raw_gps.hdop / 2.0);
-                msg.position_covariance[8] = v_variance * raw_gps.vdop;
-            }
-
-            msg.position_covariance_type = sensor_msgs::msg::NavSatFix::COVARIANCE_TYPE_DIAGONAL_KNOWN;
-        } else {
-            msg.position_covariance_type = sensor_msgs::msg::NavSatFix::COVARIANCE_TYPE_UNKNOWN;
-        }
+        // Telemetry::Position does not provide uncertainty; covariance is unknown
+        msg.position_covariance_type = sensor_msgs::msg::NavSatFix::COVARIANCE_TYPE_UNKNOWN;
 
         gps_publisher_->publish(msg);
     }

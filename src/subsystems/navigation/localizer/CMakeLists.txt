@@ -22,6 +22,7 @@ find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(eigen3_cmake_module REQUIRED)
 find_package(Eigen3 REQUIRED)
+find_package(msgs REQUIRED)
 
 add_executable(localizer_node src/state_estimator.cpp)
 target_include_directories(localizer_node PUBLIC
@@ -42,7 +43,8 @@ ament_target_dependencies(localizer_node
   tf2
   tf2_ros
   tf2_geometry_msgs
-  Eigen3)
+  Eigen3
+  msgs)
 
 install(TARGETS localizer_node
   DESTINATION lib/${PROJECT_NAME})

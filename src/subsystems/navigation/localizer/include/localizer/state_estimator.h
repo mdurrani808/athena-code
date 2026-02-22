@@ -6,6 +6,7 @@
 #include <sensor_msgs/msg/nav_sat_fix.hpp>
 #include <nav_msgs/msg/odometry.hpp>
 #include <geometry_msgs/msg/transform_stamped.hpp>
+#include <msgs/msg/azimuth.hpp>
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
 #include <tf2_ros/transform_broadcaster.h>
@@ -83,12 +84,22 @@ struct PendingOdom {
     gtsam::Pose3 delta;
     std::optional<gtsam::Pose3> prev_pose;
     bool valid = false;
-    
+
     void reset() {
         valid = false;
         delta = gtsam::Pose3();
         prev_pose.reset();
     }
+};
+
+// ENU convention (REP-103): yaw=0 → East, yaw=π/2 → North, CCW positive.
+struct PendingHeading {
+    double yaw_enu = 0.0;  // radians
+    double sigma = 0.1;    // radians, derived from message variance
+    rclcpp::Time timestamp;
+    bool valid = false;
+
+    void reset() { valid = false; }
 };
 
 struct FrameParams {
@@ -154,6 +165,11 @@ struct StateEstimatorParams {
     // IMU filtering (EMA)
     bool enable_imu_filter = true;
     double imu_filter_alpha = 0.3;
+
+    // Heading sensor
+    std::string heading_topic = "/heading/azimuth";
+    double heading_sigma = 0.05;       // radians, fallback if message variance is zero
+    double magnetic_declination = 0.0; // radians, applied only when reference == MAGNETIC
 };
 
 // ============================================================================
@@ -185,6 +201,7 @@ private:
     void imu_callback(sensor_msgs::msg::Imu::SharedPtr msg);
     void gnss_callback(sensor_msgs::msg::NavSatFix::SharedPtr msg);
     void odom_callback(nav_msgs::msg::Odometry::SharedPtr msg);
+    void heading_callback(msgs::msg::Azimuth::SharedPtr msg);
     
     // Initialization
     bool initialize_graph(const gtsam::Point3& position, const rclcpp::Time& timestamp);
@@ -240,6 +257,7 @@ private:
     // Pending measurements
     PendingGnss pending_gnss_;
     PendingOdom pending_odom_;
+    PendingHeading pending_heading_;
     
     // ENU origin
     bool enu_origin_set_;
@@ -268,6 +286,7 @@ private:
     rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr imu_sub_;
     rclcpp::Subscription<sensor_msgs::msg::NavSatFix>::SharedPtr gnss_sub_;
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
+    rclcpp::Subscription<msgs::msg::Azimuth>::SharedPtr heading_sub_;
     rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odom_pub_;
     rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr filtered_imu_pub_;
     

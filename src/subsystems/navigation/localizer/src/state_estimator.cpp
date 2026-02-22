@@ -4,6 +4,7 @@
 #include <gtsam/slam/PriorFactor.h>
 #include <gtsam/slam/BetweenFactor.h>
 #include <gtsam/navigation/GPSFactor.h>
+#include <gtsam/navigation/AttitudeFactor.h>
 #include <gtsam/linear/NoiseModel.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 #include <GeographicLib/LocalCartesian.hpp>
@@ -88,6 +89,7 @@ namespace localizer
         std::string imu_topic = this->get_parameter("imu_topic").as_string();
         std::string gnss_topic = this->get_parameter("gnss_topic").as_string();
         std::string odom_topic = this->get_parameter("odom_topic").as_string();
+        std::string heading_topic = this->get_parameter("heading_topic").as_string();
 
         imu_sub_ = create_subscription<sensor_msgs::msg::Imu>(
             imu_topic, rclcpp::SensorDataQoS(),
@@ -100,6 +102,10 @@ namespace localizer
         odom_sub_ = create_subscription<nav_msgs::msg::Odometry>(
             odom_topic, rclcpp::SensorDataQoS(),
             std::bind(&StateEstimator::odom_callback, this, std::placeholders::_1));
+
+        heading_sub_ = create_subscription<msgs::msg::Azimuth>(
+            heading_topic, rclcpp::SensorDataQoS(),
+            std::bind(&StateEstimator::heading_callback, this, std::placeholders::_1));
 
         std::string output_topic = this->get_parameter("output_odom_topic").as_string();
         odom_pub_ = create_publisher<nav_msgs::msg::Odometry>(output_topic, 10);
@@ -131,8 +137,12 @@ namespace localizer
         declare_parameter("imu_topic", "/imu");
         declare_parameter("gnss_topic", "/gps/fix");
         declare_parameter("odom_topic", "/odom/ground_truth");
+        declare_parameter("heading_topic", params_.heading_topic);
         declare_parameter("output_odom_topic", "/localization/odom");
         declare_parameter("publish_rate", 50.0);
+
+        params_.heading_sigma = declare_parameter("heading_sigma", params_.heading_sigma);
+        params_.magnetic_declination = declare_parameter("magnetic_declination", params_.magnetic_declination);
 
         params_.accel_noise_sigma = declare_parameter("accel_noise_sigma", params_.accel_noise_sigma);
         params_.gyro_noise_sigma = declare_parameter("gyro_noise_sigma", params_.gyro_noise_sigma);
@@ -230,6 +240,7 @@ namespace localizer
         check_positive(params_.initial_rotation_sigma, "initial_rotation_sigma");
         check_positive(params_.tf_publish_rate, "tf_publish_rate");
         check_positive(params_.initial_velocity_sigma, "initial_velocity_sigma");
+        check_positive(params_.heading_sigma, "heading_sigma");
 
         if (!valid)
         {
@@ -356,6 +367,7 @@ namespace localizer
 
         pending_gnss_.reset();
         pending_odom_.reset();
+        pending_heading_.reset();
 
         last_state_time_ = rclcpp::Time(0, 0, RCL_ROS_TIME);
         imu_to_base_.reset();
@@ -585,15 +597,76 @@ namespace localizer
         pending_odom_.prev_pose = current_pose;
     }
 
+    void StateEstimator::heading_callback(msgs::msg::Azimuth::SharedPtr msg)
+    {
+        using Azimuth = msgs::msg::Azimuth;
+
+        // Convert to radians if needed
+        double azimuth_rad = msg->azimuth;
+        if (msg->unit == Azimuth::UNIT_DEG)
+        {
+            azimuth_rad *= M_PI / 180.0;
+        }
+
+        // Convert to ENU yaw (REP-103: 0=East, CCW positive)
+        double yaw_enu;
+        if (msg->orientation == Azimuth::ORIENTATION_NED)
+        {
+            // NED: 0=North, CW positive → ENU: yaw = π/2 - azimuth
+            yaw_enu = M_PI / 2.0 - azimuth_rad;
+        }
+        else
+        {
+            // Already ENU
+            yaw_enu = azimuth_rad;
+        }
+
+        // Apply magnetic declination only when reference is magnetic north.
+        // Standard convention: true_bearing = magnetic_bearing + D (NED/CW space).
+        // After converting to ENU (CCW space) the sign flips: true_enu = magnetic_enu - D.
+        // D is positive for east declination, negative for west.
+        if (msg->reference == Azimuth::REFERENCE_MAGNETIC)
+        {
+            yaw_enu -= params_.magnetic_declination;
+        }
+
+        // Derive sigma from message variance; fall back to configured default
+        double sigma = (msg->variance > 0.0)
+            ? std::sqrt(msg->variance)
+            : params_.heading_sigma;
+
+        std::lock_guard<std::mutex> lock(state_mutex_);
+        pending_heading_.yaw_enu = yaw_enu;
+        pending_heading_.sigma = sigma;
+        pending_heading_.timestamp = msg->header.stamp;
+        pending_heading_.valid = true;
+    }
+
     bool StateEstimator::initialize_graph(
         const gtsam::Point3 &position,
         const rclcpp::Time &timestamp)
     {
-        // Estimate initial orientation from gravity
+        // Estimate initial orientation: roll/pitch from gravity, yaw from heading sensor
         gtsam::Rot3 initial_rot;
         {
             std::lock_guard<std::mutex> lock(imu_mutex_);
             initial_rot = estimate_initial_orientation_locked();
+        }
+
+        if (pending_heading_.valid)
+        {
+            // Compose yaw rotation on top of the gravity-aligned tilt.
+            // R_yaw rotates around world Z so the body X-axis points in the heading direction.
+            gtsam::Rot3 R_yaw = gtsam::Rot3::Rz(pending_heading_.yaw_enu);
+            initial_rot = R_yaw.compose(initial_rot);
+            RCLCPP_INFO(get_logger(), "Initial yaw from heading: %.2f deg",
+                        pending_heading_.yaw_enu * 180.0 / M_PI);
+        }
+        else
+        {
+            RCLCPP_WARN(get_logger(),
+                        "No heading measurement at init — yaw is unconstrained. "
+                        "GPS coordinate navigation will be unreliable.");
         }
 
         gtsam::Pose3 initial_pose(initial_rot, position);
@@ -773,6 +846,22 @@ namespace localizer
             factors.emplace_shared<gtsam::BetweenFactor<gtsam::Pose3>>(
                 X(prev_key), X(curr_key), pending_odom_.delta, odom_noise_);
             RCLCPP_DEBUG(get_logger(), "Added odom factor %" PRIu64 "->%" PRIu64, prev_key, curr_key);
+        }
+
+        if (pending_heading_.valid)
+        {
+            // Constrain the body's forward (+X) direction to match the ENU heading.
+            // Pose3AttitudeFactor measures error between (rotation * bRef) and nZ on S².
+            // This provides a yaw-only correction without over-constraining roll/pitch.
+            gtsam::Unit3 b_fwd(gtsam::Point3(1.0, 0.0, 0.0));
+            gtsam::Unit3 n_heading(gtsam::Point3(std::cos(pending_heading_.yaw_enu),
+                                                 std::sin(pending_heading_.yaw_enu), 0.0));
+            auto heading_noise = gtsam::noiseModel::Isotropic::Sigma(2, pending_heading_.sigma);
+            factors.emplace_shared<gtsam::Pose3AttitudeFactor>(
+                X(curr_key), n_heading, heading_noise, b_fwd);
+            RCLCPP_DEBUG(get_logger(),
+                         "Added heading factor at key %" PRIu64 ", yaw=%.2f deg, sigma=%.4f rad",
+                         curr_key, pending_heading_.yaw_enu * 180.0 / M_PI, pending_heading_.sigma);
         }
 
         try
