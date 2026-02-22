@@ -285,7 +285,6 @@ hardware_interface::return_type talon_ros2_control::TALONHardwareInterface::writ
 {
   elapsed_update_time+=period.seconds();
   double update_period = 1.0/update_rate;
-
   elapsed_time+=period.seconds();
   
   // Logger update

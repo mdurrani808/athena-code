@@ -21,11 +21,11 @@
 #include <deque>
 
 #include "controller_interface/controller_interface.hpp"
-#include "single_ackermann_controller_parameters.hpp"
+#include <drive_controllers/single_ackermann_controller_parameters.hpp>
 #include "athena_drive_controllers/visibility_control.h"
 #include "rclcpp_lifecycle/node_interfaces/lifecycle_node_interface.hpp"
 #include "rclcpp_lifecycle/state.hpp"
-#include "realtime_tools/realtime_buffer.h"
+#include "realtime_tools/realtime_buffer.hpp"
 #include "geometry_msgs/msg/twist.hpp"
 #include "geometry_msgs/msg/twist_stamped.hpp"
 #include "geometry_msgs/msg/transform_stamped.hpp"

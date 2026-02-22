@@ -23,7 +23,7 @@
 #include "controller_interface/controller_interface.hpp"
 #include "diagnostic_msgs/msg/diagnostic_array.hpp"
 #include "general_controllers/visibility_control.h"
-#include "motor_status_broadcaster_parameters.hpp"
+#include <general_controllers/motor_status_broadcaster_parameters.hpp>
 #include "rclcpp_lifecycle/node_interfaces/lifecycle_node_interface.hpp"
 #include "rclcpp_lifecycle/state.hpp"
 
