@@ -116,8 +116,8 @@ def generate_launch_description():
     declared_arguments.append(
         DeclareLaunchArgument(
             "robot_controller",
-            default_value="single_ackermann_controller",
-            choices=["single_ackermann_controller", "ackermann_steering_controller"],
+            default_value="front_ackermann_controller",
+            choices=["front_ackermann_controller", "ackermann_steering_controller", "rear_ackermann_controller"],
             description="Robot controller to start.",
         )
     )
@@ -182,8 +182,8 @@ def generate_launch_description():
         parameters=[robot_controllers],
         remappings=[
             ("~/robot_description", "/robot_description"),
-            ("/single_ackermann_controller/reference", "/cmd_vel"),
-            ("/single_ackermann_controller/tf_odometry", "/tf"),
+            ("/front_ackermann_controller/reference", "/cmd_vel"),
+            ("/front_ackermann_controller/tf_odometry", "/tf"),
             ("/ackermann_steering_controller/reference", "/cmd_vel"),
         ],
     )
