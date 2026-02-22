@@ -194,7 +194,6 @@ std::vector<hardware_interface::StateInterface> ODriveHardwareInterface::export_
 
 std::vector<hardware_interface::CommandInterface> ODriveHardwareInterface::export_command_interfaces() {
     std::vector<hardware_interface::CommandInterface> command_interfaces;
-
     for (size_t i = 0; i < info_.joints.size(); i++) {
         command_interfaces.emplace_back(hardware_interface::CommandInterface(
             info_.joints[i].name,
@@ -283,7 +282,7 @@ return_type ODriveHardwareInterface::write(const rclcpp::Time&, const rclcpp::Du
             msg.Input_Pos = (axis.pos_setpoint_ * axis.gear_ratio_) / (2 * M_PI);
             msg.Vel_FF = axis.vel_input_enabled_ ? ((axis.vel_setpoint_ * axis.gear_ratio_) / (2 * M_PI)) : 0.0f;
             msg.Torque_FF = axis.torque_input_enabled_ ? (axis.torque_setpoint_ / axis.gear_ratio_) : 0.0f;
-            // RCLCPP_INFO(rclcpp::get_logger("ODriveHardwareInterface"), "Writing positions for ODrive %d Setpoint: %f, Joint angle of motor (rev): %f", axis.node_id_, axis.pos_setpoint_, (axis.pos_setpoint_ * axis.gear_ratio_) / (2 * M_PI));
+            RCLCPP_INFO(rclcpp::get_logger("ODriveHardwareInterface"), "Writing positions for ODrive %d Setpoint: %f, Joint angle of motor (rev): %f", axis.node_id_, axis.pos_setpoint_, (axis.pos_setpoint_ * axis.gear_ratio_) / (2 * M_PI));
 
             axis.send(msg);
         } else if (axis.vel_input_enabled_) {
