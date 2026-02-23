@@ -170,6 +170,14 @@ controller_interface::return_type RearAckermannController::update(
     command_interfaces_[5].set_value(drive_ang);
     command_interfaces_[6].set_value(drive_ang);
     command_interfaces_[7].set_value(drive_ang);
+
+    const double rad_s_to_rpm = 60.0 / (2.0 * M_PI);
+    RCLCPP_INFO_THROTTLE(get_node()->get_logger(), *get_node()->get_clock(), 500,
+      "Wheel speeds [RPM] - FL: %.2f, FR: %.2f, RL: %.2f, RR: %.2f",
+      drive_ang * rad_s_to_rpm,
+      drive_ang * rad_s_to_rpm,
+      drive_ang * rad_s_to_rpm,
+      drive_ang * rad_s_to_rpm);
     return controller_interface::return_type::OK;
   }
 
@@ -210,6 +218,14 @@ controller_interface::return_type RearAckermannController::update(
   command_interfaces_[5].set_value(front_right_vel);
   command_interfaces_[6].set_value(rear_left_vel);
   command_interfaces_[7].set_value(rear_right_vel);
+
+  const double rad_s_to_rpm = 60.0 / (2.0 * M_PI);
+  RCLCPP_INFO_THROTTLE(get_node()->get_logger(), *get_node()->get_clock(), 500,
+    "Wheel speeds [RPM] - FL: %.2f, FR: %.2f, RL: %.2f, RR: %.2f",
+    front_left_vel * rad_s_to_rpm,
+    front_right_vel * rad_s_to_rpm,
+    rear_left_vel * rad_s_to_rpm,
+    rear_right_vel * rad_s_to_rpm);
 
   return controller_interface::return_type::OK;
 }

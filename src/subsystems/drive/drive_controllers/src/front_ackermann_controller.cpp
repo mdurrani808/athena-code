@@ -258,6 +258,14 @@ controller_interface::return_type FrontAckermannController::update(
   command_interfaces_[4].set_value(rl_wheel_ang_vel);
   command_interfaces_[5].set_value(rr_wheel_ang_vel);
 
+  const double rad_s_to_rpm = 60.0 / (2.0 * M_PI);
+  RCLCPP_INFO_THROTTLE(get_node()->get_logger(), *get_node()->get_clock(), 500,
+    "Wheel speeds [RPM] - FL: %.2f, FR: %.2f, RL: %.2f, RR: %.2f",
+    fl_wheel_ang_vel * rad_s_to_rpm,
+    fr_wheel_ang_vel * rad_s_to_rpm,
+    rl_wheel_ang_vel * rad_s_to_rpm,
+    rr_wheel_ang_vel * rad_s_to_rpm);
+
   // ── Odometry computation ──────────────────────────────────────────────
   // Determine the robot's actual linear and angular velocity for odom.
   // open_loop = true  → use the commanded velocities (useful for testing)
