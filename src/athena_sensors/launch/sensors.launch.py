@@ -12,6 +12,9 @@ import os
 def generate_launch_description():
     sim = LaunchConfiguration('sim')
     camera_model = LaunchConfiguration('camera_model')
+    publish_odom = LaunchConfiguration('publish_odom')
+    publish_map = LaunchConfiguration("publish_map")
+    enable_gnss = LaunchConfiguration('enable_gnss')
 
     declare_sim = DeclareLaunchArgument(
         'sim',
@@ -23,6 +26,22 @@ def generate_launch_description():
         'camera_model',
         default_value='zed2i',
         description='ZED camera model'
+    )
+    declare_publish_odom = DeclareLaunchArgument(
+        'publish_odom',
+        default_value='false',
+        description='Publish odometry tf'
+    )
+    declare_publish_map= DeclareLaunchArgument(
+        'publish_map',
+        default_value='false',
+        description='Publish map tf'
+    )
+    declare_enable_gnss = DeclareLaunchArgument(
+        'enable_gnss',
+        default_value='false',
+        choices=['true', 'false'],
+        description='Enable GNSS fusion in the ZED camera'
     )
 
     athena_sensors_launch_dir = os.path.join(
@@ -39,9 +58,10 @@ def generate_launch_description():
         launch_arguments={
             'sim':             sim,
             'camera_model':    camera_model,
-            'publish_tf':      'true',
-            'publish_map_tf':  'false',
-            'publish_urdf':   'false',
+            'publish_tf':      publish_odom, # this is really the odom tf, idk why its just called tf
+            'publish_map_tf':  publish_map,
+            'publish_urdf':   'false', # we take care of this elsewhere
+            'enable_gnss':     enable_gnss,
         }.items(),
         condition=UnlessCondition(sim),
     )
@@ -58,6 +78,9 @@ def generate_launch_description():
     return LaunchDescription([
         declare_sim,
         declare_camera_model,
+        declare_publish_odom,
+        declare_publish_map,
+        declare_enable_gnss,
         zed_launch,
         gps_launch,
     ])

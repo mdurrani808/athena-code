@@ -2,7 +2,7 @@ from launch import LaunchDescription
 from launch.actions import IncludeLaunchDescription, DeclareLaunchArgument
 from launch.conditions import IfCondition, UnlessCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, PythonExpression
 from launch_ros.substitutions import FindPackageShare
 from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
@@ -34,6 +34,12 @@ def generate_launch_description():
     params_file = LaunchConfiguration('params_file')
     use_respawn = LaunchConfiguration('use_respawn')
     log_level = LaunchConfiguration('log_level')
+    use_localizer = LaunchConfiguration('use_localizer')
+    enable_gnss = LaunchConfiguration('enable_gnss')
+
+    publish_zed_odom = PythonExpression(
+        ["'true' if '", use_localizer, "' == 'false' else 'false'"]
+    )
 
     twist_stamper_node = Node(
         package='twist_stamper',
@@ -54,11 +60,17 @@ def generate_launch_description():
     localizer_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(localizer_launch_file),
         launch_arguments={'sim': sim}.items(),
+        condition=IfCondition(use_localizer),
     )
 
     sensors_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(sensors_launch_file),
-        launch_arguments={'sim': sim}.items(),
+        launch_arguments={
+            'sim': sim,
+            'publish_odom': publish_zed_odom,
+            'publish_map': publish_zed_odom,
+            'enable_gnss': enable_gnss,
+        }.items(),
     )
 
     gps_goal_launch = IncludeLaunchDescription(
@@ -118,6 +130,12 @@ def generate_launch_description():
         DeclareLaunchArgument('use_dem', default_value='false',
             choices=['true', 'false'],
             description='Enable DEM costmap layer'),
+        DeclareLaunchArgument('use_localizer', default_value='true',
+            choices=['true', 'false'],
+            description='Launch the Athena localizer node; set false when using ZED localization'),
+        DeclareLaunchArgument('enable_gnss', default_value='false',
+            choices=['true', 'false'],
+            description='Enable GNSS fusion in the ZED camera'),
 
         twist_stamper_node,
         dem_launch,
