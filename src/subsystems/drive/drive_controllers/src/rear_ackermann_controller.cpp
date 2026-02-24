@@ -194,8 +194,8 @@ controller_interface::return_type RearAckermannController::update(
   const double rear_right_steer = std::atan(half_base / r_right);
 
   // Arc speed: r * omega (signed — correct for forward and reverse)
-  const double rear_left_vel  = (r_right * omega) / wheel_radius; //flipped on purpose (just for sim?)
-  const double rear_right_vel = (r_left  * omega) / wheel_radius; //flipped on purpose (just for sim?)
+  const double rear_left_vel  = (r_left  * omega) / wheel_radius;
+  const double rear_right_vel = (r_right * omega) / wheel_radius;
 
   // ── Front wheels: pure Ackermann arc speed ───────────────────────────────
   //
