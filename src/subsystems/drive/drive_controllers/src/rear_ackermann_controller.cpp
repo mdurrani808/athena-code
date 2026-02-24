@@ -190,8 +190,8 @@ controller_interface::return_type RearAckermannController::update(
   // Steer angle: rear wheels counter-steer relative to what front wheels would do.
   // angle = -atan(half_base / r_side): legs of the right triangle are the longitudinal
   // offset (half_base) and the lateral ICR distance (r_side), so atan is correct here.
-  const double rear_left_steer  = -std::atan(half_base / r_left);
-  const double rear_right_steer = -std::atan(half_base / r_right);
+  const double rear_left_steer  = std::atan(half_base / r_left);
+  const double rear_right_steer = std::atan(half_base / r_right);
 
   // Arc speed: r * omega (signed — correct for forward and reverse)
   const double rear_left_vel  = (r_right * omega) / wheel_radius; //flipped on purpose (just for sim?)
