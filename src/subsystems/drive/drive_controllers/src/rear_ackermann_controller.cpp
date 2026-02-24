@@ -149,8 +149,8 @@ controller_interface::return_type RearAckermannController::update(
   //   [4] propulsion_bl / velocity  ← rear Ackermann arc speed
   //   [5] propulsion_br / velocity  ← rear Ackermann arc speed
 
-  if (std::abs(v) < 1e-4 && std::abs(omega) < 1e-4) {
-    // Stationary: zero everything
+  if (std::abs(v) < 1e-4) {
+    // Zero linear velocity: zero all propulsion and return steer to 0
     for (size_t i = 0; i < command_interfaces_.size(); ++i) {
       command_interfaces_[i].set_value(0.0);
     }

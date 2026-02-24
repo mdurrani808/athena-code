@@ -182,7 +182,7 @@ def generate_launch_description():
         parameters=[robot_controllers],
         remappings=[
             ("~/robot_description", "/robot_description"),
-            ("/front_ackermann_controller/reference", "/cmd_vel"),
+            ("/rear_ackermann_controller/reference", "/cmd_vel"),
             ("/front_ackermann_controller/tf_odometry", "/tf"),
             ("/ackermann_steering_controller/reference", "/cmd_vel"),
         ],
