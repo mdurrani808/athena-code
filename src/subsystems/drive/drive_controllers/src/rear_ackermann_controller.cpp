@@ -181,9 +181,16 @@ controller_interface::return_type RearAckermannController::update(
   //
   // ICR is at lateral distance R = v / omega from the vehicle centreline,
   // centred between the axles.  Left-hand turns have R > 0.
-  const double turn_radius = v / omega;                       // R  (signed)
-  const double r_left      = turn_radius - half_track;        // R − T/2
-  const double r_right     = turn_radius + half_track;        // R + T/2
+  //
+  // Guard: clamp |turn_radius| to at least (half_track + 0.05 m).
+  // If the ICR falls inside the wheel track, r_left or r_right changes sign,
+  // causing a swerve wheel to drive backward and producing erratic behavior
+  // at low linear speed with higher angular velocity.
+  const double min_turn_radius = half_track + 0.05;
+  const double turn_radius = std::copysign(
+    std::max(std::abs(v / omega), min_turn_radius), v / omega);  // R  (signed)
+  const double r_left      = turn_radius - half_track;           // R − T/2
+  const double r_right     = turn_radius + half_track;           // R + T/2
 
   // ── Rear wheels: swerve (steer + Ackermann arc speed) ───────────────────
   //
@@ -194,16 +201,22 @@ controller_interface::return_type RearAckermannController::update(
   const double rear_right_steer = std::atan(half_base / r_right);
 
   // Arc speed: r * omega (signed — correct for forward and reverse)
-  const double rear_left_vel  = (r_left  * omega) / wheel_radius;
-  const double rear_right_vel = (r_right * omega) / wheel_radius;
+  // Clamp to max_speed so extreme omega values can't over-command the motors.
+  const double max_wheel_ang_vel = params_.max_speed / wheel_radius;
+  const double rear_left_vel  = std::clamp(
+    (r_left  * omega) / wheel_radius, -max_wheel_ang_vel, max_wheel_ang_vel);
+  const double rear_right_vel = std::clamp(
+    (r_right * omega) / wheel_radius, -max_wheel_ang_vel, max_wheel_ang_vel);
 
   // ── Front wheels: pure Ackermann arc speed ───────────────────────────────
   //
   // The front steer joints are held at 0, so the kinematically correct roll
   // speed is r_side * omega / r_w.  The inner wheel transitions from forward
   // to backward only when |R| < half_track (very tight turns).
-  const double front_left_vel  = (r_right * omega) / wheel_radius; //flipped on purpose
-  const double front_right_vel = (r_left  * omega) / wheel_radius; //flipped on purpose
+  const double front_left_vel  = std::clamp(
+    (r_right * omega) / wheel_radius, -max_wheel_ang_vel, max_wheel_ang_vel); //flipped on purpose
+  const double front_right_vel = std::clamp(
+    (r_left  * omega) / wheel_radius, -max_wheel_ang_vel, max_wheel_ang_vel); //flipped on purpose
 
   command_interfaces_[0].set_value(rear_left_steer);
   command_interfaces_[1].set_value(rear_right_steer);

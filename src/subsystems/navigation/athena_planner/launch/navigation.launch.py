@@ -48,7 +48,7 @@ def generate_launch_description():
         parameters=[{'use_sim_time': sim}],
         remappings=[
             ('cmd_vel_in', '/cmd_vel_nav'),
-            ('cmd_vel_out', '/ackermann_steering_controller/reference'),
+            ('cmd_vel_out', '/rear_ackermann_controller/reference'),
         ],
     )
 
