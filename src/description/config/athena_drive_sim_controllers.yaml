@@ -92,7 +92,6 @@ rear_ackermann_controller:
     wheel_radius: 0.125
     max_speed: 0.59
     max_steer_angle: 1.047
-    use_front_blend: false
 
 rear_steer_position_controller:
   ros__parameters:

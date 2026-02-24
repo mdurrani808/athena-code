@@ -87,13 +87,22 @@ bool can_write_ready(int socket_id) {
 
 
 bool SocketCanIntf::send_can_frame(const can_frame& frame) {
-    ssize_t nbytes = write(socket_id_, &frame, sizeof(frame));
     if (!can_write_ready(socket_id_)) {
-        std::cerr << "CAN socket not ready to send (buffer full)" << std::endl;
+        std::cerr << "CAN socket not ready to send (buffer full) - ID: 0x"
+                  << std::hex << frame.can_id << std::dec << std::endl;
+        return false;
     }
 
+    ssize_t nbytes = write(socket_id_, &frame, sizeof(frame));
     if (nbytes == -1) {
-        std::cerr << "Failed to send CAN frame" << std::endl;
+        std::cerr << "Failed to send CAN frame - ID: 0x" << std::hex << frame.can_id
+                  << std::dec << ", DLC: " << static_cast<int>(frame.can_dlc)
+                  << ", Data: [";
+        for (int i = 0; i < frame.can_dlc; i++) {
+            std::cerr << std::hex << static_cast<int>(frame.data[i]);
+            if (i < frame.can_dlc - 1) std::cerr << " ";
+        }
+        std::cerr << std::dec << "] - Error: " << strerror(errno) << std::endl;
         return false;
     }
 

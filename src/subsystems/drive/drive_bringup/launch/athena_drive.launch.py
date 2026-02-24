@@ -116,7 +116,7 @@ def generate_launch_description():
     declared_arguments.append(
         DeclareLaunchArgument(
             "robot_controller",
-            default_value="front_ackermann_controller",
+            default_value="rear_ackermann_controller",
             choices=["front_ackermann_controller", "ackermann_steering_controller", "rear_ackermann_controller"],
             description="Robot controller to start.",
         )
