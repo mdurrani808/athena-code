@@ -161,8 +161,6 @@ motor_status_broadcaster:
 rear_ackermann_controller:
   ros__parameters:
     steer_joints:
-      - "steer_fl_joint"
-      - "steer_fr_joint"
       - "steer_bl_joint"
       - "steer_br_joint"
     drive_joints:

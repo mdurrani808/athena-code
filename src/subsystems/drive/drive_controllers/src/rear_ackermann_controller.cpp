@@ -142,14 +142,12 @@ controller_interface::return_type RearAckermannController::update(
   const double half_track   = track_width / 2.0;
 
   // command_interfaces_ layout:
-  //   [0] steer_fl / position  ← held at 0 (front tank: wheels point straight)
-  //   [1] steer_fr / position  ← held at 0
-  //   [2] steer_bl / position  ← rear swerve angle
-  //   [3] steer_br / position  ← rear swerve angle
-  //   [4] propulsion_fl / velocity  ← front Ackermann arc speed
-  //   [5] propulsion_fr / velocity  ← front Ackermann arc speed
-  //   [6] propulsion_bl / velocity  ← rear Ackermann arc speed
-  //   [7] propulsion_br / velocity  ← rear Ackermann arc speed
+  //   [0] steer_bl / position  ← rear swerve angle
+  //   [1] steer_br / position  ← rear swerve angle
+  //   [2] propulsion_fl / velocity  ← front Ackermann arc speed
+  //   [3] propulsion_fr / velocity  ← front Ackermann arc speed
+  //   [4] propulsion_bl / velocity  ← rear Ackermann arc speed
+  //   [5] propulsion_br / velocity  ← rear Ackermann arc speed
 
   if (std::abs(v) < 1e-4 && std::abs(omega) < 1e-4) {
     // Stationary: zero everything
@@ -164,12 +162,10 @@ controller_interface::return_type RearAckermannController::update(
     const double drive_ang = v / wheel_radius;
     command_interfaces_[0].set_value(0.0);
     command_interfaces_[1].set_value(0.0);
-    command_interfaces_[2].set_value(0.0);
-    command_interfaces_[3].set_value(0.0);
+    command_interfaces_[2].set_value(drive_ang);
+    command_interfaces_[3].set_value(drive_ang);
     command_interfaces_[4].set_value(drive_ang);
     command_interfaces_[5].set_value(drive_ang);
-    command_interfaces_[6].set_value(drive_ang);
-    command_interfaces_[7].set_value(drive_ang);
 
     const double rad_s_to_rpm = 60.0 / (2.0 * M_PI);
     RCLCPP_INFO_THROTTLE(get_node()->get_logger(), *get_node()->get_clock(), 500,
@@ -209,15 +205,12 @@ controller_interface::return_type RearAckermannController::update(
   const double front_left_vel  = (r_right * omega) / wheel_radius; //flipped on purpose
   const double front_right_vel = (r_left  * omega) / wheel_radius; //flipped on purpose
 
-  // Front steer joints always 0 (wheels point straight)
-  command_interfaces_[0].set_value(0.0);
-  command_interfaces_[1].set_value(0.0);
-  command_interfaces_[2].set_value(rear_left_steer);
-  command_interfaces_[3].set_value(rear_right_steer);
-  command_interfaces_[4].set_value(front_left_vel);
-  command_interfaces_[5].set_value(front_right_vel);
-  command_interfaces_[6].set_value(rear_left_vel);
-  command_interfaces_[7].set_value(rear_right_vel);
+  command_interfaces_[0].set_value(rear_left_steer);
+  command_interfaces_[1].set_value(rear_right_steer);
+  command_interfaces_[2].set_value(front_left_vel);
+  command_interfaces_[3].set_value(front_right_vel);
+  command_interfaces_[4].set_value(rear_left_vel);
+  command_interfaces_[5].set_value(rear_right_vel);
 
   const double rad_s_to_rpm = 60.0 / (2.0 * M_PI);
   RCLCPP_INFO_THROTTLE(get_node()->get_logger(), *get_node()->get_clock(), 500,
