@@ -82,5 +82,5 @@ def generate_launch_description():
         declare_publish_map,
         declare_enable_gnss,
         zed_launch,
-        gps_launch,
+        #gps_launch,
     ])

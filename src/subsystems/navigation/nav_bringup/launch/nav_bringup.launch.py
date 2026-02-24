@@ -36,6 +36,18 @@ def generate_launch_description():
         ]),
     ])
 
+    # Static TF: zed_camera_link -> base_footprint
+    # The ZED always publishes odom -> zed_camera_link. This static transform
+    # bridges to the robot's base frame using the inverse of the camera mount
+    # offset (xyz=0.5, 0.1, 0.1 in athena_drive.urdf.xacro -> inverted here).
+    zed_to_base_tf = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        name='zed_to_base_footprint_tf',
+        arguments=['-0.5', '-0.1', '-0.1', '0', '0', '0',
+                   'zed_camera_link', 'base_footprint'],
+    )
+
     robot_state_publisher = Node(
         package='robot_state_publisher',
         executable='robot_state_publisher',
@@ -108,6 +120,7 @@ def generate_launch_description():
             description='Log level for nav2 nodes',
         ),
 
+        zed_to_base_tf,
         robot_state_publisher,
         navigation_launch,
     ])
