@@ -1,5 +1,6 @@
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.conditions import UnlessCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import (
     Command,
@@ -46,6 +47,7 @@ def generate_launch_description():
         name='zed_to_base_footprint_tf',
         arguments=['-0.5', '-0.1', '-0.1', '0', '0', '0',
                    'zed_camera_link', 'base_footprint'],
+        condition=UnlessCondition(sim),
     )
 
     robot_state_publisher = Node(
