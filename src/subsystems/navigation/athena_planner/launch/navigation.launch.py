@@ -19,6 +19,7 @@ def generate_launch_description():
     
     localizer_share = get_package_share_directory('localizer')
     localizer_launch_file = os.path.join(localizer_share, 'launch', 'localizer.launch.py')
+    zed_tf_publisher_launch_file = os.path.join(localizer_share, 'launch', 'zed_tf_publisher.launch.py')
 
     gps_goal_share = get_package_share_directory('gps_goal')
     gps_goal_launch_file = os.path.join(gps_goal_share, 'launch', 'gps_goal_server.launch.py')
@@ -66,12 +67,17 @@ def generate_launch_description():
         condition=IfCondition(use_localizer),
     )
 
+    zed_tf_publisher_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(zed_tf_publisher_launch_file),
+        condition=UnlessCondition(use_localizer),
+    )
+
     sensors_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(sensors_launch_file),
         launch_arguments={
             'sim': sim,
-            'publish_odom': publish_zed_odom,
-            'publish_map': publish_zed_odom,
+            #'publish_odom': publish_zed_odom,
+            #'publish_map': publish_zed_odom,
             'enable_gnss': enable_gnss,
         }.items(),
     )
@@ -148,6 +154,7 @@ def generate_launch_description():
         twist_stamper_node,
         dem_launch,
         localizer_launch,
+        zed_tf_publisher_launch,
         sensors_launch,
         aruco_launch,
         point_cloud_filterer_sim,

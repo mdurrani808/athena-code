@@ -44,7 +44,21 @@ ament_target_dependencies(localizer_node
   tf2_geometry_msgs
   Eigen3)
 
-install(TARGETS localizer_node
+add_executable(zed_tf_publisher_node src/zed_tf_publisher.cpp)
+target_include_directories(zed_tf_publisher_node PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>)
+target_compile_features(zed_tf_publisher_node PUBLIC cxx_std_17)
+
+ament_target_dependencies(zed_tf_publisher_node
+  rclcpp
+  geometry_msgs
+  nav_msgs
+  tf2
+  tf2_ros
+  tf2_geometry_msgs)
+
+install(TARGETS localizer_node zed_tf_publisher_node
   DESTINATION lib/${PROJECT_NAME})
 
 install(DIRECTORY include/
