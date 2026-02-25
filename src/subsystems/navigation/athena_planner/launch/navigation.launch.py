@@ -26,6 +26,9 @@ def generate_launch_description():
     sensors_share = get_package_share_directory('athena_sensors')
     sensors_launch_file = os.path.join(sensors_share, 'launch', 'sensors.launch.py')
 
+    aruco_bt_share = get_package_share_directory('aruco_bt')
+    aruco_launch_file = os.path.join(aruco_bt_share, 'launch', 'aruco.launch.py')
+
     default_params = PathJoinSubstitution([
         FindPackageShare('athena_planner'), 'config', 'nav2_params.yaml'
     ])
@@ -71,6 +74,11 @@ def generate_launch_description():
             'publish_map': publish_zed_odom,
             'enable_gnss': enable_gnss,
         }.items(),
+    )
+
+    aruco_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(aruco_launch_file),
+        launch_arguments={'use_sim_time': sim, 'marker_size': '0.20'}.items()
     )
 
     gps_goal_launch = IncludeLaunchDescription(
@@ -141,6 +149,7 @@ def generate_launch_description():
         dem_launch,
         localizer_launch,
         sensors_launch,
+        aruco_launch,
         point_cloud_filterer_sim,
         point_cloud_relay,
         gps_goal_launch,

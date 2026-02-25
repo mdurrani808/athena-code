@@ -24,9 +24,10 @@ def generate_launch_description():
             output='screen',
             arguments=[
                 '/zed/zed_node/left/image_rect_color@sensor_msgs/msg/Image@gz.msgs.Image',
+                '/zed/zed_node/left/camera_info@sensor_msgs/msg/CameraInfo@gz.msgs.CameraInfo'
             ],
         ),
-
+        
         Node(
             package='ros_gz_bridge',
             executable='parameter_bridge',

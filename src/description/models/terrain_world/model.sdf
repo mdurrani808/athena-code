@@ -19,5 +19,6 @@
         </geometry>
       </collision>
     </link>
+
   </model>
 </sdf>

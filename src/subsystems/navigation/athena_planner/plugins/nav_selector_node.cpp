@@ -5,6 +5,9 @@
 #include "std_msgs/msg/string.hpp"
 
 #include "athena_planner/nav_selector_node.hpp"
+#include "athena_planner/aruco_detected_node.hpp"
+#include "athena_planner/get_aruco_pose_node.hpp"
+#include "athena_planner/spiral_coverage_action_node.hpp"
 
 #include "rclcpp/rclcpp.hpp"
 
@@ -44,7 +47,8 @@ BT::NodeStatus NavSelector::tick()
 {
   callback_group_executor_.spin_some();
 
-  
+  //RCLCPP_INFO(node_->get_logger(), "Current nav_mode: '%s'", last_selected_nav_.c_str());
+
   if (last_selected_nav_.empty()) {
     std::string default_nav_mode;
     getInput("default_nav_mode", default_nav_mode);
@@ -63,6 +67,7 @@ BT::NodeStatus NavSelector::tick()
 void
 NavSelector::callbackNavSelect(const std_msgs::msg::String::SharedPtr msg)
 {
+  RCLCPP_INFO(node_->get_logger(), "NavSelector received: '%s'", msg->data.c_str());
   last_selected_nav_ = msg->data;
 }
 
@@ -71,4 +76,7 @@ NavSelector::callbackNavSelect(const std_msgs::msg::String::SharedPtr msg)
 BT_REGISTER_NODES(factory)
 {
   factory.registerNodeType<bt_nodes::NavSelector>("NavSelector");
+  factory.registerNodeType<bt_nodes::ArUcoDetected>("ArUcoDetected");
+  factory.registerNodeType<bt_nodes::GetArucoPose>("GetArucoPose");
+  factory.registerNodeType<bt_nodes::SpiralCoverageAction>("SpiralCoverageAction");
 }

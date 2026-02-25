@@ -1,7 +1,34 @@
 <root>
   <BehaviorTree ID="ArucoDetectionNavigation">
-    <ForceSuccess>
-      <Wait wait_duration="0.01"/>
-    </ForceSuccess>
+    <ReactiveFallback>
+      <Sequence>
+        <ArUcoDetected aruco_topic="/aruco_pose" timeout="1.0" />
+        <GetArucoPose aruco_topic="/aruco_pose" timeout="1.5" aruco_pose="{aruco_pose}" />
+
+        <RecoveryNode number_of_retries="3" name="NavWithRecovery">
+          <!-- Primary attempt -->
+          <PipelineSequence name="PlanAndFollow">
+            <RateController hz="1.0">
+              <ComputePathToPose goal="{aruco_pose}" path="{path}" planner_id="GridBased"/>
+            </RateController>
+            <FollowPath path="{path}" controller_id="FollowPath"/>
+          </PipelineSequence>
+
+          <!-- Recovery behavior (runs after each failure, then retries) -->
+          <ReactiveFallback name="RecoveryActions">
+            <Sequence>
+              <ClearEntireCostmap name="clear_local_costmap" service_name="/local_costmap/clear_entirely_local_costmap"/>
+              <Wait wait_duration="0.2" />
+            </Sequence>
+          </ReactiveFallback>
+        </RecoveryNode> 
+      </Sequence>
+
+      <!-- ArUco NOT detected - execute spiral coverage search -->
+      <Sequence name="SpiralSearchCoverage">
+        <SpiralCoverageAction radius="15.0" spacing="2.0" angular_step="0.5" frame_id="map" path="{spiral_path}" />
+        <FollowPath path="{spiral_path}" controller_id="FollowPath"/>
+      </Sequence>
+    </ReactiveFallback>
   </BehaviorTree>
 </root>

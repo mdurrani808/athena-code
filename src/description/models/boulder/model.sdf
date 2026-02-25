@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+<sdf version="1.7">
+  <model name="boulder">
+
+    <static>true</static>
+
+    <link name="boulder_link">
+
+      <visual name="boulder_visual">
+        <geometry>
+          <mesh>
+            <uri>model://terrain_world/meshes/boulder.obj</uri>
+            <scale>3 3 3</scale>
+          </mesh>
+        </geometry>
+
+        <material>
+          <ambient>0.3 0.3 0.3 1</ambient>
+          <diffuse>0.35 0.33 0.30 1</diffuse>
+          <specular>0.05 0.05 0.05 1</specular>
+        </material>
+        <cast_shadows>true</cast_shadows>
+      </visual>
+
+      <collision name="boulder_collision">
+        <geometry>
+          <mesh>
+            <uri>model://terrain_world/meshes/boulder.obj</uri>
+            <scale>3 3 3</scale>
+          </mesh>
+        </geometry>
+      </collision>
+
+    </link>
+  </model>
+</sdf>
