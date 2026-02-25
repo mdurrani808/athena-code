@@ -15,9 +15,9 @@
   <xacro:include filename="imu.xacro"/>
   <xacro:include filename="gps.xacro"/>
   <xacro:include filename="ground_truth_odom.xacro"/>
-  <xacro:if value="$(arg sim_gazebo)">
-    <xacro:include filename="zed_camera.xacro"/>
-  </xacro:if>
+  <xacro:include filename="zed_camera.xacro"/>
+
+
   <!-- Load robot's macro with parameters -->
   <!-- set prefix if multiple robots are used -->
   <!--
@@ -55,12 +55,10 @@
   </xacro:gps_sensor>
 
   <xacro:ground_truth_odometry robot_base_frame="base_footprint"/>
-
-  <xacro:if value="$(arg sim_gazebo)">
-    <xacro:zed_camera_sensor parent="base_footprint" camera_name="zed" sim_gazebo="$(arg sim_gazebo)">
-      <origin xyz=".5 0.1 0.1" rpy="0 0 0"/>
-    </xacro:zed_camera_sensor>
-  </xacro:if>
+ 
+  <xacro:zed_camera_sensor parent="base_footprint" camera_name="zed" sim_gazebo="$(arg sim_gazebo)">
+    <origin xyz=".3 -0.123 0.073" rpy="0 0 0"/>
+  </xacro:zed_camera_sensor>
 
   <xacro:if value="$(arg use_mock_hardware)">
     <xacro:athena_drive_ros2_control
