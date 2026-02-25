@@ -197,8 +197,10 @@ controller_interface::return_type RearAckermannController::update(
   // Steer angle: rear wheels counter-steer relative to what front wheels would do.
   // angle = -atan(half_base / r_side): legs of the right triangle are the longitudinal
   // offset (half_base) and the lateral ICR distance (r_side), so atan is correct here.
-  const double rear_left_steer  = std::atan(half_base / r_left);
-  const double rear_right_steer = std::atan(half_base / r_right);
+  const double rear_left_steer  = std::clamp(
+    std::atan(half_base / r_right), params_.min_steering_angle, params_.max_steering_angle);
+  const double rear_right_steer = std::clamp(
+    std::atan(half_base / r_left), params_.min_steering_angle, params_.max_steering_angle);
 
   // Arc speed: r * omega (signed — correct for forward and reverse)
   // Clamp to max_speed so extreme omega values can't over-command the motors.
@@ -214,9 +216,9 @@ controller_interface::return_type RearAckermannController::update(
   // speed is r_side * omega / r_w.  The inner wheel transitions from forward
   // to backward only when |R| < half_track (very tight turns).
   const double front_left_vel  = std::clamp(
-    (r_right * omega) / wheel_radius, -max_wheel_ang_vel, max_wheel_ang_vel); //flipped on purpose
+    (r_left  * omega) / wheel_radius, -max_wheel_ang_vel, max_wheel_ang_vel);
   const double front_right_vel = std::clamp(
-    (r_left  * omega) / wheel_radius, -max_wheel_ang_vel, max_wheel_ang_vel); //flipped on purpose
+    (r_right * omega) / wheel_radius, -max_wheel_ang_vel, max_wheel_ang_vel);
 
   command_interfaces_[0].set_value(rear_left_steer);
   command_interfaces_[1].set_value(rear_right_steer);

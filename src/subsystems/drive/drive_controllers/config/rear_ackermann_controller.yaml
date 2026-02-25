@@ -38,3 +38,13 @@ rear_ackermann_controller:
     default_value: 1.27,
     description: "Maximum linear speed in m/s."
   }
+  max_steering_angle: {
+    type: double,
+    default_value: 0.785398,
+    description: "Maximum steering angle in radians (pi/4)."
+  }
+  min_steering_angle: {
+    type: double,
+    default_value: -0.785398,
+    description: "Minimum steering angle in radians (-pi/4)."
+  }
