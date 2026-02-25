@@ -18,7 +18,7 @@
           <mesh filename="file://$(find description)/meshes/zed2i.stl"/>
         </geometry>
         <material name="zed_mat">
-          <color rgba="0.25 0.25 0.25 1.0"/>
+          <color rgba="0.08 0.08 0.08 1.0"/>
         </material>
       </visual>
       <collision>

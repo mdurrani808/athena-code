@@ -32,5 +32,9 @@
       <uri>model://boulder</uri>
       <pose>5.7181 -1.4069 -24.2377 0 0 0</pose>
     </include>
+    <include>
+      <uri>model://marker0</uri>
+      <pose>3 3 -24.2377 0 0 0</pose>
+    </include>
   </world>
 </sdf>

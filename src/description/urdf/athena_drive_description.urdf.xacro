@@ -3,6 +3,15 @@
      Commit Version: 1.6.0-4-g7f85cfe  Build Version: 1.6.7995.38578
      For more information, please see http://wiki.ros.org/sw_urdf_exporter -->
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+    <material name="rover_silver">
+        <color rgba="0.40 0.42 0.45 1.0"/>
+    </material>
+
+    <material name="rover_dark_red">
+        <color rgba="0.45 0.05 0.05 1.0"/>
+    </material>
+
     <xacro:macro name="description">
         <link name="base_link">
             <visual>
@@ -10,9 +19,7 @@
                 <geometry>
                     <mesh filename="package://description/meshes/chassis_base_link.STL" />
                 </geometry>
-                <material name="">
-                    <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
-                </material>
+                <material name="rover_silver" />
             </visual>
             <collision>
                 <origin xyz="-0.775305042176281 0.0692748019047986 0.475175318827691" rpy="0 0 -0.094743" />
@@ -33,9 +40,7 @@
                 <geometry>
                     <mesh filename="package://description/meshes/suspension_left_link.STL" />
                 </geometry>
-                <material name="">
-                    <color rgba="0.79216 0.81961 0.93333 1" />
-                </material>
+                <material name="rover_silver" />
             </visual>
             <collision>
                 <origin xyz="0 0 0" rpy="0 0 0" />
@@ -65,9 +70,7 @@
                 <geometry>
                     <mesh filename="package://description/meshes/swerve_front_link.STL" />
                 </geometry>
-                <material name="">
-                    <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
-                </material>
+                <material name="rover_silver" />
             </visual>
             <collision>
                 <origin xyz="0 0 0" rpy="0 0 0" />
@@ -95,9 +98,7 @@
                 <geometry>
                     <mesh filename="package://description/meshes/swerve_module_front_link.STL" />
                 </geometry>
-                <material name="">
-                    <color rgba="0.79216 0.81961 0.93333 1" />
-                </material>
+                <material name="rover_silver" />
             </visual>
             <collision>
                 <origin xyz="0 0 0" rpy="0 0 0" />
@@ -126,9 +127,7 @@
                 <geometry>
                     <mesh filename="package://description/meshes/bracket_front_link.STL" />
                 </geometry>
-                <material name="">
-                    <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
-                </material>
+                <material name="rover_silver" />
             </visual>
             <collision>
                 <origin xyz="0 0 0" rpy="0 0 0" />
@@ -156,9 +155,7 @@
                 <geometry>
                     <mesh filename="package://description/meshes/wheel_front_link.STL" />
                 </geometry>
-                <material name="">
-                    <color rgba="0.79216 0.81961 0.93333 1" />
-                </material>
+                <material name="rover_dark_red" />
             </visual>
             <collision>
                 <origin xyz="0 0 0" rpy="0 0 0" />
@@ -186,9 +183,7 @@
                 <geometry>
                     <mesh filename="package://description/meshes/swerve_back_link.STL" />
                 </geometry>
-                <material name="">
-                    <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
-                </material>
+                <material name="rover_silver" />
             </visual>
             <collision>
                 <origin xyz="0 0 0" rpy="0 0 0" />
@@ -216,9 +211,7 @@
                 <geometry>
                     <mesh filename="package://description/meshes/swerve_module_back_link.STL" />
                 </geometry>
-                <material name="">
-                    <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
-                </material>
+                <material name="rover_silver" />
             </visual>
             <collision>
                 <origin xyz="0 0 0" rpy="0 0 0" />
@@ -247,9 +240,7 @@
                 <geometry>
                     <mesh filename="package://description/meshes/bracket_back_link.STL" />
                 </geometry>
-                <material name="">
-                    <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
-                </material>
+                <material name="rover_silver" />
             </visual>
             <collision>
                 <origin xyz="0 0 0" rpy="0 0 0" />
@@ -277,9 +268,7 @@
                 <geometry>
                     <mesh filename="package://description/meshes/wheel_back_link.STL" />
                 </geometry>
-                <material name="">
-                    <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
-                </material>
+                <material name="rover_dark_red" />
             </visual>
             <collision>
                 <origin xyz="0 0 0" rpy="0 0 0" />
@@ -307,9 +296,7 @@
                 <geometry>
                     <mesh filename="package://description/meshes/suspension_right_link.STL" />
                 </geometry>
-                <material name="">
-                    <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
-                </material>
+                <material name="rover_silver" />
             </visual>
             <collision>
                 <origin xyz="0 0 0" rpy="0 0 0" />
@@ -338,9 +325,7 @@
                 <geometry>
                     <mesh filename="package://description/meshes/swerve_front2_link.STL" />
                 </geometry>
-                <material name="">
-                    <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
-                </material>
+                <material name="rover_silver" />
             </visual>
             <collision>
                 <origin xyz="0 0 0" rpy="0 0 0" />
@@ -368,9 +353,7 @@
                 <geometry>
                     <mesh filename="package://description/meshes/swerve_module_front2_link.STL" />
                 </geometry>
-                <material name="">
-                    <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
-                </material>
+                <material name="rover_silver" />
             </visual>
             <collision>
                 <origin xyz="0 0 0" rpy="0 0 0" />
@@ -399,9 +382,7 @@
                 <geometry>
                     <mesh filename="package://description/meshes/bracket_front2_link.STL" />
                 </geometry>
-                <material name="">
-                    <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
-                </material>
+                <material name="rover_silver" />
             </visual>
             <collision>
                 <origin xyz="0 0 0" rpy="0 0 0" />
@@ -429,9 +410,7 @@
                 <geometry>
                     <mesh filename="package://description/meshes/wheel_front2_link.STL" />
                 </geometry>
-                <material name="">
-                    <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
-                </material>
+                <material name="rover_dark_red" />
             </visual>
             <collision>
                 <origin xyz="0 0 0" rpy="0 0 0" />
@@ -459,9 +438,7 @@
                 <geometry>
                     <mesh filename="package://description/meshes/swerve_back2_link.STL" />
                 </geometry>
-                <material name="">
-                    <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
-                </material>
+                <material name="rover_silver" />
             </visual>
             <collision>
                 <origin xyz="0 0 0" rpy="0 0 0" />
@@ -489,9 +466,7 @@
                 <geometry>
                     <mesh filename="package://description/meshes/swerve_module_back2_link.STL" />
                 </geometry>
-                <material name="">
-                    <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
-                </material>
+                <material name="rover_silver" />
             </visual>
             <collision>
                 <origin xyz="0 0 0" rpy="0 0 0" />
@@ -520,9 +495,7 @@
                 <geometry>
                     <mesh filename="package://description/meshes/bracket_back2_link.STL" />
                 </geometry>
-                <material name="">
-                    <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
-                </material>
+                <material name="rover_silver" />
             </visual>
             <collision>
                 <origin xyz="0 0 0" rpy="0 0 0" />
@@ -550,9 +523,7 @@
                 <geometry>
                     <mesh filename="package://description/meshes/wheel_back2_link.STL" />
                 </geometry>
-                <material name="">
-                    <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1" />
-                </material>
+                <material name="rover_dark_red" />
             </visual>
             <collision>
                 <origin xyz="0 0 0" rpy="0 0 0" />
