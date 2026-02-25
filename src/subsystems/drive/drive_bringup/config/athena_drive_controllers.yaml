@@ -21,7 +21,7 @@
 
 controller_manager:
   ros__parameters:
-    update_rate: 100  # Hz
+    update_rate: 30  # Hz
 
     joint_state_broadcaster:
       type: joint_state_broadcaster/JointStateBroadcaster
@@ -81,7 +81,7 @@ front_ackermann_controller:
       - "steer_fr_joint"
     wheelbase: 0.8382
     track_width: 0.6604
-    wheel_radius: 0.254
+    wheel_radius: 0.125
     # Odometry
     open_loop: false
     enable_odom_tf: false
@@ -161,8 +161,6 @@ motor_status_broadcaster:
 rear_ackermann_controller:
   ros__parameters:
     steer_joints:
-      - "steer_fl_joint"
-      - "steer_fr_joint"
       - "steer_bl_joint"
       - "steer_br_joint"
     drive_joints:
@@ -174,5 +172,5 @@ rear_ackermann_controller:
     track_width: 0.645
     wheel_radius: 0.125
     max_speed: 0.59
-    max_steer_angle: 1.047
-    use_front_blend: false
+    max_steering_angle: 0.785398
+    min_steering_angle: -0.785398

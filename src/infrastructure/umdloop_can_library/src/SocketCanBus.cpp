@@ -7,6 +7,7 @@
 #include <net/if.h>
 #include <linux/can.h>
 #include <linux/can/raw.h>
+#include <chrono>
 
 namespace CANLib {
 
@@ -115,7 +116,31 @@ bool SocketCanBus::send(const CanFrame& frame) {
     mapCanFrameToSocketCan(frame, can_frame);
     
     ssize_t nbytes = write(socketFd_, &can_frame, sizeof(can_frame));
-    return nbytes == sizeof(can_frame);
+
+    //static int send_count = 0;
+    //static auto last_time = std::chrono::steady_clock::now();
+    //send_count++;
+    //if (send_count % 100 == 0) {
+    //    auto now = std::chrono::steady_clock::now();
+    //    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_time).count();
+    //    std::cout << "CAN: messages sent: " << send_count << " | Time for last 100: " << duration << " ms" << std::endl;
+    //    last_time = now;
+    //}
+
+    if (nbytes != sizeof(can_frame)) {
+        std::cerr << "CAN: Failed to send frame - ID: 0x" << std::hex << frame.id
+                  << std::dec << ", DLC: " << static_cast<int>(frame.dlc)
+                  << ", Data: [";
+        for (int i = 0; i < frame.dlc; i++) {
+            std::cerr << std::hex << static_cast<int>(frame.data[i]);
+            if (i < frame.dlc - 1) std::cerr << " ";
+        }
+        std::cerr << std::dec << "] - Error: " << strerror(errno)
+                  << " (bytes written: " << nbytes << ")" << std::endl;
+        return false;
+    }
+
+    return true;
 }
 
 void SocketCanBus::receiveLoop_() {

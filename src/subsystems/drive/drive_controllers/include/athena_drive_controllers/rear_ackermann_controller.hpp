@@ -78,7 +78,7 @@ protected:
   std::shared_ptr<rear_ackermann_controller::ParamListener> param_listener_;
   rear_ackermann_controller::Params params_;
 
-  std::vector<std::string> steer_joint_names_;  // [fl, fr, bl, br]
+  std::vector<std::string> steer_joint_names_;  // [bl, br]
   std::vector<std::string> drive_joint_names_;  // [fl, fr, bl, br]
 
   rclcpp::Subscription<ControllerReferenceMsg>::SharedPtr ref_subscriber_ = nullptr;

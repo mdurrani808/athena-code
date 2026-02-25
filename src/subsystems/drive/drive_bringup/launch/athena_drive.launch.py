@@ -116,7 +116,7 @@ def generate_launch_description():
     declared_arguments.append(
         DeclareLaunchArgument(
             "robot_controller",
-            default_value="front_ackermann_controller",
+            default_value="rear_ackermann_controller",
             choices=["front_ackermann_controller", "ackermann_steering_controller", "rear_ackermann_controller"],
             description="Robot controller to start.",
         )
@@ -182,7 +182,6 @@ def generate_launch_description():
         parameters=[robot_controllers],
         remappings=[
             ("~/robot_description", "/robot_description"),
-            ("/front_ackermann_controller/reference", "/cmd_vel"),
             ("/front_ackermann_controller/tf_odometry", "/tf"),
             ("/ackermann_steering_controller/reference", "/cmd_vel"),
         ],
@@ -371,34 +370,12 @@ def generate_launch_description():
         )
     )
 
-    joystick_publisher = Node(
-        package='teleop',
-        executable='joystick',
-        name='joystick',
-        output='screen',
-        parameters = [joystick_config],
-        remappings=[
-                ('controller_input', 'joy'),
-                ('/controller_input', '/joy'),
-            ],
-    )
-
-    teleop_twist_joy = Node(
-        package='teleop_twist_joy',
-        executable='teleop_node',
-        name='teleop_twist_joy',
-        output='screen',
-        parameters = [teleop_twist_config],
-    )
-
 
     return LaunchDescription(
         declared_arguments + 
         [
             control_node,
             robot_state_pub_node,
-            joystick_publisher,
-            teleop_twist_joy,
             # joint_state_publisher,
             # delay_can_node_after_control_node,
             delay_joint_state_broadcaster_spawner_after_ros2_control_node,

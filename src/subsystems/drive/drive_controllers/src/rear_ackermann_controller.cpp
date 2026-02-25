@@ -142,17 +142,15 @@ controller_interface::return_type RearAckermannController::update(
   const double half_track   = track_width / 2.0;
 
   // command_interfaces_ layout:
-  //   [0] steer_fl / position  ← held at 0 (front tank: wheels point straight)
-  //   [1] steer_fr / position  ← held at 0
-  //   [2] steer_bl / position  ← rear swerve angle
-  //   [3] steer_br / position  ← rear swerve angle
-  //   [4] propulsion_fl / velocity  ← front Ackermann arc speed
-  //   [5] propulsion_fr / velocity  ← front Ackermann arc speed
-  //   [6] propulsion_bl / velocity  ← rear Ackermann arc speed
-  //   [7] propulsion_br / velocity  ← rear Ackermann arc speed
+  //   [0] steer_bl / position  ← rear swerve angle
+  //   [1] steer_br / position  ← rear swerve angle
+  //   [2] propulsion_fl / velocity  ← front Ackermann arc speed
+  //   [3] propulsion_fr / velocity  ← front Ackermann arc speed
+  //   [4] propulsion_bl / velocity  ← rear Ackermann arc speed
+  //   [5] propulsion_br / velocity  ← rear Ackermann arc speed
 
-  if (std::abs(v) < 1e-4 && std::abs(omega) < 1e-4) {
-    // Stationary: zero everything
+  if (std::abs(v) < 1e-4) {
+    // Zero linear velocity: zero all propulsion and return steer to 0
     for (size_t i = 0; i < command_interfaces_.size(); ++i) {
       command_interfaces_[i].set_value(0.0);
     }
@@ -164,12 +162,10 @@ controller_interface::return_type RearAckermannController::update(
     const double drive_ang = v / wheel_radius;
     command_interfaces_[0].set_value(0.0);
     command_interfaces_[1].set_value(0.0);
-    command_interfaces_[2].set_value(0.0);
-    command_interfaces_[3].set_value(0.0);
+    command_interfaces_[2].set_value(drive_ang);
+    command_interfaces_[3].set_value(drive_ang);
     command_interfaces_[4].set_value(drive_ang);
     command_interfaces_[5].set_value(drive_ang);
-    command_interfaces_[6].set_value(drive_ang);
-    command_interfaces_[7].set_value(drive_ang);
 
     const double rad_s_to_rpm = 60.0 / (2.0 * M_PI);
     RCLCPP_INFO_THROTTLE(get_node()->get_logger(), *get_node()->get_clock(), 500,
@@ -185,39 +181,51 @@ controller_interface::return_type RearAckermannController::update(
   //
   // ICR is at lateral distance R = v / omega from the vehicle centreline,
   // centred between the axles.  Left-hand turns have R > 0.
-  const double turn_radius = v / omega;                       // R  (signed)
-  const double r_left      = turn_radius - half_track;        // R − T/2
-  const double r_right     = turn_radius + half_track;        // R + T/2
+  //
+  // Guard: clamp |turn_radius| to at least (half_track + 0.05 m).
+  // If the ICR falls inside the wheel track, r_left or r_right changes sign,
+  // causing a swerve wheel to drive backward and producing erratic behavior
+  // at low linear speed with higher angular velocity.
+  const double min_turn_radius = half_track + 0.05;
+  const double turn_radius = std::copysign(
+    std::max(std::abs(v / omega), min_turn_radius), v / omega);  // R  (signed)
+  const double r_left      = turn_radius - half_track;           // R − T/2
+  const double r_right     = turn_radius + half_track;           // R + T/2
 
   // ── Rear wheels: swerve (steer + Ackermann arc speed) ───────────────────
   //
   // Steer angle: rear wheels counter-steer relative to what front wheels would do.
   // angle = -atan(half_base / r_side): legs of the right triangle are the longitudinal
   // offset (half_base) and the lateral ICR distance (r_side), so atan is correct here.
-  const double rear_left_steer  = -std::atan(half_base / r_left);
-  const double rear_right_steer = -std::atan(half_base / r_right);
+  const double rear_left_steer  = std::clamp(
+    std::atan(half_base / r_right), params_.min_steering_angle, params_.max_steering_angle);
+  const double rear_right_steer = std::clamp(
+    std::atan(half_base / r_left), params_.min_steering_angle, params_.max_steering_angle);
 
   // Arc speed: r * omega (signed — correct for forward and reverse)
-  const double rear_left_vel  = (r_right * omega) / wheel_radius; //flipped on purpose (just for sim?)
-  const double rear_right_vel = (r_left  * omega) / wheel_radius; //flipped on purpose (just for sim?)
+  // Clamp to max_speed so extreme omega values can't over-command the motors.
+  const double max_wheel_ang_vel = params_.max_speed / wheel_radius;
+  const double rear_left_vel  = std::clamp(
+    (r_left  * omega) / wheel_radius, -max_wheel_ang_vel, max_wheel_ang_vel);
+  const double rear_right_vel = std::clamp(
+    (r_right * omega) / wheel_radius, -max_wheel_ang_vel, max_wheel_ang_vel);
 
   // ── Front wheels: pure Ackermann arc speed ───────────────────────────────
   //
   // The front steer joints are held at 0, so the kinematically correct roll
   // speed is r_side * omega / r_w.  The inner wheel transitions from forward
   // to backward only when |R| < half_track (very tight turns).
-  const double front_left_vel  = (r_right * omega) / wheel_radius; //flipped on purpose
-  const double front_right_vel = (r_left  * omega) / wheel_radius; //flipped on purpose
+  const double front_left_vel  = std::clamp(
+    (r_left  * omega) / wheel_radius, -max_wheel_ang_vel, max_wheel_ang_vel);
+  const double front_right_vel = std::clamp(
+    (r_right * omega) / wheel_radius, -max_wheel_ang_vel, max_wheel_ang_vel);
 
-  // Front steer joints always 0 (wheels point straight)
-  command_interfaces_[0].set_value(0.0);
-  command_interfaces_[1].set_value(0.0);
-  command_interfaces_[2].set_value(rear_left_steer);
-  command_interfaces_[3].set_value(rear_right_steer);
-  command_interfaces_[4].set_value(front_left_vel);
-  command_interfaces_[5].set_value(front_right_vel);
-  command_interfaces_[6].set_value(rear_left_vel);
-  command_interfaces_[7].set_value(rear_right_vel);
+  command_interfaces_[0].set_value(rear_left_steer);
+  command_interfaces_[1].set_value(rear_right_steer);
+  command_interfaces_[2].set_value(front_left_vel);
+  command_interfaces_[3].set_value(front_right_vel);
+  command_interfaces_[4].set_value(rear_left_vel);
+  command_interfaces_[5].set_value(rear_right_vel);
 
   const double rad_s_to_rpm = 60.0 / (2.0 * M_PI);
   RCLCPP_INFO_THROTTLE(get_node()->get_logger(), *get_node()->get_clock(), 500,

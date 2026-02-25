@@ -23,7 +23,7 @@
       </joint>
 
       <joint name="wrist_pitch">
-        <param name="node_id">0x146</param>
+        <param name="node_id">0x148</param>
         <param name="gear_ratio">40</param>
         <param name="operating_velocity">1000</param> <!-- motor dps -->
         <command_interface name="position"/>
