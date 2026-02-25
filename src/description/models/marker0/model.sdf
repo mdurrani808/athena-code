@@ -10,6 +10,22 @@
           </mesh>
         </geometry>
       </visual>
+
+      <visual name="post_visual">
+        <geometry>
+          <mesh>
+            <uri>model://marker0/meshes/post.dae</uri>
+          </mesh>
+        </geometry>
+
+        <material>
+          <ambient>0.5 0.5 0.5 1</ambient>
+          <diffuse>0.6 0.6 0.6 1</diffuse>
+          <specular>0.1 0.1 0.1 1</specular>
+        </material>
+
+      </visual>
+      
     </link>
   </model>
 </sdf>
