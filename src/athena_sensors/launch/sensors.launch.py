@@ -39,7 +39,7 @@ def generate_launch_description():
     )
     declare_enable_gnss = DeclareLaunchArgument(
         'enable_gnss',
-        default_value='false',
+        default_value='true',
         choices=['true', 'false'],
         description='Enable GNSS fusion in the ZED camera'
     )
@@ -61,7 +61,7 @@ def generate_launch_description():
             'publish_tf':      publish_odom, # this is really the odom tf, idk why its just called tf
             'publish_map_tf':  publish_map,
             'publish_urdf':   'false', # we take care of this elsewhere
-            'enable_gnss':     enable_gnss,
+            'enable_gnss':     'true',
         }.items(),
         condition=UnlessCondition(sim),
     )

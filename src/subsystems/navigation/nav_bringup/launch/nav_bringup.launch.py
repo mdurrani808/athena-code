@@ -1,9 +1,8 @@
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.conditions import UnlessCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import (
-    Command,
-    FindExecutable,
     LaunchConfiguration,
     PathJoinSubstitution,
     PythonExpression,
@@ -28,23 +27,28 @@ def generate_launch_description():
         ["'false' if '", use_zed_localizer, "' == 'true' else 'true'"]
     )
 
-    robot_description_content = Command([
-        PathJoinSubstitution([FindExecutable(name='xacro')]),
-        ' ',
-        PathJoinSubstitution([
-            FindPackageShare('description'), 'urdf', 'athena_drive.urdf.xacro'
-        ]),
-    ])
+    # Static TF: zed_camera_link -> base_footprint
+    # The ZED always publishes odom -> zed_camera_link. This static transform
+    # bridges to the robot's base frame using the inverse of the camera mount
+    # offset (xyz=0.5, 0.1, 0.1 in athena_drive.urdf.xacro -> inverted here).
+    #zed_to_base_tf = Node(
+    #    package='tf2_ros',
+    #    executable='static_transform_publisher',
+    #    name='zed_to_base_footprint_tf',
+    #    arguments=['-0.5', '-0.1', '-0.1', '0', '0', '0',
+    #               'zed_camera_link', 'base_footprint'],
+    #    condition=UnlessCondition(sim),
+    #)
 
-    robot_state_publisher = Node(
-        package='robot_state_publisher',
-        executable='robot_state_publisher',
-        name='robot_state_publisher',
-        output='both',
-        parameters=[{
-            'robot_description': robot_description_content,
-            'use_sim_time': sim,
-        }],
+    drive_launch_file = os.path.join(
+        get_package_share_directory('drive_bringup'), 'launch', 'athena_drive.launch.py'
+    )
+
+    drive_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(drive_launch_file),
+        launch_arguments={
+            'use_sim': sim,
+        }.items(),
     )
 
     navigation_launch_file = os.path.join(
@@ -108,6 +112,7 @@ def generate_launch_description():
             description='Log level for nav2 nodes',
         ),
 
-        robot_state_publisher,
+        #zed_to_base_tf,
+        drive_launch,
         navigation_launch,
     ])

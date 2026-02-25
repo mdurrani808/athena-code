@@ -230,10 +230,7 @@ private:
     void raw_gps_callback(const Telemetry::RawGps raw_gps) {
         auto msg = sensor_msgs::msg::NavSatFix();
 
-        // convert microsections to nanoseconds for ros time
-        auto unix_epoch_time = std::chrono::microseconds(raw_gps.timestamp_us);
-        auto ros_time = rclcpp::Time(unix_epoch_time.count() * 1000);
-        msg.header.stamp = ros_time;
+        msg.header.stamp = this->now();
         msg.header.frame_id = gps_frame_id_;
 
         msg.latitude = raw_gps.latitude_deg;
