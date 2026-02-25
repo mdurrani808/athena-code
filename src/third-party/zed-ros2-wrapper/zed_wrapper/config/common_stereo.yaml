@@ -66,7 +66,7 @@
             publish_temp: false # Advertise the temperature topics that are published only if a node subscribes to them
 
         region_of_interest:
-            automatic_roi: false # Enable the automatic ROI generation to automatically detect part of the robot in the FoV and remove them from the processing. Note: if enabled the value of `manual_polygon` is ignored
+            automatic_roi: true # Enable the automatic ROI generation to automatically detect part of the robot in the FoV and remove them from the processing. Note: if enabled the value of `manual_polygon` is ignored
             depth_far_threshold_meters: 2.5 # Filtering how far object in the ROI should be considered, this is useful for a vehicle for instance
             image_height_ratio_cutoff: 0.5 # By default consider only the lower half of the image, can be useful to filter out the sky
             #manual_polygon: '[]' # A polygon defining the ROI where the ZED SDK perform the processing ignoring the rest. Coordinates must be normalized to '1.0' to be resolution independent.
@@ -81,7 +81,7 @@
             publish_roi_mask: false # Advertise the ROI mask image topic that is published only if a node subscribes to it
 
         depth:
-            depth_mode: 'NEURAL_LIGHT' # Matches the ZED SDK setting: 'NONE', 'NEURAL_LIGHT', 'NEURAL', 'NEURAL_PLUS' - Note: if 'NONE' all the modules that requires depth extraction are disabled by default (Pos. Tracking, Obj. Detection, Mapping, ...)
+            depth_mode: 'NEURAL' # Matches the ZED SDK setting: 'NONE', 'NEURAL_LIGHT', 'NEURAL', 'NEURAL_PLUS' - Note: if 'NONE' all the modules that requires depth extraction are disabled by default (Pos. Tracking, Obj. Detection, Mapping, ...)
             depth_stabilization: 30 # Forces positional tracking to start if major than 0 - Range: [0,100]
             openni_depth_mode: false # 'false': 32bit float [meters], 'true': 16bit unsigned int [millimeters]
             point_cloud_freq: 10.0 # [DYNAMIC] Frequency of the pointcloud publishing. This value must be equal or less than the camera framerate.
@@ -109,7 +109,7 @@
             area_file_path: '' # Path to the area memory file for relocalization and loop closure in a previously explored environment. 
             enable_localization_only: false # If true, the camera will only localize in the loaded area memory without updating the map with new information.
             save_area_memory_on_closing: false # Save Area memory before closing the camera if `area_file_path` is not empty. You can also use the `save_area_memory` service to save the area memory at any time.
-            reset_odom_with_loop_closure: true # Re-initialize odometry to the last valid pose when loop closure happens (reset camera odometry drift)
+            reset_odom_with_loop_closure: false # Re-initialize odometry to the last valid pose when loop closure happens (reset camera odometry drift)
             publish_3d_landmarks: false # Publish 3D landmarks used by the positional tracking algorithm
             publish_lm_skip_frame: 5 # Publish the landmarks every X frames to reduce bandwidth. Set to 0 to publish all landmarks
             depth_min_range: 0.0 # Set this value for removing fixed zones of the robot in the FoV of the camerafrom the visual odometry evaluation
