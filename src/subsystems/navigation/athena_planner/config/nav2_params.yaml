@@ -60,7 +60,7 @@ planner_server:
       angle_quantization_bins: 72
       analytic_expansion_ratio: 3.5
       analytic_expansion_max_length: 3.0
-      minimum_turning_radius: 1.5
+      minimum_turning_radius: 2.5
       reverse_penalty: 2.5
       change_penalty: 0.5
       non_straight_penalty: 1.4
@@ -106,10 +106,10 @@ controller_server:
       temperature: 0.3             # Lower = more exploitation of best trajectory
 
       # Velocity limits — match your robot
-      vx_max: 0.1524               # Same as old desired_linear_vel
-      vx_min: -0.1524              # Allow reversing
+      vx_max: 0.5               # Same as old desired_linear_vel
+      vx_min: -0.5              # Allow reversing
       vy_max: 0.0                  # Non-holonomic: no lateral velocity
-      wz_max: 0.3                  # Match behavior_server max_rotational_vel
+      wz_max: 0.2                  # Match behavior_server max_rotational_vel
 
       # Acceleration limits
       ax_max: 1.0
@@ -249,15 +249,15 @@ global_costmap:
         observation_sources: obstacles
         obstacles:
           data_type: "PointCloud2"
-          topic: "/zed/zed_node/point_cloud/cloud_registered_corrected"
+          topic: "/zed/zed_node/point_cloud/cloud_registered"
           marking: true
           clearing: true
+          sensor_frame: "zed_left_camera_frame"
           min_obstacle_height: 0.0
           max_obstacle_height: 2.0
           obstacle_max_range: 10.0
           raytrace_max_range: 12.0
           obstacle_min_range: 0.0
-          observation_persistence: 3.0
 
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
@@ -273,8 +273,8 @@ local_costmap:
       update_frequency: 10.0
       publish_frequency: 5.0
       rolling_window: true
-      width: 12
-      height: 12
+      width: 8
+      height: 8
       resolution: 0.05
       transform_tolerance: 1.0
       footprint: "[[0.45, 0.33], [0.45, -0.33], [-0.35, -0.33], [-0.35, 0.33]]"
@@ -296,9 +296,10 @@ local_costmap:
         observation_sources: obstacles
         obstacles:
           data_type: "PointCloud2"
-          topic: "/zed/zed_node/point_cloud/cloud_registered_corrected"
+          topic: "/zed/zed_node/point_cloud/cloud_registered"
           marking: true
           clearing: true
+          sensor_frame: "zed_left_camera_frame"
           min_obstacle_height: 0.0
           max_obstacle_height: 2.0
           obstacle_max_range: 5.0
