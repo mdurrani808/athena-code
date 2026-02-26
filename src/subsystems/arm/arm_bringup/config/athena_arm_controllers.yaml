@@ -114,7 +114,7 @@ manual_arm_joint_by_joint_controller:
       - actuator
     # interface_name: velocity
     joint_max_velocities:
-      - 62.83185307 # 10 rot/s, please change dawg
+      - 0.08       # base_yaw
       - 0.05148721  # 2.95 dps
       - 0.05148721
       - 0.785398    # 45 dps

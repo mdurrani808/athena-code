@@ -4,15 +4,15 @@
     <ros2_control name="${name}" type="system">
       <hardware>
         <plugin>smc_ros2_control/SMCHardwareInterface</plugin>
-        <param name="update_rate">10</param> <!-- Hz -->
+        <param name="update_rate">2</param> <!-- Hz -->
         <param name="logger_rate">5</param> <!-- Hz -->
         <param name="logger_state">0</param> <!-- 0 for off, 1 for on -->
         <param name="can_interface">can0</param>
       </hardware>
 
       <joint name="base_yaw">
-        <param name="node_id">0x145</param>
-        <param name="gear_ratio">40</param>
+        <param name="node_id">0x148</param>
+        <param name="gear_ratio">-100</param>
         <param name="operating_velocity">300</param> <!-- motor dps -->
         <command_interface name="position"/>
         <command_interface name="velocity"/>
@@ -23,7 +23,7 @@
       </joint>
 
       <joint name="wrist_pitch">
-        <param name="node_id">0x148</param>
+        <param name="node_id">0x145</param>
         <param name="gear_ratio">40</param>
         <param name="operating_velocity">1000</param> <!-- motor dps -->
         <command_interface name="position"/>

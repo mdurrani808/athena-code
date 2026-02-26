@@ -45,7 +45,19 @@
   </xacro:if>
   <xacro:unless value="$(arg use_mock_hardware)"> <!-- HARDWARE -->
     <xacro:smc_ros2_control name="smc"/>
-    <xacro:talon_ros2_control name="talon"/> 
+    <ros2_control name="talon_mock" type="system">
+      <hardware>
+        <plugin>mock_components/GenericSystem</plugin>
+      </hardware>
+      <joint name="gripper_claw">
+        <command_interface name="position"/>
+        <command_interface name="velocity"/>
+        <state_interface name="position">
+          <param name="initial_value">-0.0</param>
+        </state_interface>
+        <state_interface name="velocity"/>
+      </joint>
+    </ros2_control>
     <xacro:rmd_ros2_control name="rmd"/>
     <xacro:servo_ros2_control name="servo"/>
     <!-- <xacro:odrive_ros2_control name="odrive"/> -->
