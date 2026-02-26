@@ -10,10 +10,6 @@
 
 set -e
 
-SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-WORKSPACE_DIR="$( realpath "$SCRIPT_DIR/../../../../.." )"
-source "$WORKSPACE_DIR/install/setup.bash"
-
 usage() {
     echo "Usage: $0 <latitude> <longitude> [tolerance_m]"
     echo ""
