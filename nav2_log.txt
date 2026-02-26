@@ -1,0 +1,786 @@
+[INFO] [launch]: All log files can be found below /home/umdloop/.ros/log/2026-02-25-12-53-54-098572-ubuntu-32051
+[INFO] [launch]: Default logging verbosity is set to INFO
+[INFO] [launch.user]: Using common configuration file: /home/umdloop/athena-code/install/zed_wrapper/share/zed_wrapper/config/common_stereo.yaml
+[INFO] [launch.user]: Using camera configuration file: /home/umdloop/athena-code/install/zed_wrapper/share/zed_wrapper/config/zed2i.yaml
+[INFO] [launch.user]: Using Object Detection configuration file: /home/umdloop/athena-code/install/zed_wrapper/share/zed_wrapper/config/object_detection.yaml
+[INFO] [launch.user]: Using Custom Object Detection configuration file: /home/umdloop/athena-code/install/zed_wrapper/share/zed_wrapper/config/custom_object_detection.yaml
+[INFO] [launch.user]: Loading ZED node `zed_node` in container `/zed/zed_container`
+[INFO] [zed_tf_publisher_node-4]: process started with pid [32070]
+[INFO] [ros2_control_node-1]: process started with pid [32064]
+[INFO] [robot_state_publisher-2]: process started with pid [32066]
+[INFO] [twist_stamper-3]: process started with pid [32068]
+[INFO] [component_container_isolated-5]: process started with pid [32073]
+[INFO] [athena_gps-6]: process started with pid [32082]
+[INFO] [relay-7]: process started with pid [32093]
+[INFO] [gps_goal_server-8]: process started with pid [32101]
+[INFO] [controller_server-9]: process started with pid [32112]
+[INFO] [smoother_server-10]: process started with pid [32114]
+[INFO] [planner_server-11]: process started with pid [32125]
+[INFO] [behavior_server-12]: process started with pid [32127]
+[INFO] [bt_navigator-13]: process started with pid [32132]
+[INFO] [waypoint_follower-14]: process started with pid [32138]
+[INFO] [velocity_smoother-15]: process started with pid [32141]
+[INFO] [lifecycle_manager-16]: process started with pid [32143]
+[athena_gps-6] [34m[12:53:55|Info ] [0mMAVSDK version: v3.14.0 (mavsdk_impl.cpp:33)
+[ros2_control_node-1] [0m[INFO] [1772042035.883520239] [controller_manager]: Subscribing to '~/robot_description' topic for robot description file.[0m
+[ros2_control_node-1] [0m[INFO] [1772042035.886467088] [controller_manager]: update rate is 30 Hz[0m
+[ros2_control_node-1] [0m[INFO] [1772042035.886536945] [controller_manager]: Spawning controller_manager RT thread with scheduler priority: 50[0m
+[ros2_control_node-1] [33m[WARN] [1772042035.894846893] [controller_manager]: Could not enable FIFO RT scheduling policy: with error number <1>(Operation not permitted). See [https://control.ros.org/master/doc/ros2_control/controller_manager/doc/userdoc.html] for details on how to enable realtime scheduling.[0m
+[robot_state_publisher-2] [0m[INFO] [1772042035.805469135] [robot_state_publisher]: got segment athena/base_footprint/zed_rgb_sensor[0m
+[robot_state_publisher-2] [0m[INFO] [1772042035.808014188] [robot_state_publisher]: got segment base_footprint[0m
+[robot_state_publisher-2] [0m[INFO] [1772042035.808048204] [robot_state_publisher]: got segment base_link[0m
+[robot_state_publisher-2] [0m[INFO] [1772042035.808063948] [robot_state_publisher]: got segment gnss_link[0m
+[robot_state_publisher-2] [0m[INFO] [1772042035.808074764] [robot_state_publisher]: got segment imu_link[0m
+[robot_state_publisher-2] [0m[INFO] [1772042035.808084652] [robot_state_publisher]: got segment propulsion_1_link[0m
+[robot_state_publisher-2] [0m[INFO] [1772042035.808095373] [robot_state_publisher]: got segment propulsion_2_link[0m
+[robot_state_publisher-2] [0m[INFO] [1772042035.808105645] [robot_state_publisher]: got segment propulsion_3_link[0m
+[robot_state_publisher-2] [0m[INFO] [1772042035.808115725] [robot_state_publisher]: got segment propulsion_4_link[0m
+[robot_state_publisher-2] [0m[INFO] [1772042035.808126093] [robot_state_publisher]: got segment steer_1_link[0m
+[robot_state_publisher-2] [0m[INFO] [1772042035.808136749] [robot_state_publisher]: got segment steer_2_link[0m
+[robot_state_publisher-2] [0m[INFO] [1772042035.808146797] [robot_state_publisher]: got segment steer_3_link[0m
+[robot_state_publisher-2] [0m[INFO] [1772042035.808156845] [robot_state_publisher]: got segment steer_4_link[0m
+[robot_state_publisher-2] [0m[INFO] [1772042035.808167021] [robot_state_publisher]: got segment suspension_front_left_link[0m
+[robot_state_publisher-2] [0m[INFO] [1772042035.808178221] [robot_state_publisher]: got segment suspension_front_right_link[0m
+[robot_state_publisher-2] [0m[INFO] [1772042035.808188430] [robot_state_publisher]: got segment swerve_mount_1_link[0m
+[robot_state_publisher-2] [0m[INFO] [1772042035.808199118] [robot_state_publisher]: got segment swerve_mount_2_link[0m
+[robot_state_publisher-2] [0m[INFO] [1772042035.808209198] [robot_state_publisher]: got segment swerve_mount_3_link[0m
+[robot_state_publisher-2] [0m[INFO] [1772042035.808219214] [robot_state_publisher]: got segment swerve_mount_4_link[0m
+[robot_state_publisher-2] [0m[INFO] [1772042035.808229550] [robot_state_publisher]: got segment wheel_bracket_1_link[0m
+[robot_state_publisher-2] [0m[INFO] [1772042035.808239566] [robot_state_publisher]: got segment wheel_bracket_2_link[0m
+[robot_state_publisher-2] [0m[INFO] [1772042035.808249678] [robot_state_publisher]: got segment wheel_bracket_3_link[0m
+[robot_state_publisher-2] [0m[INFO] [1772042035.808259790] [robot_state_publisher]: got segment wheel_bracket_4_link[0m
+[robot_state_publisher-2] [0m[INFO] [1772042035.808269774] [robot_state_publisher]: got segment zed_camera_center[0m
+[robot_state_publisher-2] [0m[INFO] [1772042035.808279919] [robot_state_publisher]: got segment zed_camera_link[0m
+[robot_state_publisher-2] [0m[INFO] [1772042035.808289999] [robot_state_publisher]: got segment zed_left_camera_frame[0m
+[robot_state_publisher-2] [0m[INFO] [1772042035.808299727] [robot_state_publisher]: got segment zed_left_camera_frame_optical[0m
+[robot_state_publisher-2] [0m[INFO] [1772042035.808309999] [robot_state_publisher]: got segment zed_right_camera_frame[0m
+[robot_state_publisher-2] [0m[INFO] [1772042035.808320079] [robot_state_publisher]: got segment zed_right_camera_frame_optical[0m
+[athena_gps-6] [0m[INFO] [1772042035.900003782] [athena_gps]: Pixhawk GPS node starting, will attempt to connect to serial:///dev/ttyACM0:57600[0m
+[zed_tf_publisher_node-4] [0m[INFO] [1772042035.808390544] [zed_tf_publisher]: pose_topic    : /zed/zed_node/pose[0m
+[zed_tf_publisher_node-4] [0m[INFO] [1772042035.808714739] [zed_tf_publisher]: odom_topic    : /zed/zed_node/odom[0m
+[zed_tf_publisher_node-4] [0m[INFO] [1772042035.808818869] [zed_tf_publisher]: map_frame     : map[0m
+[zed_tf_publisher_node-4] [0m[INFO] [1772042035.808886869] [zed_tf_publisher]: odom_frame    : odom[0m
+[zed_tf_publisher_node-4] [0m[INFO] [1772042035.810816875] [zed_tf_publisher]: base_frame    : base_footprint[0m
+[zed_tf_publisher_node-4] [0m[INFO] [1772042035.810916300] [zed_tf_publisher]: camera_frame  : zed_camera_center[0m
+[zed_tf_publisher_node-4] [0m[INFO] [1772042035.810952908] [zed_tf_publisher]: publish_map_tf: true[0m
+[zed_tf_publisher_node-4] [0m[INFO] [1772042035.901533687] [zed_tf_publisher]: Waiting for static transform zed_camera_center -> base_footprint ...[0m
+[velocity_smoother-15] [0m[INFO] [1772042035.999514419] [velocity_smoother]: 
+[velocity_smoother-15] 	velocity_smoother lifecycle node launched. 
+[velocity_smoother-15] 	Waiting on external lifecycle transitions to activate
+[velocity_smoother-15] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.[0m
+[controller_server-9] [0m[INFO] [1772042036.014096885] [controller_server]: 
+[controller_server-9] 	controller_server lifecycle node launched. 
+[controller_server-9] 	Waiting on external lifecycle transitions to activate
+[controller_server-9] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.[0m
+[smoother_server-10] [0m[INFO] [1772042036.040293144] [smoother_server]: 
+[smoother_server-10] 	smoother_server lifecycle node launched. 
+[smoother_server-10] 	Waiting on external lifecycle transitions to activate
+[smoother_server-10] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.[0m
+[controller_server-9] [0m[INFO] [1772042036.043814719] [controller_server]: Creating controller server[0m
+[controller_server-9] [0m[INFO] [1772042036.049540479] [local_costmap.local_costmap]: 
+[controller_server-9] 	local_costmap lifecycle node launched. 
+[controller_server-9] 	Waiting on external lifecycle transitions to activate
+[controller_server-9] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.[0m
+[controller_server-9] [0m[INFO] [1772042036.051672182] [local_costmap.local_costmap]: Creating Costmap[0m
+[bt_navigator-13] [0m[INFO] [1772042036.057533240] [bt_navigator]: 
+[bt_navigator-13] 	bt_navigator lifecycle node launched. 
+[bt_navigator-13] 	Waiting on external lifecycle transitions to activate
+[bt_navigator-13] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.[0m
+[bt_navigator-13] [0m[INFO] [1772042036.057741946] [bt_navigator]: Creating[0m
+[smoother_server-10] [0m[INFO] [1772042036.078003355] [smoother_server]: Creating smoother server[0m
+[lifecycle_manager-16] [0m[INFO] [1772042036.098011129] [lifecycle_manager_navigation]: Creating[0m
+[lifecycle_manager-16] [0m[INFO] [1772042036.105731439] [lifecycle_manager_navigation]: [34m[1mCreating and initializing lifecycle service clients[0m[0m[0m
+[waypoint_follower-14] [0m[INFO] [1772042036.120028942] [waypoint_follower]: 
+[waypoint_follower-14] 	waypoint_follower lifecycle node launched. 
+[waypoint_follower-14] 	Waiting on external lifecycle transitions to activate
+[waypoint_follower-14] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.[0m
+[waypoint_follower-14] [0m[INFO] [1772042036.124349182] [waypoint_follower]: Creating[0m
+[behavior_server-12] [0m[INFO] [1772042036.178396342] [behavior_server]: 
+[behavior_server-12] 	behavior_server lifecycle node launched. 
+[behavior_server-12] 	Waiting on external lifecycle transitions to activate
+[behavior_server-12] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.[0m
+[planner_server-11] [0m[INFO] [1772042036.182508580] [planner_server]: 
+[planner_server-11] 	planner_server lifecycle node launched. 
+[planner_server-11] 	Waiting on external lifecycle transitions to activate
+[planner_server-11] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.[0m
+[planner_server-11] [0m[INFO] [1772042036.190934017] [planner_server]: Creating[0m
+[planner_server-11] [0m[INFO] [1772042036.197693900] [global_costmap.global_costmap]: 
+[planner_server-11] 	global_costmap lifecycle node launched. 
+[planner_server-11] 	Waiting on external lifecycle transitions to activate
+[planner_server-11] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.[0m
+[planner_server-11] [0m[INFO] [1772042036.201571639] [global_costmap.global_costmap]: Creating Costmap[0m
+[ros2_control_node-1] [0m[INFO] [1772042036.228458434] [controller_manager]: Received robot description file.[0m
+[ros2_control_node-1] [0m[INFO] [1772042036.229344172] [resource_manager]: Loading hardware 'odrive' [0m
+[ros2_control_node-1] [0m[INFO] [1772042036.231129632] [resource_manager]: Initialize hardware 'odrive' [0m
+[ros2_control_node-1] [0m[INFO] [1772042036.231675526] [resource_manager]: Successful initialization of hardware 'odrive'[0m
+[ros2_control_node-1] [0m[INFO] [1772042036.242457917] [resource_manager]: Loading hardware 'rmd' [0m
+[ros2_control_node-1] [0m[INFO] [1772042036.260838506] [resource_manager]: Initialize hardware 'rmd' [0m
+[ros2_control_node-1] [0m[INFO] [1772042036.261662291] [resource_manager]: Successful initialization of hardware 'rmd'[0m
+[ros2_control_node-1] [0m[INFO] [1772042036.261906773] [resource_manager]: Loading hardware 'status_led' [0m
+[ros2_control_node-1] [0m[INFO] [1772042036.285522076] [resource_manager]: Initialize hardware 'status_led' [0m
+[ros2_control_node-1] [0m[INFO] [1772042036.297725699] [LEDHardwareInterface]: Initialized LED on GPIO pin 25 (default: OFF)[0m
+[ros2_control_node-1] [0m[INFO] [1772042036.297810884] [resource_manager]: Successful initialization of hardware 'status_led'[0m
+[ros2_control_node-1] [0m[INFO] [1772042036.297985926] [LEDHardwareInterface]: Exported 2 state interfaces[0m
+[ros2_control_node-1] [0m[INFO] [1772042036.298116008] [LEDHardwareInterface]: Exported 1 command interfaces[0m
+[ros2_control_node-1] [0m[INFO] [1772042036.298137736] [resource_manager]: Loading hardware 'drive_killswitch' [0m
+[ros2_control_node-1] [0m[INFO] [1772042036.315156485] [resource_manager]: Initialize hardware 'drive_killswitch' [0m
+[ros2_control_node-1] [0m[INFO] [1772042036.321632589] [KillswitchHardwareInterface]: Initialized killswitch on CAN interface can0 with ID 0x100[0m
+[ros2_control_node-1] [0m[INFO] [1772042036.321707662] [resource_manager]: Successful initialization of hardware 'drive_killswitch'[0m
+[ros2_control_node-1] [0m[INFO] [1772042036.321849551] [KillswitchHardwareInterface]: Exported 4 state interfaces[0m
+[ros2_control_node-1] [0m[INFO] [1772042036.326019102] [KillswitchHardwareInterface]: Exported 3 command interfaces[0m
+[ros2_control_node-1] [0m[INFO] [1772042036.327167786] [resource_manager]: 'configure' hardware 'drive_killswitch' [0m
+[ros2_control_node-1] [0m[INFO] [1772042036.327220331] [KillswitchHardwareInterface]: Configuring killswitch hardware...[0m
+[ros2_control_node-1] [0m[INFO] [1772042036.329200673] [KillswitchHardwareInterface]: Successfully opened CAN interface can0[0m
+[ros2_control_node-1] [0m[INFO] [1772042036.332007104] [KillswitchHardwareInterface]: Killswitch hardware configured (CAN MODE)[0m
+[ros2_control_node-1] [0m[INFO] [1772042036.332034016] [resource_manager]: Successful 'configure' of hardware 'drive_killswitch'[0m
+[ros2_control_node-1] [0m[INFO] [1772042036.332052577] [resource_manager]: 'activate' hardware 'drive_killswitch' [0m
+[ros2_control_node-1] [0m[INFO] [1772042036.332062593] [KillswitchHardwareInterface]: Activating killswitch hardware...[0m
+[ros2_control_node-1] [0m[INFO] [1772042036.332071585] [resource_manager]: Successful 'activate' of hardware 'drive_killswitch'[0m
+[ros2_control_node-1] [0m[INFO] [1772042036.332394276] [resource_manager]: 'configure' hardware 'status_led' [0m
+[ros2_control_node-1] [0m[INFO] [1772042036.332437029] [LEDHardwareInterface]: Configuring LED hardware...[0m
+[ros2_control_node-1] [33m[WARN] [1772042036.332535814] [LEDHardwareInterface]: Failed to setup GPIO output on pin 25 - running in SIMULATION mode[0m
+[ros2_control_node-1] [0m[INFO] [1772042036.332551110] [LEDHardwareInterface]: LED hardware configured (SIMULATION)[0m
+[ros2_control_node-1] [0m[INFO] [1772042036.332566214] [resource_manager]: Successful 'configure' of hardware 'status_led'[0m
+[ros2_control_node-1] [0m[INFO] [1772042036.332579206] [resource_manager]: 'activate' hardware 'status_led' [0m
+[ros2_control_node-1] [0m[INFO] [1772042036.332587847] [LEDHardwareInterface]: Activating LED hardware...[0m
+[ros2_control_node-1] [0m[INFO] [1772042036.332596999] [resource_manager]: Successful 'activate' of hardware 'status_led'[0m
+[ros2_control_node-1] [0m[INFO] [1772042036.332605927] [resource_manager]: 'configure' hardware 'rmd' [0m
+[ros2_control_node-1] [0m[INFO] [1772042036.344727181] [resource_manager]: Successful 'configure' of hardware 'rmd'[0m
+[ros2_control_node-1] [0m[INFO] [1772042036.348238996] [resource_manager]: 'activate' hardware 'rmd' [0m
+[ros2_control_node-1] [0m[INFO] [1772042036.349124670] [RMDHardwareInterface]: Activating ...please wait...[0m
+[ros2_control_node-1] [0m[INFO] [1772042036.349423906] [RMDHardwareInterface]: Successfully activated![0m
+[ros2_control_node-1] [0m[INFO] [1772042036.349452802] [resource_manager]: Successful 'activate' of hardware 'rmd'[0m
+[ros2_control_node-1] [0m[INFO] [1772042036.349475874] [resource_manager]: 'configure' hardware 'odrive' [0m
+[ros2_control_node-1] [0m[INFO] [1772042036.349736357] [ODriveHardwareInterface]: Initialized SocketCAN on can0[0m
+[ros2_control_node-1] [0m[INFO] [1772042036.349757989] [resource_manager]: Successful 'configure' of hardware 'odrive'[0m
+[ros2_control_node-1] [0m[INFO] [1772042036.349774757] [resource_manager]: 'activate' hardware 'odrive' [0m
+[ros2_control_node-1] [0m[INFO] [1772042036.349781765] [ODriveHardwareInterface]: activating ODrives...[0m
+[ros2_control_node-1] [0m[INFO] [1772042036.349797446] [ODriveHardwareInterface]: No control mode specified. Setting to idle.[0m
+[ros2_control_node-1] [0m[INFO] [1772042036.349845958] [ODriveHardwareInterface]: No control mode specified. Setting to idle.[0m
+[ros2_control_node-1] [0m[INFO] [1772042036.349872358] [resource_manager]: Successful 'activate' of hardware 'odrive'[0m
+[zed_tf_publisher_node-4] [0m[INFO] [1772042036.401707046] [zed_tf_publisher]: Cached static transform zed_camera_center -> base_footprint. Node ready.[0m
+[lifecycle_manager-16] [0m[INFO] [1772042036.753862702] [lifecycle_manager_navigation]: [34m[1mStarting managed nodes bringup...[0m[0m[0m
+[lifecycle_manager-16] [0m[INFO] [1772042036.762413197] [lifecycle_manager_navigation]: [34m[1mConfiguring controller_server[0m[0m[0m
+[controller_server-9] [0m[INFO] [1772042036.766316120] [controller_server]: Configuring controller interface[0m
+[controller_server-9] [0m[INFO] [1772042036.766742045] [controller_server]: getting goal checker plugins..[0m
+[controller_server-9] [0m[INFO] [1772042036.767017984] [controller_server]: Controller frequency set to 20.0000Hz[0m
+[controller_server-9] [0m[INFO] [1772042036.767101537] [local_costmap.local_costmap]: Configuring[0m
+[controller_server-9] [0m[INFO] [1772042036.784226271] [local_costmap.local_costmap]: Using plugin "obstacle_layer"[0m
+[controller_server-9] [0m[INFO] [1772042036.813723718] [local_costmap.local_costmap]: Subscribed to Topics: obstacles[0m
+[controller_server-9] [0m[INFO] [1772042036.863294829] [local_costmap.local_costmap]: Initialized plugin "obstacle_layer"[0m
+[controller_server-9] [0m[INFO] [1772042036.866058188] [local_costmap.local_costmap]: Using plugin "inflation_layer"[0m
+[controller_server-9] [0m[INFO] [1772042036.877157319] [local_costmap.local_costmap]: Initialized plugin "inflation_layer"[0m
+[controller_server-9] [0m[INFO] [1772042036.901353332] [controller_server]: Created progress_checker : progress_checker of type nav2_controller::SimpleProgressChecker[0m
+[controller_server-9] [0m[INFO] [1772042036.908519715] [controller_server]: Created goal checker : general_goal_checker of type nav2_controller::SimpleGoalChecker[0m
+[controller_server-9] [0m[INFO] [1772042036.910757756] [controller_server]: Controller Server has general_goal_checker  goal checkers available.[0m
+[controller_server-9] [0m[INFO] [1772042036.912435119] [controller_server]: Created controller : FollowPath of type nav2_regulated_pure_pursuit_controller::RegulatedPurePursuitController[0m
+[controller_server-9] [0m[INFO] [1772042036.943043715] [controller_server]: Controller Server has FollowPath  controllers available.[0m
+[lifecycle_manager-16] [0m[INFO] [1772042036.971653697] [lifecycle_manager_navigation]: [34m[1mConfiguring smoother_server[0m[0m[0m
+[smoother_server-10] [0m[INFO] [1772042036.972272807] [smoother_server]: Configuring smoother server[0m
+[smoother_server-10] [0m[INFO] [1772042037.009463941] [smoother_server]: Created smoother : simple_smoother of type nav2_smoother::SimpleSmoother[0m
+[smoother_server-10] [0m[INFO] [1772042037.019416660] [smoother_server]: Smoother Server has simple_smoother  smoothers available.[0m
+[lifecycle_manager-16] [0m[INFO] [1772042037.049471491] [lifecycle_manager_navigation]: [34m[1mConfiguring planner_server[0m[0m[0m
+[planner_server-11] [0m[INFO] [1772042037.049999688] [planner_server]: Configuring[0m
+[planner_server-11] [0m[INFO] [1772042037.050096458] [global_costmap.global_costmap]: Configuring[0m
+[planner_server-11] [0m[INFO] [1772042037.068592120] [global_costmap.global_costmap]: Using plugin "obstacle_layer"[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.067964881] [zed.zed_container]: Load Library: /home/umdloop/athena-code/install/zed_components/lib/libzed_camera_component.so[0m
+[planner_server-11] [0m[INFO] [1772042037.090920752] [global_costmap.global_costmap]: Subscribed to Topics: obstacles[0m
+[planner_server-11] [0m[INFO] [1772042037.177118929] [global_costmap.global_costmap]: Initialized plugin "obstacle_layer"[0m
+[planner_server-11] [0m[INFO] [1772042037.179275881] [global_costmap.global_costmap]: Using plugin "inflation_layer"[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.198040058] [zed.zed_container]: Found class: rclcpp_components::NodeFactoryTemplate<stereolabs::ZedCamera>[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.200622295] [zed.zed_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<stereolabs::ZedCamera>[0m
+[planner_server-11] [0m[INFO] [1772042037.221061275] [global_costmap.global_costmap]: Initialized plugin "inflation_layer"[0m
+[planner_server-11] [0m[INFO] [1772042037.307121658] [planner_server]: Created global planner plugin GridBased of type nav2_smac_planner/SmacPlannerHybrid[0m
+[planner_server-11] [0m[INFO] [1772042037.307255387] [planner_server]: Configuring GridBased of type SmacPlannerHybrid[0m
+[planner_server-11] [0m[INFO] [1772042037.329255025] [planner_server]: Even sized heuristic lookup table size set 200.000000, increasing size by 1 to make odd[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.413863872] [zed.zed_node]: ================================[0m
+[INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/zed/zed_node' in container '/zed/zed_container'
+[component_container_isolated-5] [0m[INFO] [1772042037.413980833] [zed.zed_node]:       ZED Camera Component [0m
+[component_container_isolated-5] [0m[INFO] [1772042037.414009665] [zed.zed_node]: ================================[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.414023073] [zed.zed_node]:  * IPC: enabled[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.464315698] [zed.zed_node]:  * namespace: /zed[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.464458547] [zed.zed_node]:  * node name: zed_node[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.464480148] [zed.zed_node]: ================================[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.464495988] [zed.zed_node]: Starting node initialization...[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.464575157] [zed.zed_node]: === DEBUG parameters ===[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.465055098] [zed.zed_node]:  * SDK Verbose: 1[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.465351933] [zed.zed_node]:  * Use Pub Timestamps: FALSE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.465611104] [zed.zed_node]:  * SDK Verbose File: [0m
+[component_container_isolated-5] [0m[INFO] [1772042037.465849251] [zed.zed_node]:  * Debug Common: FALSE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.466079142] [zed.zed_node]:  * Debug Grab (low level): FALSE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.466308424] [zed.zed_node]:  * Debug Simulation: FALSE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.466546635] [zed.zed_node]:  * Debug Video/Depth: FALSE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.466778957] [zed.zed_node]:  * Debug Control settings: FALSE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.467017968] [zed.zed_node]:  * Debug Point Cloud: FALSE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.467254835] [zed.zed_node]:  * Debug TF: FALSE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.467486421] [zed.zed_node]:  * Debug Positional Tracking: FALSE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.467720920] [zed.zed_node]:  * Debug GNSS: FALSE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.469011206] [zed.zed_node]:  * Debug sensors: FALSE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.471723268] [zed.zed_node]:  * Debug Mapping: FALSE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.473612570] [zed.zed_node]:  * Debug Object Detection: FALSE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.475344717] [zed.zed_node]:  * Debug Body Tracking: FALSE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.478045899] [zed.zed_node]:  * Debug Streaming: FALSE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.479827615] [zed.zed_node]:  * Debug ROI: FALSE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.481602931] [zed.zed_node]:  * Debug Nitros: FALSE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.484232592] [zed.zed_node]:  * Debug Advanced: FALSE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.484337809] [zed.zed_node]: === TOPIC selection parameters ===[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.486386568] [zed.zed_node]:  * Publish Status: TRUE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.488115035] [zed.zed_node]:  * Image format: BGRA 32-bit[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.489761965] [zed.zed_node]:  * Publish Left/Right images: FALSE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.491401376] [zed.zed_node]:  * Publish Raw images: FALSE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.493060754] [zed.zed_node]:  * Publish Gray images: FALSE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.494863686] [zed.zed_node]:  * Publish RGB image: TRUE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.496944350] [zed.zed_node]:  * Publish Stereo image: FALSE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.498587472] [zed.zed_node]:  * Publish ROI Mask image: FALSE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.500167073] [zed.zed_node]:  * Publish Depth Map: TRUE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.501805492] [zed.zed_node]:  * Publish Depth Info: FALSE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.503477222] [zed.zed_node]:  * Publish Point Cloud: TRUE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.505115513] [zed.zed_node]:  * Publish Depth Confidence: FALSE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.507296881] [zed.zed_node]:  * Publish Disparity: FALSE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.508932547] [zed.zed_node]:  * Publish IMU: TRUE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.510524853] [zed.zed_node]:  * Publish IMU Raw: FALSE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.512161639] [zed.zed_node]:  * Publish LeftCam/IMU Transf.: FALSE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.513738265] [zed.zed_node]:  * Publish Magnetometer: FALSE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.515299370] [zed.zed_node]:  * Publish Barometer: FALSE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.516783259] [zed.zed_node]:  * Publish Temperature: FALSE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.518456429] [zed.zed_node]:  * Publish Odometry/Pose: TRUE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.520064191] [zed.zed_node]:  * Publish Pose with Covariance: FALSE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.521680465] [zed.zed_node]:  * Publish Camera Path: FALSE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.523345188] [zed.zed_node]:  * Publish Detection Plane: FALSE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.524940246] [zed.zed_node]: === SVO INPUT parameters ===[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.526508359] [zed.zed_node]: === LOCAL STREAMING parameters ===[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.528151225] [zed.zed_node]: === GENERAL parameters ===[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.529977422] [zed.zed_node]:  * Camera model: zed2i - ZED 2i[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.531576704] [zed.zed_node]:  * Camera name: zed[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.533201522] [zed.zed_node]:  * Camera SN: 0[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.534780899] [zed.zed_node]:  * Camera ID: -1[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.536456246] [zed.zed_node]:  * Camera timeout [sec]: 5[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.538015591] [zed.zed_node]:  * Camera reconnection temptatives: 5[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.539570169] [zed.zed_node]:  * Camera framerate: 15[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.541184235] [zed.zed_node]:  * GPU ID: -1[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.542789564] [zed.zed_node]:  * Asynchronous image retrieval: FALSE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.544782547] [zed.zed_node]:  * Image Validity Check: 1[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.546466757] [zed.zed_node]:  * Camera resolution: HD1080[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.548556765] [zed.zed_node]:  * Publishing resolution: CUSTOM[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.550434418] [zed.zed_node]:  * Publishing downscale factor: 2[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.552156229] [zed.zed_node]:  * OpenCV custom calibration: [0m
+[component_container_isolated-5] [0m[INFO] [1772042037.553842680] [zed.zed_node]:  * Camera self calibration: TRUE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.555456010] [zed.zed_node]:  * Camera flip: FALSE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.557138620] [zed.zed_node]:  * Publish framerate [Hz]:  15[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.557229309] [zed.zed_node]: === VIDEO parameters ===[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.559107186] [zed.zed_node]:  * Brightness: 4 [DYNAMIC][0m
+[component_container_isolated-5] [0m[INFO] [1772042037.560700804] [zed.zed_node]:  * Contrast: 4 [DYNAMIC][0m
+[component_container_isolated-5] [0m[INFO] [1772042037.562552025] [zed.zed_node]:  * Hue: 0 [DYNAMIC][0m
+[component_container_isolated-5] [0m[INFO] [1772042037.564221195] [zed.zed_node]:  * Saturation: 4 [DYNAMIC][0m
+[component_container_isolated-5] [0m[INFO] [1772042037.565804605] [zed.zed_node]:  * Sharpness: 4 [DYNAMIC][0m
+[component_container_isolated-5] [0m[INFO] [1772042037.567472784] [zed.zed_node]:  * Gamma: 8 [DYNAMIC][0m
+[component_container_isolated-5] [0m[INFO] [1772042037.569366597] [zed.zed_node]:  * Auto Exposure/Gain: TRUE [DYNAMIC][0m
+[component_container_isolated-5] [0m[INFO] [1772042037.571015479] [zed.zed_node]:  * Exposure: 80 [DYNAMIC][0m
+[component_container_isolated-5] [0m[INFO] [1772042037.572744650] [zed.zed_node]:  * Gain: 80 [DYNAMIC][0m
+[component_container_isolated-5] [0m[INFO] [1772042037.574363772] [zed.zed_node]:  * Auto White Balance: TRUE [DYNAMIC][0m
+[component_container_isolated-5] [0m[INFO] [1772042037.576077647] [zed.zed_node]:  * White Balance Temperature: 42 [DYNAMIC][0m
+[component_container_isolated-5] [0m[INFO] [1772042037.576157488] [zed.zed_node]: === DEPTH parameters ===[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.577966437] [zed.zed_node]:  * Depth mode: NEURAL [5][0m
+[component_container_isolated-5] [0m[INFO] [1772042037.579658423] [zed.zed_node]:  * Min depth [m]: 0.01[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.581328298] [zed.zed_node]:  * Max depth [m]: 15[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.583022045] [zed.zed_node]:  * Depth Stabilization: 30[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.584695696] [zed.zed_node]:  * OpenNI mode (16bit depth): FALSE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.586404131] [zed.zed_node]:  * Point cloud rate [Hz]: 10[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.588082965] [zed.zed_node]:  * Point cloud resolution: COMPACT[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.589770920] [zed.zed_node]:  * Depth Confidence: 95 [DYNAMIC][0m
+[component_container_isolated-5] [0m[INFO] [1772042037.591384826] [zed.zed_node]:  * Depth Texture Confidence: 100 [DYNAMIC][0m
+[component_container_isolated-5] [0m[INFO] [1772042037.593110125] [zed.zed_node]:  * Remove saturated areas: TRUE [DYNAMIC][0m
+[component_container_isolated-5] [0m[INFO] [1772042037.593182062] [zed.zed_node]: === GNSS FUSION parameters ===[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.594922497] [zed.zed_node]:  * GNSS fusion enabled: TRUE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.596956504] [zed.zed_node]:  * GNSS topic name: /gps/fix[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.598614795] [zed.zed_node]:  * GNSS Reinitialization: FALSE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.600256637] [zed.zed_node]:  * GNSS Rolling Calibration: TRUE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.601880111] [zed.zed_node]:  * GNSS Transl. Uncert. Target: FALSE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.603673891] [zed.zed_node]:  * GNSS VIO Reinit. Thresh.: 5[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.606626084] [zed.zed_node]:  * GNSS Target Transl. Uncert.: 0.1[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.608481337] [zed.zed_node]:  * GNSS Target Yaw Uncert.: 0.1[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.610321677] [zed.zed_node]:  * GNSS Zero Altitude: FALSE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.612134241] [zed.zed_node]:  * Horiz. Covariance mult.: 1[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.613916597] [zed.zed_node]:  * Vert. Covariance mult.: 1[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.615581256] [zed.zed_node]:  * Publish UTM TF: FALSE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.617259706] [zed.zed_node]:  * Publish UTM TF as parent of 'map': FALSE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.617336635] [zed.zed_node]: === POSITIONAL TRACKING parameters ===[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.619066767] [zed.zed_node]:  * Positional tracking enabled: TRUE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.620825826] [zed.zed_node]:  * Positional tracking mode: GEN 3[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.622535061] [zed.zed_node]:  * Map frame id: map[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.624239016] [zed.zed_node]:  * Odometry frame id: odom[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.625891483] [zed.zed_node]:  * Broadcast Odometry TF: FALSE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.627748271] [zed.zed_node]:  * Depth minimum range: 0[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.629749414] [zed.zed_node]:  * TF timestamp offset: 0 [DYNAMIC][0m
+[component_container_isolated-5] [0m[INFO] [1772042037.631615002] [zed.zed_node]:  * Path publishing rate: 2 [DYNAMIC][0m
+[component_container_isolated-5] [0m[INFO] [1772042037.634382201] [zed.zed_node]:  * Path history lenght: -1[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.636228366] [zed.zed_node]:  * Initial pose: [0,0,0,0,0,0,][0m
+[component_container_isolated-5] [0m[INFO] [1772042037.636304879] [zed.zed_node]:  * Area Memory: FALSE - Forced by GNSS usage[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.636325295] [zed.zed_node]:    Note: loop closure (Area Memory) is disabled when using GNSS fusion[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.638164355] [zed.zed_node]:  * Camera is static: FALSE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.639817974] [zed.zed_node]:  * Gravity as origin: TRUE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.641486952] [zed.zed_node]:  * IMU Fusion: TRUE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.643135515] [zed.zed_node]:  * Floor Alignment: FALSE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.648994364] [zed.zed_node]:  * Reset Odometry with Loop Closure: FALSE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.650852593] [zed.zed_node]:  * Publish 3D Landmarks: FALSE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.652679205] [zed.zed_node]:  * Publish Landmark Skip Frame: [0m
+[component_container_isolated-5] [0m[INFO] [1772042037.654336568] [zed.zed_node]:  * 2D mode: FALSE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.656168812] [zed.zed_node]:  * Reset pose with SVO loop: TRUE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.656283821] [zed.zed_node]: === Region of Interest parameters ===[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.658035681] [zed.zed_node]:  * Automatic ROI generation: TRUE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.659743444] [zed.zed_node]:  * Depth far threshold [m]: 2.5[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.661417191] [zed.zed_node]:  * Image Height Ratio Cut Off: 0.5[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.663291643] [zed.zed_node]:  * Apply to depth: TRUE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.665035535] [zed.zed_node]:  * Apply to positional tracking: TRUE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.666739714] [zed.zed_node]:  * Apply to object detection: TRUE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.668516758] [zed.zed_node]:  * Apply to body tracking: TRUE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.670164840] [zed.zed_node]:  * Apply to spatial mapping: TRUE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.670241705] [zed.zed_node]: === SENSORS STACK parameters ===[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.671912348] [zed.zed_node]:  * Broadcast IMU TF [not for ZED]: FALSE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.673617263] [zed.zed_node]:  * Sensors Camera Sync: FALSE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.675316865] [zed.zed_node]:  * Sensors publishing rate [Hz]: 100 [DYNAMIC][0m
+[component_container_isolated-5] [0m[INFO] [1772042037.675392450] [zed.zed_node]: === Spatial Mapping parameters ===[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.677153302] [zed.zed_node]:  * Spatial Mapping Enabled: FALSE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.678803656] [zed.zed_node]:  * Spatial Mapping resolution [m]: 0.05[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.681545127] [zed.zed_node]:  * 3D Max Mapping range [m]: 5[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.683211321] [zed.zed_node]:  * Map publishing rate [Hz]: 1 [DYNAMIC][0m
+[component_container_isolated-5] [0m[INFO] [1772042037.684747755] [zed.zed_node]:  * Clicked point topic: /clicked_point[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.686316220] [zed.zed_node]:  * Plane Det. Max Dist. Thresh.: 0.15[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.688262194] [zed.zed_node]:  * Plane Det. Normals Sim. Thresh.: 15[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.688388467] [zed.zed_node]: === OBJECT DETECTION parameters ===[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.690148935] [zed.zed_node]:  * Object Det. enabled: FALSE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.691919227] [zed.zed_node]:  * Object Det. allow reduced precision: FALSE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.693683790] [zed.zed_node]:  * Object Det. maximum range [m]: 20[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.695645924] [zed.zed_node]:  * Object Det. prediction timeout [sec]: 2[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.697246678] [zed.zed_node]:  * Object Det. tracking: TRUE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.699065930] [zed.zed_node]:  * Object Filtering mode: NMS3D[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.700786045] [zed.zed_node]:  * Object Det. model: MULTI CLASS BOX FAST[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.702504784] [zed.zed_node]:  * MultiClassBox people: TRUE [DYNAMIC][0m
+[component_container_isolated-5] [0m[INFO] [1772042037.704175011] [zed.zed_node]:  * MultiClassBox vehicles: TRUE [DYNAMIC][0m
+[component_container_isolated-5] [0m[INFO] [1772042037.705880534] [zed.zed_node]:  * MultiClassBox bags: TRUE [DYNAMIC][0m
+[component_container_isolated-5] [0m[INFO] [1772042037.707509416] [zed.zed_node]:  * MultiClassBox animals: TRUE [DYNAMIC][0m
+[component_container_isolated-5] [0m[INFO] [1772042037.709035737] [zed.zed_node]:  * MultiClassBox electronics: TRUE [DYNAMIC][0m
+[component_container_isolated-5] [0m[INFO] [1772042037.710616139] [zed.zed_node]:  * MultiClassBox fruits and vegetables: TRUE [DYNAMIC][0m
+[component_container_isolated-5] [0m[INFO] [1772042037.712224381] [zed.zed_node]:  * MultiClassBox sport-related objects: TRUE [DYNAMIC][0m
+[component_container_isolated-5] [0m[INFO] [1772042037.713822767] [zed.zed_node]:  * MultiClassBox people confidence: 65 [DYNAMIC][0m
+[component_container_isolated-5] [0m[INFO] [1772042037.715424768] [zed.zed_node]:  * MultiClassBox vehicles confidence: 60 [DYNAMIC][0m
+[component_container_isolated-5] [0m[INFO] [1772042037.717353558] [zed.zed_node]:  * MultiClassBox bags confidence: 40 [DYNAMIC][0m
+[component_container_isolated-5] [0m[INFO] [1772042037.719155562] [zed.zed_node]:  * MultiClassBox animals confidence: 40 [DYNAMIC][0m
+[component_container_isolated-5] [0m[INFO] [1772042037.720897917] [zed.zed_node]:  * MultiClassBox electronics confidence: 45 [DYNAMIC][0m
+[component_container_isolated-5] [0m[INFO] [1772042037.722768978] [zed.zed_node]:  * MultiClassBox fruits and vegetables confidence: 50 [DYNAMIC][0m
+[component_container_isolated-5] [0m[INFO] [1772042037.724725928] [zed.zed_node]:  * MultiClassBox sport-related objects confidence: 30 [DYNAMIC][0m
+[component_container_isolated-5] [0m[INFO] [1772042037.724821673] [zed.zed_node]: === Body Track. parameters ===[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.727071202] [zed.zed_node]:  * Body Track. enabled: FALSE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.729270075] [zed.zed_node]:  * Body Track. model: HUMAN BODY MEDIUM[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.731164816] [zed.zed_node]:  * Body Track. format: BODY 38[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.733179846] [zed.zed_node]:  * Body Track. allow reduced precision: FALSE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.735271294] [zed.zed_node]:  * Body Track. maximum range [m]: 15[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.737252500] [zed.zed_node]:  * Body Track. KP selection: FULL[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.739354827] [zed.zed_node]:  * Body fitting: FALSE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.741436546] [zed.zed_node]:  * Body joints tracking: TRUE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.743425465] [zed.zed_node]:  * Body Track. prediction timeout [sec]: 0.5[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.745637745] [zed.zed_node]:  * Body Track. confidence thresh.: 50 [DYNAMIC][0m
+[component_container_isolated-5] [0m[INFO] [1772042037.748389232] [zed.zed_node]:  * Body Track. min. KP thresh.: 5 [DYNAMIC][0m
+[component_container_isolated-5] [0m[INFO] [1772042037.748468177] [zed.zed_node]: === STREAMING SERVER parameters ===[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.750406694] [zed.zed_node]:  * Streaming Server enabled: FALSE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.752911554] [zed.zed_node]:  * Stream codec: H265[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.767030080] [zed.zed_node]:  * Stream port: 30000[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.770275172] [zed.zed_node]:  * Stream bitrate: 12500[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.772654782] [zed.zed_node]:  * Stream GOP size: -1[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.774759350] [zed.zed_node]:  * Stream Chunk size: 16084[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.776929742] [zed.zed_node]:  * Adaptive bitrate: FALSE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.778898020] [zed.zed_node]:  * Target frame rate:0[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.778976869] [zed.zed_node]: === ADVANCED parameters ===[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.781039644] [zed.zed_node]:  * Change thread priority: FALSE[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.781229214] [zed.zed_node]: === SERVICES ===[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.786511001] [zed.zed_node]:  * Advertised on service: '/zed/zed_node/reset_odometry'[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.791605201] [zed.zed_node]:  * Advertised on service: '/zed/zed_node/reset_pos_tracking'[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.797977336] [zed.zed_node]:  * Advertised on service: '/zed/zed_node/set_pose'[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.802225032] [zed.zed_node]:  * Advertised on service: '/zed/zed_node/save_area_memory'[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.810633702] [zed.zed_node]:  * Advertised on service: '/zed/zed_node/enable_obj_det'[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.814219790] [zed.zed_node]:  * Advertised on service: '/zed/zed_node/enable_body_trk'[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.817398097] [zed.zed_node]:  * Advertised on service: '/zed/zed_node/enable_mapping'[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.821904291] [zed.zed_node]:  * Advertised on service: '/zed/zed_node/enable_streaming'[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.825636909] [zed.zed_node]:  * Advertised on service: '/zed/zed_node/start_svo_rec'[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.828289898] [zed.zed_node]:  * Advertised on service: '/zed/zed_node/stop_svo_rec'[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.831489614] [zed.zed_node]:  * Advertised on service: '/zed/zed_node/set_roi'[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.834653457] [zed.zed_node]:  * Advertised on service: '/zed/zed_node/reset_roi'[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.840706997] [zed.zed_node]:  * Advertised on service: '/zed/zed_node/toLL'[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.844139259] [zed.zed_node]:  * Advertised on service: '/zed/zed_node/fromLL'[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.844258300] [zed.zed_node]: === STARTING CAMERA ===[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.844517631] [zed.zed_node]: ZED SDK Version: 5.2.0 - Build 110529_227f4589_2898479[0m
+[component_container_isolated-5] [0m[INFO] [1772042037.871932977] [zed.zed_node]: === CAMERA OPENING ===[0m
+[athena_gps-6] [0m[INFO] [1772042037.902130881] [athena_gps]: Connection added at serial:///dev/ttyACM0:57600, waiting for system...[0m
+[athena_gps-6] [0m[INFO] [1772042037.902253699] [athena_gps]: Waiting for Pixhawk system to appear at serial:///dev/ttyACM0:57600...[0m
+[athena_gps-6] [32m[12:53:57|Debug] [0mComponent Autopilot (component ID: 1) added. (system_impl.cpp:496)
+[athena_gps-6] [32m[12:53:57|Debug] [0mDiscovered 1 component (system_impl.cpp:616)
+[athena_gps-6] [32m[12:53:57|Debug] [0mComponent Unsupported component (component ID: 68) added. (system_impl.cpp:496)
+[gps_goal_server-8] [0m[INFO] [1772042037.930490813] [gps_goal_server]: GPS Goal Server starting — waiting for first fix on "gps/fix" to set ENU origin[0m
+[gps_goal_server-8] [0m[INFO] [1772042037.931311782] [gps_goal_server]: map_frame="map", robot_frame="base_link", heading_topic="heading"[0m
+[gps_goal_server-8] [0m[INFO] [1772042037.948680072] [gps_goal_server]: Subscribed to GPS topic: "gps/fix"[0m
+[gps_goal_server-8] [0m[INFO] [1772042037.953076665] [gps_goal_server]: Subscribed to heading topic: "heading"[0m
+[gps_goal_server-8] [0m[INFO] [1772042037.991084801] [gps_goal_server]: GPS Goal Action Server ready[0m
+[component_container_isolated-5] [2026-02-25 12:53:58 UTC][ZED][INFO] Logging level INFO
+[athena_gps-6] [0m[INFO] [1772042039.957863150] [athena_gps]: Telemetry rates configured successfully[0m
+[athena_gps-6] [0m[INFO] [1772042039.958078224] [athena_gps]: Pixhawk GPS node initialized successfully[0m
+[component_container_isolated-5] [2026-02-25 12:54:00 UTC][ZED][INFO] [Init]  Camera successfully opened.
+[component_container_isolated-5] [2026-02-25 12:54:00 UTC][ZED][INFO] [Init]  Camera FW version: 1523
+[component_container_isolated-5] [2026-02-25 12:54:00 UTC][ZED][INFO] [Init]  Video mode: HD1080@15
+[component_container_isolated-5] [2026-02-25 12:54:00 UTC][ZED][INFO] [Init]  Serial Number: S/N 31965653
+[component_container_isolated-5] [2026-02-25 12:54:00 UTC][ZED][INFO] [Init]  Depth mode selected: NEURAL. Ensure this mode matches your application's performance and accuracy requirements. See https://www.stereolabs.com/docs/depth-sensing/depth-modes for help.
+[gps_goal_server-8] [0m[INFO] [1772042040.563535183] [gps_goal_server]: ENU origin set from first GPS fix: lat=0.000000, lon=0.000000, alt=0.00 m[0m
+[component_container_isolated-5] [0m[INFO] [1772042040.669290390] [zed.zed_node]:  * ZED SDK running on GPU #0[0m
+[component_container_isolated-5] [0m[INFO] [1772042040.669496952] [zed.zed_node]:  * Camera Model  -> ZED 2i[0m
+[component_container_isolated-5] [0m[INFO] [1772042040.669529784] [zed.zed_node]:  * Serial Number -> 31965653[0m
+[component_container_isolated-5] [0m[INFO] [1772042040.669704314] [zed.zed_node]:  * Focal Length	-> 3.81922 mm[0m
+[component_container_isolated-5] [0m[INFO] [1772042040.669755035] [zed.zed_node]:  * Input	-> USB[0m
+[component_container_isolated-5] [0m[INFO] [1772042040.669783771] [zed.zed_node]:  * Camera FW Version  -> 1523[0m
+[component_container_isolated-5] [0m[INFO] [1772042040.669802203] [zed.zed_node]:  * Sensors FW Version -> 777[0m
+[component_container_isolated-5] [0m[INFO] [1772042040.669822940] [zed.zed_node]:  * Camera grab size -> 1920x1080[0m
+[component_container_isolated-5] [0m[INFO] [1772042040.669839644] [zed.zed_node]:  * Color/Depth publishing size -> 960x540[0m
+[component_container_isolated-5] [0m[INFO] [1772042040.669887036] [zed.zed_node]:  * Point Cloud publishing size -> 448x256[0m
+[component_container_isolated-5] [0m[INFO] [1772042040.669978237] [zed.zed_node]: === Enabling Automatic ROI ===[0m
+[component_container_isolated-5] [0m[INFO] [1772042040.670960648] [zed.zed_node]:  * Automatic Region of Interest generation started.[0m
+[component_container_isolated-5] [0m[INFO] [1772042040.671026217] [zed.zed_node]: === TF FRAMES ===[0m
+[component_container_isolated-5] [0m[INFO] [1772042040.671050057] [zed.zed_node]:  * Map			-> map[0m
+[component_container_isolated-5] [0m[INFO] [1772042040.671066122] [zed.zed_node]:  * Odometry		-> odom[0m
+[component_container_isolated-5] [0m[INFO] [1772042040.671090058] [zed.zed_node]:  * Base			-> zed_camera_link[0m
+[component_container_isolated-5] [0m[INFO] [1772042040.671137290] [zed.zed_node]:  * Camera		-> zed_camera_center[0m
+[component_container_isolated-5] [0m[INFO] [1772042040.671151627] [zed.zed_node]:  * Left			-> zed_left_camera_frame[0m
+[component_container_isolated-5] [0m[INFO] [1772042040.671165003] [zed.zed_node]:  * Left Optical		-> zed_left_camera_frame_optical[0m
+[component_container_isolated-5] [0m[INFO] [1772042040.671178315] [zed.zed_node]:  * Right		-> zed_right_camera_frame[0m
+[component_container_isolated-5] [0m[INFO] [1772042040.671192651] [zed.zed_node]:  * Right Optical	-> zed_right_camera_frame_optical[0m
+[component_container_isolated-5] [0m[INFO] [1772042040.671206219] [zed.zed_node]:  * Depth		-> zed_left_camera_frame[0m
+[component_container_isolated-5] [0m[INFO] [1772042040.671228395] [zed.zed_node]:  * Depth Optical	-> zed_left_camera_frame_optical[0m
+[component_container_isolated-5] [0m[INFO] [1772042040.671242668] [zed.zed_node]:  * Point Cloud		-> zed_left_camera_frame[0m
+[component_container_isolated-5] [0m[INFO] [1772042040.671255532] [zed.zed_node]:  * IMU			-> zed_imu_link[0m
+[component_container_isolated-5] [0m[INFO] [1772042040.671268524] [zed.zed_node]:  * Barometer		-> zed_camera_center[0m
+[component_container_isolated-5] [0m[INFO] [1772042040.671280844] [zed.zed_node]:  * Magnetometer		-> zed_imu_link[0m
+[component_container_isolated-5] [0m[INFO] [1772042040.671292876] [zed.zed_node]:  * Left Temperature	-> zed_left_camera_frame[0m
+[component_container_isolated-5] [0m[INFO] [1772042040.671337869] [zed.zed_node]:  * Right Temperature	-> zed_right_camera_frame[0m
+[component_container_isolated-5] [0m[INFO] [1772042040.671460910] [zed.zed_node]: === PUBLISHED TOPICS ===[0m
+[component_container_isolated-5] [0m[INFO] [1772042040.683739896] [zed.zed_node]:  * Advertised on topic: /zed/zed_node/status/health[0m
+[component_container_isolated-5] [0m[INFO] [1772042040.691186508] [zed.zed_node]:  * Advertised on topic: /zed/zed_node/status/heartbeat[0m
+[component_container_isolated-5] [0m[INFO] [1772042040.924195723] [zed.zed_node]:  * Advertised on topic: /zed/zed_node/rgb/color/rect/image[0m
+[component_container_isolated-5] [0m[INFO] [1772042040.928290266] [zed.zed_node]:  * Advertised on topic: /zed/zed_node/rgb/color/rect/image/compressedDepth [image_transport][0m
+[component_container_isolated-5] [0m[INFO] [1772042040.928357594] [zed.zed_node]:  * Advertised on topic: /zed/zed_node/rgb/color/rect/image/compressed [image_transport][0m
+[component_container_isolated-5] [0m[INFO] [1772042040.928645790] [zed.zed_node]:  * Advertised on topic: /zed/zed_node/rgb/color/rect/image/raw [image_transport][0m
+[component_container_isolated-5] [0m[INFO] [1772042040.928692126] [zed.zed_node]:  * Advertised on topic: /zed/zed_node/rgb/color/rect/image/theora [image_transport][0m
+[component_container_isolated-5] [0m[INFO] [1772042040.945559644] [zed.zed_node]:  * Advertised on topic: /zed/zed_node/depth/depth_registered[0m
+[component_container_isolated-5] [0m[INFO] [1772042040.945755454] [zed.zed_node]:  * Advertised on topic: /zed/zed_node/depth/depth_registered/compressedDepth [image_transport][0m
+[component_container_isolated-5] [0m[INFO] [1772042040.945786751] [zed.zed_node]:  * Advertised on topic: /zed/zed_node/depth/depth_registered/compressed [image_transport][0m
+[component_container_isolated-5] [0m[INFO] [1772042040.945804479] [zed.zed_node]:  * Advertised on topic: /zed/zed_node/depth/depth_registered/raw [image_transport][0m
+[component_container_isolated-5] [0m[INFO] [1772042040.945861887] [zed.zed_node]:  * Advertised on topic: /zed/zed_node/depth/depth_registered/theora [image_transport][0m
+[component_container_isolated-5] [0m[INFO] [1772042040.947816629] [zed.zed_node]:  * Advertised on topic: /zed/zed_node/rgb/color/rect/camera_info[0m
+[component_container_isolated-5] [0m[INFO] [1772042040.949746731] [zed.zed_node]:  * Advertised on topic: /zed/zed_node/rgb/color/rect/image/camera_info[0m
+[component_container_isolated-5] [0m[INFO] [1772042040.951179515] [zed.zed_node]:  * Advertised on topic: /zed/zed_node/depth/camera_info[0m
+[component_container_isolated-5] [0m[INFO] [1772042040.952625612] [zed.zed_node]:  * Advertised on topic: /zed/zed_node/depth/depth_registered/camera_info[0m
+[component_container_isolated-5] [0m[INFO] [1772042040.956905948] [zed.zed_node]:  * Advertised on topic: /zed/zed_node/point_cloud/cloud_registered[0m
+[component_container_isolated-5] [0m[INFO] [1772042040.960763431] [zed.zed_node]:  * Advertised on topic: /zed/zed_node/pose[0m
+[component_container_isolated-5] [0m[INFO] [1772042040.964538994] [zed.zed_node]:  * Advertised on topic: /zed/zed_node/pose/status[0m
+[component_container_isolated-5] [0m[INFO] [1772042040.969732012] [zed.zed_node]:  * Advertised on topic: /zed/zed_node/odom[0m
+[component_container_isolated-5] [0m[INFO] [1772042040.980604615] [zed.zed_node]: Advertised on topic (GNSS): /zed/zed_node/pose/filtered[0m
+[component_container_isolated-5] [0m[INFO] [1772042040.989004613] [zed.zed_node]:  * Advertised on topic: /zed/zed_node/pose/filtered/status[0m
+[INFO] [spawner-17]: process started with pid [32307]
+[component_container_isolated-5] [0m[INFO] [1772042040.997403620] [zed.zed_node]: Advertised on topic (GNSS): /zed/zed_node/geo_pose[0m
+[component_container_isolated-5] [0m[INFO] [1772042041.005458718] [zed.zed_node]: Advertised on topic (GNSS): /zed/zed_node/geo_pose/status[0m
+[component_container_isolated-5] [0m[INFO] [1772042041.013590074] [zed.zed_node]: Advertised on topic (GNSS): /zed/zed_node/pose/fused_fix[0m
+[component_container_isolated-5] [0m[INFO] [1772042041.021491411] [zed.zed_node]: Advertised on topic (GNSS origin): /zed/zed_node/pose/origin_fix[0m
+[component_container_isolated-5] [0m[INFO] [1772042041.030913630] [zed.zed_node]:  * Advertised on topic: /zed/zed_node/imu/data[0m
+[component_container_isolated-5] [0m[INFO] [1772042041.031300130] [zed.zed_node]: Camera-IMU Translation: 
+[component_container_isolated-5]  -0.002 -0.023061 0.000217[0m
+[component_container_isolated-5] [0m[INFO] [1772042041.031405155] [zed.zed_node]: Camera-IMU Rotation:
+[component_container_isolated-5] FFFF5FC5BE28
+[component_container_isolated-5] 0.999981 0.004799 -0.003765
+[component_container_isolated-5] -0.004805 0.999987 -0.001493
+[component_container_isolated-5] 0.003757 0.001511 0.999992
+[component_container_isolated-5] [0m
+[component_container_isolated-5] [0m[INFO] [1772042041.031440900] [zed.zed_node]: === Subscribers ===[0m
+[component_container_isolated-5] [0m[INFO] [1772042041.038782359] [zed.zed_node]:  * Plane detection: '/clicked_point'[0m
+[component_container_isolated-5] [0m[INFO] [1772042041.044833435] [zed.zed_node]:  * GNSS Fix: '/gps/fix'[0m
+[component_container_isolated-5] [0m[INFO] [1772042041.289719177] [zed.zed_node]: === Initialize GNSS Offset ===[0m
+[ros2_control_node-1] [0m[INFO] [1772042041.767527999] [controller_manager]: Loading controller 'joint_state_broadcaster'[0m
+[spawner-17] [0m[INFO] [1772042041.896590128] [spawner_joint_state_broadcaster]: [94mLoaded [1mjoint_state_broadcaster[0m[0m
+[ros2_control_node-1] [0m[INFO] [1772042041.902618037] [controller_manager]: Configuring controller 'joint_state_broadcaster'[0m
+[ros2_control_node-1] [0m[INFO] [1772042041.903249852] [joint_state_broadcaster]: 'joints' or 'interfaces' parameter is empty. All available state interfaces will be published[0m
+[spawner-17] [0m[INFO] [1772042041.998032330] [spawner_joint_state_broadcaster]: [92mConfigured and activated [1mjoint_state_broadcaster[0m[0m
+[component_container_isolated-5] [2026-02-25 12:54:02 UTC][ZED][INFO] Fusion Logging level INFO
+[component_container_isolated-5] [0m[INFO] [1772042042.297803824] [zed.zed_node]: === GNSS subscriber ===[0m
+[component_container_isolated-5] [0m[INFO] [1772042042.297926065] [zed.zed_node]:  * First message received. GNSS Sender active.[0m
+[component_container_isolated-5] [0m[INFO] [1772042042.297956497] [zed.zed_node]:  * Service: GPS [0m
+[component_container_isolated-5] [0m[INFO] [1772042042.319262179] [zed.zed_node]: === Starting Positional Tracking ===[0m
+[component_container_isolated-5] [0m[INFO] [1772042042.319452677] [zed.zed_node]:  * Waiting for valid static transformations...[0m
+[component_container_isolated-5] [0m[INFO] [1772042042.319597767] [zed.zed_node]:  Static transform ref. CMOS Sensor to Base [zed_left_camera_frame -> zed_camera_link][0m
+[component_container_isolated-5] [0m[INFO] [1772042042.319651239] [zed.zed_node]:   * Translation: {0.010,-0.060,-0.015}[0m
+[component_container_isolated-5] [0m[INFO] [1772042042.319676583] [zed.zed_node]:   * Rotation: {0.000,-0.000,0.000}[0m
+[component_container_isolated-5] [0m[INFO] [1772042042.319723368] [zed.zed_node]:  Static transform ref. CMOS Sensor to Camera Center [zed_left_camera_frame -> zed_camera_center][0m
+[component_container_isolated-5] [0m[INFO] [1772042042.319743240] [zed.zed_node]:   * Translation: {0.010,-0.060,0.000}[0m
+[component_container_isolated-5] [0m[INFO] [1772042042.319759048] [zed.zed_node]:   * Rotation: {0.000,-0.000,0.000}[0m
+[component_container_isolated-5] [0m[INFO] [1772042042.319893610] [zed.zed_node]:  Static transform Camera Center to Base [zed_camera_center -> zed_camera_link][0m
+[component_container_isolated-5] [0m[INFO] [1772042042.319927498] [zed.zed_node]:   * Translation: {0.000,0.000,-0.015}[0m
+[component_container_isolated-5] [0m[INFO] [1772042042.319945706] [zed.zed_node]:   * Rotation: {0.000,-0.000,0.000}[0m
+[component_container_isolated-5] [0m[INFO] [1772042042.321276090] [zed.zed_node]: Initial ZED left camera pose (ZED pos. tracking): [0m
+[component_container_isolated-5] [0m[INFO] [1772042042.321340026] [zed.zed_node]:  * T: [-0.01,0.06,0.015][0m
+[component_container_isolated-5] [0m[INFO] [1772042042.321371643] [zed.zed_node]:  * Q: [0,0,0,1][0m
+[INFO] [spawner-17]: process has finished cleanly [pid 32307]
+[INFO] [spawner-18]: process started with pid [32327]
+[INFO] [spawner-19]: process started with pid [32329]
+[INFO] [spawner-20]: process started with pid [32331]
+[component_container_isolated-5] [2026-02-25 12:54:02 UTC][ZED][WARNING] GNSS Antenna position has not been set. GNSS-Camera Fusion will be degraded
+[component_container_isolated-5] [33m[WARN] [1772042042.865863798] [zed.zed_node]:  * Waiting for the first valid GNSS fix...[0m
+[ros2_control_node-1] [0m[INFO] [1772042043.582566118] [controller_manager]: Loading controller 'rear_ackermann_controller'[0m
+[spawner-20] [0m[INFO] [1772042043.673173068] [spawner_motor_status_broadcaster]: waiting for service /controller_manager/list_controllers to become available...[0m
+[ros2_control_node-1] [0m[INFO] [1772042043.819555309] [controller_manager]: Loading controller 'led_gpio_controller'[0m
+[spawner-19] [0m[INFO] [1772042043.880324096] [spawner_rear_ackermann_controller]: [94mLoaded [1mrear_ackermann_controller[0m[0m
+[component_container_isolated-5] [0m[INFO] [1772042043.974996212] [zed.zed_node]: GNSS fusion status: OFF[0m
+[component_container_isolated-5] [0m[INFO] [1772042043.975203127] [zed.zed_node]: GNSS reference localization initialized[0m
+[component_container_isolated-5] [0m[INFO] [1772042043.975249111] [zed.zed_node]:  Static transform UTM to MAP [utm -> map][0m
+[component_container_isolated-5] [0m[INFO] [1772042043.975271543] [zed.zed_node]:   * Translation: {-166021.443,-0.000,-0.000}[0m
+[component_container_isolated-5] [0m[INFO] [1772042043.975296952] [zed.zed_node]:   * Rotation: {0.000,-0.000,0.000}[0m
+[ros2_control_node-1] [0m[INFO] [1772042043.996816492] [controller_manager]: Configuring controller 'rear_ackermann_controller'[0m
+[ros2_control_node-1] [0m[INFO] [1772042044.004969385] [rear_ackermann_controller]: configure successful[0m
+[ros2_control_node-1] [0m[INFO] [1772042044.029502369] [controller_manager]: Loading controller 'motor_status_broadcaster'[0m
+[spawner-18] [0m[INFO] [1772042044.055191846] [spawner_led_gpio_controller]: [94mLoaded [1mled_gpio_controller[0m[0m
+[spawner-20] [0m[INFO] [1772042044.099420671] [spawner_motor_status_broadcaster]: [94mLoaded [1mmotor_status_broadcaster[0m[0m
+[ros2_control_node-1] [0m[INFO] [1772042044.128765645] [ODriveHardwareInterface]: Setting to position control.[0m
+[ros2_control_node-1] [0m[INFO] [1772042044.128948720] [ODriveHardwareInterface]: Setting to position control.[0m
+[ros2_control_node-1] [0m[INFO] [1772042044.129071089] [RMDHardwareInterface]: perform_command_mode_switch called. start_interfaces: [steer_bl_joint/position,steer_br_joint/position,propulsion_fl_joint/velocity,propulsion_fr_joint/velocity,propulsion_bl_joint/velocity,propulsion_br_joint/velocity,] stop_interfaces: [][0m
+[ros2_control_node-1] [0m[INFO] [1772042044.129161330] [RMDHardwareInterface]: Joint propulsion_fl_joint: switched to VELOCITY (cmd vel initialized from state: 0.000000)[0m
+[ros2_control_node-1] [0m[INFO] [1772042044.129175762] [RMDHardwareInterface]: Joint propulsion_fr_joint: switched to VELOCITY (cmd vel initialized from state: 0.000000)[0m
+[ros2_control_node-1] [0m[INFO] [1772042044.129182802] [RMDHardwareInterface]: Joint propulsion_bl_joint: switched to VELOCITY (cmd vel initialized from state: 0.000000)[0m
+[ros2_control_node-1] [0m[INFO] [1772042044.129188946] [RMDHardwareInterface]: Joint propulsion_br_joint: switched to VELOCITY (cmd vel initialized from state: 0.000000)[0m
+[ros2_control_node-1] [0m[INFO] [1772042044.129408885] [rear_ackermann_controller]: RearAckermannController activated with all commands set to zero[0m
+[ros2_control_node-1] [0m[INFO] [1772042044.165611250] [controller_manager]: Configuring controller 'motor_status_broadcaster'[0m
+[spawner-19] [0m[INFO] [1772042044.166747135] [spawner_rear_ackermann_controller]: [92mConfigured and activated [1mrear_ackermann_controller[0m[0m
+[ros2_control_node-1] [0m[INFO] [1772042044.179007723] [motor_status_broadcaster]: Configured motor_status_broadcaster for 4 joints, 2 interfaces, publish rate: 10.0 Hz[0m
+[ros2_control_node-1] [0m[INFO] [1772042044.198152709] [controller_manager]: Configuring controller 'led_gpio_controller'[0m
+[ros2_control_node-1] [0m[INFO] [1772042044.243955536] [led_gpio_controller]: configure successful[0m
+[ros2_control_node-1] [0m[INFO] [1772042044.296137763] [motor_status_broadcaster]: MotorStatusBroadcaster activated with 8 state interfaces[0m
+[spawner-20] [0m[INFO] [1772042044.330855855] [spawner_motor_status_broadcaster]: [92mConfigured and activated [1mmotor_status_broadcaster[0m[0m
+[ros2_control_node-1] [0m[INFO] [1772042044.362085619] [RMDHardwareInterface]: perform_command_mode_switch called. start_interfaces: [status_led/led_command,] stop_interfaces: [][0m
+[ros2_control_node-1] [0m[INFO] [1772042044.362303062] [led_gpio_controller]: activate successful[0m
+[spawner-18] [0m[INFO] [1772042044.404783098] [spawner_led_gpio_controller]: [92mConfigured and activated [1mled_gpio_controller[0m[0m
+[INFO] [spawner-20]: process has finished cleanly [pid 32331]
+[INFO] [spawner-19]: process has finished cleanly [pid 32329]
+[INFO] [spawner-21]: process started with pid [32375]
+[INFO] [spawner-18]: process has finished cleanly [pid 32327]
+[INFO] [spawner-22]: process started with pid [32377]
+[component_container_isolated-5] [0m[INFO] [1772042045.158095570] [zed.zed_node]: GNSS fusion status: CALIBRATION_IN_PROGRESS[0m
+[component_container_isolated-5] [0m[INFO] [1772042045.158255412] [zed.zed_node]: GNSS reference localization initialized[0m
+[component_container_isolated-5] [0m[INFO] [1772042045.158335733] [zed.zed_node]:  Static transform UTM to MAP [utm -> map][0m
+[component_container_isolated-5] [0m[INFO] [1772042045.158354901] [zed.zed_node]:   * Translation: {-166021.443,-0.000,-0.000}[0m
+[component_container_isolated-5] [0m[INFO] [1772042045.158379445] [zed.zed_node]:   * Rotation: {0.000,-0.000,0.000}[0m
+[spawner-22] [0m[INFO] [1772042045.755459559] [spawner_killswitch_gpio_controller]: waiting for service /controller_manager/list_controllers to become available...[0m
+[ros2_control_node-1] [0m[INFO] [1772042045.916770910] [controller_manager]: Loading controller 'ackermann_steering_controller'[0m
+[ros2_control_node-1] [0m[INFO] [1772042046.054627017] [controller_manager]: Loading controller 'killswitch_gpio_controller'[0m
+[spawner-21] [0m[INFO] [1772042046.107338311] [spawner_ackermann_steering_controller]: [94mLoaded [1mackermann_steering_controller[0m[0m
+[spawner-22] [0m[INFO] [1772042046.132051874] [spawner_killswitch_gpio_controller]: [94mLoaded [1mkillswitch_gpio_controller[0m[0m
+[ros2_control_node-1] [0m[INFO] [1772042046.136612759] [controller_manager]: Configuring controller 'ackermann_steering_controller'[0m
+[ros2_control_node-1] [0m[INFO] [1772042046.136839033] [ackermann_steering_controller]: Ackermann odom configure successful[0m
+[ros2_control_node-1] [0m[INFO] [1772042046.152157801] [ackermann_steering_controller]: configure successful[0m
+[ros2_control_node-1] [0m[INFO] [1772042046.163034022] [controller_manager]: Configuring controller 'killswitch_gpio_controller'[0m
+[ros2_control_node-1] [0m[INFO] [1772042046.169637202] [killswitch_gpio_controller]: configure successful[0m
+[planner_server-11] [0m[INFO] [1772042046.233982997] [planner_server]: Configured plugin GridBased of type SmacPlannerHybrid with maximum iterations 1000000, max on approach iterations 1000, and allowing unknown traversal. Tolerance 0.50.Using motion model: Reeds-Shepp.[0m
+[planner_server-11] [0m[INFO] [1772042046.234114646] [planner_server]: Planner Server has GridBased  planners available.[0m
+[component_container_isolated-5] [0m[INFO] [1772042046.252312807] [zed.zed_node]: GNSS fusion status: CALIBRATION_IN_PROGRESS[0m
+[component_container_isolated-5] [0m[INFO] [1772042046.252456169] [zed.zed_node]: GNSS reference localization initialized[0m
+[component_container_isolated-5] [0m[INFO] [1772042046.252494314] [zed.zed_node]:  Static transform UTM to MAP [utm -> map][0m
+[component_container_isolated-5] [0m[INFO] [1772042046.252513514] [zed.zed_node]:   * Translation: {-166021.443,-0.000,-0.000}[0m
+[component_container_isolated-5] [0m[INFO] [1772042046.252538218] [zed.zed_node]:   * Rotation: {0.000,-0.000,0.000}[0m
+[ros2_control_node-1] [0m[INFO] [1772042046.262154872] [RMDHardwareInterface]: perform_command_mode_switch called. start_interfaces: [drive_killswitch/kill_all,drive_killswitch/kill_main,drive_killswitch/kill_jetson,] stop_interfaces: [][0m
+[ros2_control_node-1] [0m[INFO] [1772042046.262889377] [killswitch_gpio_controller]: activate successful[0m
+[lifecycle_manager-16] [0m[INFO] [1772042046.263736779] [lifecycle_manager_navigation]: [34m[1mConfiguring behavior_server[0m[0m[0m
+[behavior_server-12] [0m[INFO] [1772042046.264504883] [behavior_server]: Configuring[0m
+[behavior_server-12] [0m[INFO] [1772042046.291205414] [behavior_server]: Creating behavior plugin spin of type nav2_behaviors/Spin[0m
+[behavior_server-12] [0m[INFO] [1772042046.293801188] [behavior_server]: Configuring spin[0m
+[spawner-22] [0m[INFO] [1772042046.313702568] [spawner_killswitch_gpio_controller]: [92mConfigured and activated [1mkillswitch_gpio_controller[0m[0m
+[behavior_server-12] [0m[INFO] [1772042046.336580463] [behavior_server]: Creating behavior plugin backup of type nav2_behaviors/BackUp[0m
+[behavior_server-12] [0m[INFO] [1772042046.339195693] [behavior_server]: Configuring backup[0m
+[behavior_server-12] [0m[INFO] [1772042046.415151253] [behavior_server]: Creating behavior plugin drive_on_heading of type nav2_behaviors/DriveOnHeading[0m
+[behavior_server-12] [0m[INFO] [1772042046.435645089] [behavior_server]: Configuring drive_on_heading[0m
+[behavior_server-12] [0m[INFO] [1772042046.459956088] [behavior_server]: Creating behavior plugin assisted_teleop of type nav2_behaviors/AssistedTeleop[0m
+[behavior_server-12] [0m[INFO] [1772042046.470639826] [behavior_server]: Configuring assisted_teleop[0m
+[behavior_server-12] [0m[INFO] [1772042046.494820360] [behavior_server]: Creating behavior plugin wait of type nav2_behaviors/Wait[0m
+[behavior_server-12] [0m[INFO] [1772042046.497648233] [behavior_server]: Configuring wait[0m
+[lifecycle_manager-16] [0m[INFO] [1772042046.515985499] [lifecycle_manager_navigation]: [34m[1mConfiguring bt_navigator[0m[0m[0m
+[bt_navigator-13] [0m[INFO] [1772042046.517282250] [bt_navigator]: Configuring[0m
+[INFO] [spawner-21]: process has finished cleanly [pid 32375]
+[INFO] [spawner-23]: process started with pid [32411]
+[INFO] [spawner-22]: process has finished cleanly [pid 32377]
+[lifecycle_manager-16] [0m[INFO] [1772042046.889378939] [lifecycle_manager_navigation]: [34m[1mConfiguring waypoint_follower[0m[0m[0m
+[waypoint_follower-14] [0m[INFO] [1772042046.891112271] [waypoint_follower]: Configuring[0m
+[waypoint_follower-14] [0m[INFO] [1772042046.928507164] [waypoint_follower]: Created waypoint_task_executor : wait_at_waypoint of type nav2_waypoint_follower::WaitAtWaypoint[0m
+[waypoint_follower-14] [0m[INFO] [1772042046.936253941] [waypoint_follower]: Waypoint pause duration is set to zero, disabling task executor plugin.[0m
+[lifecycle_manager-16] [0m[INFO] [1772042046.938841043] [lifecycle_manager_navigation]: [34m[1mConfiguring velocity_smoother[0m[0m[0m
+[velocity_smoother-15] [0m[INFO] [1772042046.939528539] [velocity_smoother]: Configuring velocity smoother[0m
+[lifecycle_manager-16] [0m[INFO] [1772042046.956784801] [lifecycle_manager_navigation]: [34m[1mActivating controller_server[0m[0m[0m
+[controller_server-9] [0m[INFO] [1772042046.957241926] [controller_server]: Activating[0m
+[controller_server-9] [0m[INFO] [1772042046.957356231] [local_costmap.local_costmap]: Activating[0m
+[controller_server-9] [0m[INFO] [1772042046.957393192] [local_costmap.local_costmap]: Checking transform[0m
+[controller_server-9] [0m[INFO] [1772042046.957612106] [local_costmap.local_costmap]: start[0m
+[controller_server-9] [0m[INFO] [1772042047.008679061] [controller_server]: Activating controller: FollowPath of type regulated_pure_pursuit_controller::RegulatedPurePursuitController[0m
+[controller_server-9] [0m[INFO] [1772042047.008819831] [controller_server]: Creating bond (controller_server) to lifecycle manager.[0m
+[lifecycle_manager-16] [0m[INFO] [1772042047.118532294] [lifecycle_manager_navigation]: Server controller_server connected with bond.[0m
+[lifecycle_manager-16] [0m[INFO] [1772042047.118657928] [lifecycle_manager_navigation]: [34m[1mActivating smoother_server[0m[0m[0m
+[smoother_server-10] [0m[INFO] [1772042047.119567090] [smoother_server]: Activating[0m
+[smoother_server-10] [0m[INFO] [1772042047.119664212] [smoother_server]: Creating bond (smoother_server) to lifecycle manager.[0m
+[lifecycle_manager-16] [0m[INFO] [1772042047.229761192] [lifecycle_manager_navigation]: Server smoother_server connected with bond.[0m
+[lifecycle_manager-16] [0m[INFO] [1772042047.229897481] [lifecycle_manager_navigation]: [34m[1mActivating planner_server[0m[0m[0m
+[planner_server-11] [0m[INFO] [1772042047.230690259] [planner_server]: Activating[0m
+[planner_server-11] [0m[INFO] [1772042047.230823188] [global_costmap.global_costmap]: Activating[0m
+[planner_server-11] [0m[INFO] [1772042047.230858581] [global_costmap.global_costmap]: Checking transform[0m
+[planner_server-11] [0m[INFO] [1772042047.231079351] [global_costmap.global_costmap]: start[0m
+[component_container_isolated-5] [0m[INFO] [1772042047.366892596] [zed.zed_node]: GNSS fusion status: CALIBRATION_IN_PROGRESS[0m
+[component_container_isolated-5] [0m[INFO] [1772042047.367039989] [zed.zed_node]: GNSS reference localization initialized[0m
+[component_container_isolated-5] [0m[INFO] [1772042047.367075958] [zed.zed_node]:  Static transform UTM to MAP [utm -> map][0m
+[component_container_isolated-5] [0m[INFO] [1772042047.367094678] [zed.zed_node]:   * Translation: {-166021.443,-0.000,-0.000}[0m
+[component_container_isolated-5] [0m[INFO] [1772042047.367119382] [zed.zed_node]:   * Rotation: {0.000,-0.000,0.000}[0m
+[planner_server-11] [0m[INFO] [1772042047.483319089] [planner_server]: Activating plugin GridBased of type SmacPlannerHybrid[0m
+[planner_server-11] [0m[INFO] [1772042047.484503455] [planner_server]: Creating bond (planner_server) to lifecycle manager.[0m
+[lifecycle_manager-16] [0m[INFO] [1772042047.589683450] [lifecycle_manager_navigation]: Server planner_server connected with bond.[0m
+[lifecycle_manager-16] [0m[INFO] [1772042047.589800444] [lifecycle_manager_navigation]: [34m[1mActivating behavior_server[0m[0m[0m
+[behavior_server-12] [0m[INFO] [1772042047.592335577] [behavior_server]: Activating[0m
+[behavior_server-12] [0m[INFO] [1772042047.592427962] [behavior_server]: Activating spin[0m
+[behavior_server-12] [0m[INFO] [1772042047.592458042] [behavior_server]: Activating backup[0m
+[behavior_server-12] [0m[INFO] [1772042047.592481370] [behavior_server]: Activating drive_on_heading[0m
+[behavior_server-12] [0m[INFO] [1772042047.592506011] [behavior_server]: Activating assisted_teleop[0m
+[behavior_server-12] [0m[INFO] [1772042047.592526523] [behavior_server]: Activating wait[0m
+[behavior_server-12] [0m[INFO] [1772042047.592555451] [behavior_server]: Creating bond (behavior_server) to lifecycle manager.[0m
+[ros2_control_node-1] [0m[INFO] [1772042047.642814686] [controller_manager]: Loading controller 'drive_velocity_controller'[0m
+[lifecycle_manager-16] [0m[INFO] [1772042047.703006708] [lifecycle_manager_navigation]: Server behavior_server connected with bond.[0m
+[lifecycle_manager-16] [0m[INFO] [1772042047.703126229] [lifecycle_manager_navigation]: [34m[1mActivating bt_navigator[0m[0m[0m
+[bt_navigator-13] [0m[INFO] [1772042047.703775709] [bt_navigator]: Activating[0m
+[spawner-23] [0m[INFO] [1772042047.767692029] [spawner_drive_velocity_controller]: [94mLoaded [1mdrive_velocity_controller[0m[0m
+[planner_server-11] [0m[INFO] [1772042047.771307111] [global_costmap.global_costmap]: Message Filter dropping message: frame 'zed_left_camera_frame' at time 1772042047.299 for reason 'the timestamp on the message is earlier than all the data in the transform cache'[0m
+[ros2_control_node-1] [0m[INFO] [1772042047.780679347] [controller_manager]: Configuring controller 'drive_velocity_controller'[0m
+[ros2_control_node-1] [0m[INFO] [1772042047.783120559] [drive_velocity_controller]: configure successful[0m
+[bt_navigator-13] [33m[WARN] [1772042047.882069571] [bt_navigator_navigate_to_pose_rclcpp_node]: Wait duration is negative or zero (0). Setting to positive.[0m
+[bt_navigator-13] [33m[WARN] [1772042047.972557109] [bt_navigator_navigate_to_pose_rclcpp_node]: Wait duration is negative or zero (0). Setting to positive.[0m
+[bt_navigator-13] [0m[INFO] [1772042048.016048490] [bt_navigator]: Creating bond (bt_navigator) to lifecycle manager.[0m
+[lifecycle_manager-16] [0m[INFO] [1772042048.123632646] [lifecycle_manager_navigation]: Server bt_navigator connected with bond.[0m
+[lifecycle_manager-16] [0m[INFO] [1772042048.123896905] [lifecycle_manager_navigation]: [34m[1mActivating waypoint_follower[0m[0m[0m
+[waypoint_follower-14] [0m[INFO] [1772042048.124730931] [waypoint_follower]: Activating[0m
+[waypoint_follower-14] [0m[INFO] [1772042048.124831156] [waypoint_follower]: Creating bond (waypoint_follower) to lifecycle manager.[0m
+[lifecycle_manager-16] [0m[INFO] [1772042048.235124110] [lifecycle_manager_navigation]: Server waypoint_follower connected with bond.[0m
+[lifecycle_manager-16] [0m[INFO] [1772042048.235261296] [lifecycle_manager_navigation]: [34m[1mActivating velocity_smoother[0m[0m[0m
+[velocity_smoother-15] [0m[INFO] [1772042048.236214139] [velocity_smoother]: Activating[0m
+[velocity_smoother-15] [0m[INFO] [1772042048.236405309] [velocity_smoother]: Creating bond (velocity_smoother) to lifecycle manager.[0m
+[lifecycle_manager-16] [0m[INFO] [1772042048.349923453] [lifecycle_manager_navigation]: Server velocity_smoother connected with bond.[0m
+[lifecycle_manager-16] [0m[INFO] [1772042048.350046175] [lifecycle_manager_navigation]: [34m[1mManaged nodes are active[0m[0m[0m
+[lifecycle_manager-16] [0m[INFO] [1772042048.350074303] [lifecycle_manager_navigation]: [34m[1mCreating bond timer...[0m[0m[0m
+[INFO] [spawner-23]: process has finished cleanly [pid 32411]
+[INFO] [spawner-24]: process started with pid [32427]
+[component_container_isolated-5] [0m[INFO] [1772042048.454173298] [zed.zed_node]: GNSS fusion status: CALIBRATION_IN_PROGRESS[0m
+[component_container_isolated-5] [0m[INFO] [1772042048.454321044] [zed.zed_node]: GNSS reference localization initialized[0m
+[component_container_isolated-5] [0m[INFO] [1772042048.454352148] [zed.zed_node]:  Static transform UTM to MAP [utm -> map][0m
+[component_container_isolated-5] [0m[INFO] [1772042048.454370516] [zed.zed_node]:   * Translation: {-166021.443,-0.000,-0.000}[0m
+[component_container_isolated-5] [0m[INFO] [1772042048.454393941] [zed.zed_node]:   * Rotation: {0.000,-0.000,0.000}[0m
+[component_container_isolated-5] [33m[WARN] [1772042048.455006396] [zed.zed_node]:  * Waiting for the first valid GNSS fix...[0m
+[ros2_control_node-1] [0m[INFO] [1772042049.152601600] [controller_manager]: Loading controller 'drive_position_controller'[0m
+[spawner-24] [0m[INFO] [1772042049.271891495] [spawner_drive_position_controller]: [94mLoaded [1mdrive_position_controller[0m[0m
+[ros2_control_node-1] [0m[INFO] [1772042049.281819130] [controller_manager]: Configuring controller 'drive_position_controller'[0m
+[ros2_control_node-1] [0m[INFO] [1772042049.282794053] [drive_position_controller]: configure successful[0m
+[component_container_isolated-5] [0m[INFO] [1772042049.548278411] [zed.zed_node]: GNSS fusion status: CALIBRATION_IN_PROGRESS[0m
+[component_container_isolated-5] [0m[INFO] [1772042049.548480205] [zed.zed_node]: GNSS reference localization initialized[0m
+[component_container_isolated-5] [0m[INFO] [1772042049.548531150] [zed.zed_node]:  Static transform UTM to MAP [utm -> map][0m
+[component_container_isolated-5] [0m[INFO] [1772042049.548559150] [zed.zed_node]:   * Translation: {-166021.443,-0.000,-0.000}[0m
+[component_container_isolated-5] [0m[INFO] [1772042049.548627791] [zed.zed_node]:   * Rotation: {0.000,-0.000,0.000}[0m
+[component_container_isolated-5] [2026-02-25 12:54:09 UTC][ZED][WARNING] Gravity alignment issues detected. Recomputing alignment...
+[INFO] [spawner-24]: process has finished cleanly [pid 32427]
+[component_container_isolated-5] [0m[INFO] [1772042050.650213867] [zed.zed_node]: GNSS fusion status: CALIBRATION_IN_PROGRESS[0m
+[component_container_isolated-5] [0m[INFO] [1772042050.650448462] [zed.zed_node]: GNSS reference localization initialized[0m
+[component_container_isolated-5] [0m[INFO] [1772042050.650513135] [zed.zed_node]:  Static transform UTM to MAP [utm -> map][0m
+[component_container_isolated-5] [0m[INFO] [1772042050.650549903] [zed.zed_node]:   * Translation: {-166021.443,-0.000,-0.000}[0m
+[component_container_isolated-5] [0m[INFO] [1772042050.650640272] [zed.zed_node]:   * Rotation: {0.000,-0.000,0.000}[0m
+[controller_server-9] [0m[INFO] [1772042050.653765045] [local_costmap.local_costmap]: Message Filter dropping message: frame 'zed_left_camera_frame' at time 1772042049.442 for reason 'the timestamp on the message is earlier than all the data in the transform cache'[0m
+[planner_server-11] [0m[INFO] [1772042051.063816088] [global_costmap.global_costmap]: Message Filter dropping message: frame 'zed_left_camera_frame' at time 1772042050.581 for reason 'the timestamp on the message is earlier than all the data in the transform cache'[0m
+[component_container_isolated-5] [0m[INFO] [1772042051.753771851] [zed.zed_node]: GNSS fusion status: CALIBRATION_IN_PROGRESS[0m
+[component_container_isolated-5] [0m[INFO] [1772042051.753953037] [zed.zed_node]: GNSS reference localization initialized[0m
+[component_container_isolated-5] [0m[INFO] [1772042051.754011374] [zed.zed_node]:  Static transform UTM to MAP [utm -> map][0m
+[component_container_isolated-5] [0m[INFO] [1772042051.754047790] [zed.zed_node]:   * Translation: {-166021.443,-0.000,-0.000}[0m
+[component_container_isolated-5] [0m[INFO] [1772042051.754220144] [zed.zed_node]:   * Rotation: {0.000,-0.000,0.000}[0m
+[INFO] [controller_switcher.py-25]: process started with pid [32444]
+[component_container_isolated-5] [0m[INFO] [1772042052.864690765] [zed.zed_node]: GNSS fusion status: CALIBRATION_IN_PROGRESS[0m
+[component_container_isolated-5] [0m[INFO] [1772042052.864845071] [zed.zed_node]: GNSS reference localization initialized[0m
+[component_container_isolated-5] [0m[INFO] [1772042052.864885039] [zed.zed_node]:  Static transform UTM to MAP [utm -> map][0m
+[component_container_isolated-5] [0m[INFO] [1772042052.864903760] [zed.zed_node]:   * Translation: {-166021.443,-0.000,-0.000}[0m
+[component_container_isolated-5] [0m[INFO] [1772042052.864927152] [zed.zed_node]:   * Rotation: {0.000,-0.000,0.000}[0m
+[controller_switcher.py-25] [0m[INFO] [1772042053.398120512] [controller_switcher]: Waiting for controller_manager services...[0m
+[controller_switcher.py-25] [0m[INFO] [1772042053.399427503] [controller_switcher]: ControllerSwitcher ready![0m
+[component_container_isolated-5] [0m[INFO] [1772042053.963431373] [zed.zed_node]: GNSS fusion status: CALIBRATION_IN_PROGRESS[0m
+[component_container_isolated-5] [0m[INFO] [1772042053.963677232] [zed.zed_node]: GNSS reference localization initialized[0m
+[component_container_isolated-5] [0m[INFO] [1772042053.963728689] [zed.zed_node]:  Static transform UTM to MAP [utm -> map][0m
+[component_container_isolated-5] [0m[INFO] [1772042053.963791506] [zed.zed_node]:   * Translation: {-166021.443,-0.000,-0.000}[0m
+[component_container_isolated-5] [0m[INFO] [1772042053.963831346] [zed.zed_node]:   * Rotation: {0.000,-0.000,0.000}[0m
+[controller_server-9] [0m[INFO] [1772042053.964404953] [local_costmap.local_costmap]: Message Filter dropping message: frame 'zed_left_camera_frame' at time 1772042052.791 for reason 'the timestamp on the message is earlier than all the data in the transform cache'[0m
+[component_container_isolated-5] [33m[WARN] [1772042053.965688168] [zed.zed_node]:  * Waiting for the first valid GNSS fix...[0m
+[planner_server-11] [0m[INFO] [1772042054.358336951] [global_costmap.global_costmap]: Message Filter dropping message: frame 'zed_left_camera_frame' at time 1772042053.863 for reason 'the timestamp on the message is earlier than all the data in the transform cache'[0m
+[component_container_isolated-5] [0m[INFO] [1772042055.048326680] [zed.zed_node]: GNSS fusion status: CALIBRATION_IN_PROGRESS[0m
+[component_container_isolated-5] [0m[INFO] [1772042055.048493466] [zed.zed_node]: GNSS reference localization initialized[0m
+[component_container_isolated-5] [0m[INFO] [1772042055.048546747] [zed.zed_node]:  Static transform UTM to MAP [utm -> map][0m
+[component_container_isolated-5] [0m[INFO] [1772042055.048577627] [zed.zed_node]:   * Translation: {-166021.443,-0.000,-0.000}[0m
+[component_container_isolated-5] [0m[INFO] [1772042055.048614043] [zed.zed_node]:   * Rotation: {0.000,-0.000,0.000}[0m
+[bt_navigator-13] [0m[INFO] [1772042055.136239367] [bt_navigator]: Begin navigating from current location (-0.29, 0.06) to (8.01, -0.34)[0m
+[controller_server-9] [0m[INFO] [1772042055.338340603] [controller_server]: Received a goal, begin computing control effort.[0m
+[controller_server-9] [33m[WARN] [1772042055.338525213] [controller_server]: No goal checker was specified in parameter 'current_goal_checker'. Server will use only plugin loaded general_goal_checker . This warning will appear once.[0m
+[ros2_control_node-1] [0m[INFO] [1772042055.362182100] [rear_ackermann_controller]: Wheel speeds [RPM] - FL: 11.69, FR: 11.60, RL: 11.69, RR: 11.60[0m
+[controller_server-9] [0m[INFO] [1772042055.838714643] [controller_server]: Passing new path to controller.[0m
+[ros2_control_node-1] [0m[INFO] [1772042055.895613395] [rear_ackermann_controller]: Wheel speeds [RPM] - FL: 11.69, FR: 11.60, RL: 11.69, RR: 11.60[0m
+[component_container_isolated-5] [0m[INFO] [1772042056.141194446] [zed.zed_node]: GNSS fusion status: CALIBRATION_IN_PROGRESS[0m
+[component_container_isolated-5] [0m[INFO] [1772042056.141345999] [zed.zed_node]: GNSS reference localization initialized[0m
+[component_container_isolated-5] [0m[INFO] [1772042056.141379120] [zed.zed_node]:  Static transform UTM to MAP [utm -> map][0m
+[component_container_isolated-5] [0m[INFO] [1772042056.141397104] [zed.zed_node]:   * Translation: {-166021.443,-0.000,-0.000}[0m
+[component_container_isolated-5] [0m[INFO] [1772042056.141422576] [zed.zed_node]:   * Rotation: {0.000,-0.000,0.000}[0m
+[controller_server-9] [0m[INFO] [1772042056.338756179] [controller_server]: Passing new path to controller.[0m
+[ros2_control_node-1] [0m[INFO] [1772042056.428796542] [rear_ackermann_controller]: Wheel speeds [RPM] - FL: 11.69, FR: 11.60, RL: 11.69, RR: 11.60[0m
+[controller_server-9] [0m[INFO] [1772042056.838771769] [controller_server]: Passing new path to controller.[0m
+[ros2_control_node-1] [0m[INFO] [1772042056.928828068] [rear_ackermann_controller]: Wheel speeds [RPM] - FL: 11.69, FR: 11.60, RL: 11.69, RR: 11.60[0m
+[controller_server-9] [0m[INFO] [1772042057.247456046] [local_costmap.local_costmap]: Message Filter dropping message: frame 'zed_left_camera_frame' at time 1772042056.073 for reason 'the timestamp on the message is earlier than all the data in the transform cache'[0m
+[component_container_isolated-5] [0m[INFO] [1772042057.249606567] [zed.zed_node]: GNSS fusion status: CALIBRATION_IN_PROGRESS[0m
+[component_container_isolated-5] [0m[INFO] [1772042057.249782473] [zed.zed_node]: GNSS reference localization initialized[0m
+[component_container_isolated-5] [0m[INFO] [1772042057.249837002] [zed.zed_node]:  Static transform UTM to MAP [utm -> map][0m
+[component_container_isolated-5] [0m[INFO] [1772042057.249873258] [zed.zed_node]:   * Translation: {-166021.443,-0.000,-0.000}[0m
+[component_container_isolated-5] [0m[INFO] [1772042057.249915755] [zed.zed_node]:   * Rotation: {0.000,-0.000,0.000}[0m
+[controller_server-9] [0m[INFO] [1772042057.338725195] [controller_server]: Passing new path to controller.[0m
+[ros2_control_node-1] [0m[INFO] [1772042057.428877722] [rear_ackermann_controller]: Wheel speeds [RPM] - FL: 11.69, FR: 11.60, RL: 11.69, RR: 11.60[0m
+[planner_server-11] [0m[INFO] [1772042057.672952880] [global_costmap.global_costmap]: Message Filter dropping message: frame 'zed_left_camera_frame' at time 1772042057.146 for reason 'the timestamp on the message is earlier than all the data in the transform cache'[0m
+[controller_server-9] [0m[INFO] [1772042057.838705347] [controller_server]: Passing new path to controller.[0m
+[ros2_control_node-1] [0m[INFO] [1772042057.962130078] [rear_ackermann_controller]: Wheel speeds [RPM] - FL: 11.69, FR: 11.60, RL: 11.69, RR: 11.60[0m
+[controller_server-9] [0m[INFO] [1772042058.338710375] [controller_server]: Passing new path to controller.[0m
+[component_container_isolated-5] [0m[INFO] [1772042058.363998005] [zed.zed_node]: GNSS fusion status: CALIBRATION_IN_PROGRESS[0m
+[component_container_isolated-5] [0m[INFO] [1772042058.364151286] [zed.zed_node]: GNSS reference localization initialized[0m
+[component_container_isolated-5] [0m[INFO] [1772042058.364188535] [zed.zed_node]:  Static transform UTM to MAP [utm -> map][0m
+[component_container_isolated-5] [0m[INFO] [1772042058.364208215] [zed.zed_node]:   * Translation: {-166021.443,-0.000,-0.000}[0m
+[component_container_isolated-5] [0m[INFO] [1772042058.364233463] [zed.zed_node]:   * Rotation: {0.000,-0.000,0.000}[0m
+[ros2_control_node-1] [0m[INFO] [1772042058.462132263] [rear_ackermann_controller]: Wheel speeds [RPM] - FL: 11.69, FR: 11.60, RL: 11.69, RR: 11.60[0m
+[controller_server-9] [0m[INFO] [1772042058.838713105] [controller_server]: Passing new path to controller.[0m
+[ros2_control_node-1] [0m[INFO] [1772042058.995734594] [rear_ackermann_controller]: Wheel speeds [RPM] - FL: 11.69, FR: 11.60, RL: 11.69, RR: 11.60[0m
+[controller_server-9] [0m[INFO] [1772042059.338706152] [controller_server]: Passing new path to controller.[0m
+[component_container_isolated-5] [0m[INFO] [1772042059.454396752] [zed.zed_node]: GNSS fusion status: CALIBRATION_IN_PROGRESS[0m
+[component_container_isolated-5] [0m[INFO] [1772042059.454575634] [zed.zed_node]: GNSS reference localization initialized[0m
+[component_container_isolated-5] [0m[INFO] [1772042059.454637107] [zed.zed_node]:  Static transform UTM to MAP [utm -> map][0m
+[component_container_isolated-5] [0m[INFO] [1772042059.454673203] [zed.zed_node]:   * Translation: {-166021.443,-0.000,-0.000}[0m
+[component_container_isolated-5] [0m[INFO] [1772042059.454715251] [zed.zed_node]:   * Rotation: {0.000,-0.000,0.000}[0m
+[component_container_isolated-5] [33m[WARN] [1772042059.455686079] [zed.zed_node]:  * Waiting for the first valid GNSS fix...[0m
+[ros2_control_node-1] [0m[INFO] [1772042059.496107491] [rear_ackermann_controller]: Wheel speeds [RPM] - FL: 11.69, FR: 11.60, RL: 11.69, RR: 11.60[0m
+[controller_server-9] [0m[INFO] [1772042059.838717861] [controller_server]: Passing new path to controller.[0m
+[ros2_control_node-1] [0m[INFO] [1772042060.028772839] [rear_ackermann_controller]: Wheel speeds [RPM] - FL: 11.69, FR: 11.60, RL: 11.69, RR: 11.60[0m
+[controller_server-9] [0m[INFO] [1772042060.388712709] [controller_server]: Passing new path to controller.[0m
+[component_container_isolated-5] [0m[INFO] [1772042060.536910487] [zed.zed_node]: GNSS fusion status: CALIBRATION_IN_PROGRESS[0m
+[component_container_isolated-5] [0m[INFO] [1772042060.537054937] [zed.zed_node]: GNSS reference localization initialized[0m
+[component_container_isolated-5] [0m[INFO] [1772042060.537089017] [zed.zed_node]:  Static transform UTM to MAP [utm -> map][0m
+[component_container_isolated-5] [0m[INFO] [1772042060.537108569] [zed.zed_node]:   * Translation: {-166021.443,-0.000,-0.000}[0m
+[component_container_isolated-5] [0m[INFO] [1772042060.537133210] [zed.zed_node]:   * Rotation: {0.000,-0.000,0.000}[0m
+[ros2_control_node-1] [0m[INFO] [1772042060.562055205] [rear_ackermann_controller]: Wheel speeds [RPM] - FL: 11.69, FR: 11.60, RL: 11.69, RR: 11.60[0m
+[controller_server-9] [0m[INFO] [1772042060.838718204] [controller_server]: Passing new path to controller.[0m
+[planner_server-11] [0m[INFO] [1772042060.938566090] [global_costmap.global_costmap]: Message Filter dropping message: frame 'zed_left_camera_frame' at time 1772042060.428 for reason 'the timestamp on the message is earlier than all the data in the transform cache'[0m
+[ros2_control_node-1] [0m[INFO] [1772042061.062184183] [rear_ackermann_controller]: Wheel speeds [RPM] - FL: 11.69, FR: 11.60, RL: 11.69, RR: 11.60[0m
+[controller_server-9] [0m[INFO] [1772042061.338786328] [controller_server]: Passing new path to controller.[0m
+[ros2_control_node-1] [0m[INFO] [1772042061.595391751] [rear_ackermann_controller]: Wheel speeds [RPM] - FL: 11.69, FR: 11.60, RL: 11.69, RR: 11.60[0m
+[component_container_isolated-5] [0m[INFO] [1772042061.630065257] [zed.zed_node]: GNSS fusion status: CALIBRATION_IN_PROGRESS[0m
+[component_container_isolated-5] [0m[INFO] [1772042061.630477678] [zed.zed_node]: GNSS reference localization initialized[0m
+[component_container_isolated-5] [0m[INFO] [1772042061.630550190] [zed.zed_node]:  Static transform UTM to MAP [utm -> map][0m
+[component_container_isolated-5] [0m[INFO] [1772042061.630624655] [zed.zed_node]:   * Translation: {-166021.443,-0.000,-0.000}[0m
+[component_container_isolated-5] [0m[INFO] [1772042061.630833394] [zed.zed_node]:   * Rotation: {0.000,-0.000,0.000}[0m
+[controller_server-9] [0m[INFO] [1772042061.890276804] [controller_server]: Passing new path to controller.[0m
+[ros2_control_node-1] [0m[INFO] [1772042062.128953505] [rear_ackermann_controller]: Wheel speeds [RPM] - FL: 11.69, FR: 11.60, RL: 11.69, RR: 11.60[0m
