@@ -1,26 +1,5 @@
-# Copyright (c) 2024, Stogl Robotics Consulting UG (haftungsbeschränkt)
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-#
-# Source of this file are templates in
-# [RosTeamWorkspace](https://github.com/StoglRobotics/ros_team_workspace) repository.
-#
-# Author: Dr. Denis
-#
-
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, RegisterEventHandler, TimerAction
+from launch.actions import DeclareLaunchArgument, OpaqueFunction, RegisterEventHandler, TimerAction
 from launch.conditions import IfCondition
 from launch.event_handlers import OnProcessExit, OnProcessStart
 from launch.substitutions import Command, FindExecutable, LaunchConfiguration, PathJoinSubstitution
@@ -29,8 +8,20 @@ from launch_ros.substitutions import FindPackageShare
 
 
 def generate_launch_description():
-    # -- Declare arguments --
     declared_arguments = []
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "mode",
+            default_value="standalone",
+            choices=["standalone", "jetson", "base_station"],
+            description=(
+                "Deployment mode. "
+                "'standalone' (default) starts all nodes on a single machine. "
+                "'jetson' starts only the control/hardware nodes (run on the rover). "
+                "'base_station' starts only the teleop nodes (joystick + teleop_twist_joy)."
+            ),
+        )
+    )
     declared_arguments.append(
         DeclareLaunchArgument(
             "use_sim",
@@ -122,11 +113,15 @@ def generate_launch_description():
         )
     )
 
-    # -- Initialize Arguments --
+    return LaunchDescription(declared_arguments + [OpaqueFunction(function=launch_setup)])
+
+
+def launch_setup(context, *args, **kwargs):
+    mode = LaunchConfiguration("mode").perform(context)
     use_sim = LaunchConfiguration("use_sim")
     runtime_config_package = LaunchConfiguration("runtime_config_package")
-    joystick_config = LaunchConfiguration("joystick_config")
-    teleop_twist_config = LaunchConfiguration("teleop_twist_config")
+    joystick_config_name = LaunchConfiguration("joystick_config")
+    teleop_twist_config_name = LaunchConfiguration("teleop_twist_config")
     controllers_file = LaunchConfiguration("controllers_file")
     description_package = LaunchConfiguration("description_package")
     description_file = LaunchConfiguration("description_file")
@@ -136,7 +131,6 @@ def generate_launch_description():
     mock_sensor_commands = LaunchConfiguration("mock_sensor_commands")
     robot_controller = LaunchConfiguration("robot_controller")
 
-     # -- Building Path Files --
     robot_description_path = PathJoinSubstitution(
         [FindPackageShare(description_package), "urdf", description_file]
     )
@@ -144,16 +138,15 @@ def generate_launch_description():
         [FindPackageShare(runtime_config_package), "config", controllers_file]
     )
     joystick_config = PathJoinSubstitution(
-        [FindPackageShare(runtime_config_package), "config", joystick_config]
+        [FindPackageShare(runtime_config_package), "config", joystick_config_name]
     )
     teleop_twist_config = PathJoinSubstitution(
-        [FindPackageShare(runtime_config_package), "config", teleop_twist_config]
+        [FindPackageShare(runtime_config_package), "config", teleop_twist_config_name]
     )
     rviz_config_file = PathJoinSubstitution(
         [FindPackageShare(description_package), "rviz", rviz_file]
     )
 
-    # -- Additional Configuration Setup --
     robot_description_content = Command(
         [
             PathJoinSubstitution([FindExecutable(name="xacro")]),
@@ -174,7 +167,29 @@ def generate_launch_description():
 
     robot_description = {"robot_description": robot_description_content}
 
-    # -- Node Definitions -- 
+    joystick_publisher = Node(
+        package='teleop',
+        executable='joystick',
+        name='joystick',
+        output='screen',
+        parameters=[joystick_config],
+        remappings=[
+            ('controller_input', 'joy'),
+            ('/controller_input', '/joy'),
+        ],
+    )
+
+    teleop_twist_joy = Node(
+        package='teleop_twist_joy',
+        executable='teleop_node',
+        name='teleop_twist_joy',
+        output='screen',
+        parameters=[teleop_twist_config],
+        remappings=[
+            ('/cmd_vel', '/rear_ackermann_controller/reference'),
+        ],
+    )
+
     control_node = Node(
         package="controller_manager",
         executable="ros2_control_node",
@@ -215,19 +230,6 @@ def generate_launch_description():
         arguments=["motor_status_broadcaster", "-c", "/controller_manager"],
     )
 
-    joint_state_publisher_gui_node = Node( 
-        package='joint_state_publisher_gui',
-        executable='joint_state_publisher_gui',
-        name='joint_state_publisher_gui'
-    )
-    
-    joint_state_publisher = Node(
-        package='joint_state_publisher',
-        executable='joint_state_publisher',
-        name='joint_state_publisher',
-        output='screen'
-    )
-
     robot_controller_names = [robot_controller]
     robot_controller_spawners = []
     for controller in robot_controller_names:
@@ -239,7 +241,6 @@ def generate_launch_description():
             )
         ]
 
-    # GPIO controller spawners for LED and Killswitch
     gpio_controller_names = ["led_gpio_controller", "killswitch_gpio_controller"]
     gpio_controller_spawners = []
     for controller in gpio_controller_names:
@@ -262,7 +263,6 @@ def generate_launch_description():
             )
         ]
 
-    # Delay GPIO controller spawners after joint_state_broadcaster
     delay_gpio_controller_spawners_after_joint_state_broadcaster_spawner = []
     for i, controller in enumerate(gpio_controller_spawners):
         delay_gpio_controller_spawners_after_joint_state_broadcaster_spawner += [
@@ -298,14 +298,13 @@ def generate_launch_description():
             target_action=control_node,
             on_start=[
                 TimerAction(
-                    period=5.0,  # Increased delay to ensure hardware interfaces are fully initialized
+                    period=5.0,
                     actions=[joint_state_broadcaster_spawner],
                 ),
             ],
         )
     )
 
-    # Delay motor_status_broadcaster after joint_state_broadcaster
     delay_motor_status_broadcaster_after_joint_state_broadcaster = RegisterEventHandler(
         event_handler=OnProcessExit(
             target_action=joint_state_broadcaster_spawner,
@@ -350,40 +349,25 @@ def generate_launch_description():
             )
         ]
 
-    umdloop_can_node = Node(
-        package='umdloop_can',
-        executable='can_node',
-        name='can_node',
-        output='log',
-        arguments=['--ros-args', '--log-level', 'fatal']
-    )
+    jetson_actions = [
+        control_node,
+        robot_state_pub_node,
+        delay_joint_state_broadcaster_spawner_after_ros2_control_node,
+        delay_motor_status_broadcaster_after_joint_state_broadcaster,
+        delay_rviz_after_joint_state_broadcaster_spawner,
+        controller_switcher_node,
+    ] + delay_robot_controller_spawners_after_joint_state_broadcaster_spawner \
+      + delay_inactive_robot_controller_spawners_after_joint_state_broadcaster_spawner \
+      + delay_gpio_controller_spawners_after_joint_state_broadcaster_spawner
 
-    delay_can_node_after_control_node = RegisterEventHandler(
-        event_handler=OnProcessStart(
-            target_action=control_node,
-            on_start=[
-                TimerAction(
-                    period=1.0,  # Small delay to let control node initialize
-                    actions=[umdloop_can_node],
-                ),
-            ],
-        )
-    )
+    base_station_actions = [
+        joystick_publisher,
+        teleop_twist_joy,
+    ]
 
-
-    return LaunchDescription(
-        declared_arguments + 
-        [
-            control_node,
-            robot_state_pub_node,
-            # joint_state_publisher,
-            # delay_can_node_after_control_node,
-            delay_joint_state_broadcaster_spawner_after_ros2_control_node,
-            delay_motor_status_broadcaster_after_joint_state_broadcaster,
-            delay_rviz_after_joint_state_broadcaster_spawner,
-            controller_switcher_node,
-        ]
-        + delay_robot_controller_spawners_after_joint_state_broadcaster_spawner
-        + delay_inactive_robot_controller_spawners_after_joint_state_broadcaster_spawner
-        + delay_gpio_controller_spawners_after_joint_state_broadcaster_spawner
-    )
+    if mode == "jetson":
+        return jetson_actions
+    elif mode == "base_station":
+        return base_station_actions
+    else:
+        return jetson_actions + base_station_actions

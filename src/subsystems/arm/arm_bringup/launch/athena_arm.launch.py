@@ -1,19 +1,5 @@
-# Copyright 2023 ros2_control Development Team
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 from launch import LaunchDescription, LaunchContext
-from launch.actions import RegisterEventHandler, DeclareLaunchArgument, TimerAction
+from launch.actions import RegisterEventHandler, DeclareLaunchArgument, TimerAction, OpaqueFunction
 from launch.conditions import IfCondition
 from launch.event_handlers import OnProcessExit, OnProcessStart
 from launch.substitutions import Command, FindExecutable, PathJoinSubstitution, LaunchConfiguration
@@ -23,9 +9,22 @@ from launch_ros.substitutions import FindPackageShare
 
 from moveit_configs_utils import MoveItConfigsBuilder
 
+
 def generate_launch_description():
-    # -- Declare arguments --
     declared_arguments = []
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "mode",
+            default_value="standalone",
+            choices=["standalone", "jetson", "base_station"],
+            description=(
+                "Deployment mode. "
+                "'standalone' (default) starts all nodes on a single machine. "
+                "'jetson' starts only the control/hardware nodes (run on the rover). "
+                "'base_station' starts only the teleop node (joystick)."
+            ),
+        )
+    )
     declared_arguments.append(
         DeclareLaunchArgument(
             "use_sim",
@@ -111,11 +110,13 @@ def generate_launch_description():
         )
     )
 
-    # -- Initialize Arguments --
+    return LaunchDescription(declared_arguments + [OpaqueFunction(function=launch_setup)])
+
+
+def launch_setup(context, *args, **kwargs):
+    mode = LaunchConfiguration("mode").perform(context)
     use_sim = LaunchConfiguration("use_sim")
     runtime_config_package = LaunchConfiguration("runtime_config_package")
-    # joystick_config = LaunchConfiguration("joystick_config")
-    # teleop_twist_config = LaunchConfiguration("teleop_twist_config")
     controllers_file = LaunchConfiguration("controllers_file")
     description_package = LaunchConfiguration("description_package")
     description_file = LaunchConfiguration("description_file")
@@ -125,11 +126,7 @@ def generate_launch_description():
     use_mock_hardware = LaunchConfiguration("use_mock_hardware")
     mock_sensor_commands = LaunchConfiguration("mock_sensor_commands")
     robot_controller = LaunchConfiguration("robot_controller")
-    
-    # -- Building Path Files --
-    # Get URDF via xacro.
-    # This is creating a terminal command that essentially expands all macros in this file
-    # and creates the FULL URDF
+
     robot_description_path = PathJoinSubstitution(
         [FindPackageShare("description"), "urdf", "athena_arm.urdf.xacro"]
     )
@@ -146,8 +143,6 @@ def generate_launch_description():
         [FindPackageShare(runtime_config_package), 'config', 'joystick.yaml']
     )
 
-    # MoveIt Config Setup (TODO: Currently not using Launch Configuration for description and these configs because moveit
-    # config builder happens at launch time. Is there a way to keep these Launch configs when building file path?)
     robot_semantic_path = PathJoinSubstitution(
         [FindPackageShare("arm_moveit"), "srdf", "athena_arm.srdf"]
     )
@@ -158,8 +153,6 @@ def generate_launch_description():
         [FindPackageShare("arm_moveit"), "config", "moveit_controllers.yaml"]
     )
 
-    # -- Additional Configuration Setup --
-    # Robot Description Setup
     robot_description_content = Command(
         [
             PathJoinSubstitution([FindExecutable(name="xacro")]),
@@ -179,7 +172,6 @@ def generate_launch_description():
     )
     robot_description = {"robot_description": robot_description_content}
 
-    # Load the robot configuration
     moveit_config = (
         MoveItConfigsBuilder("athena_arm", package_name="arm_moveit")
         .robot_description(file_path=robot_description_path.perform(LaunchContext()))
@@ -196,24 +188,22 @@ def generate_launch_description():
         .to_moveit_configs()
     )
 
-    # -- Node Definitions -- 
     joystick_publisher = Node(
         package='teleop',
         executable='joystick',
         name='joystick',
         output='screen',
-        parameters = [joystick_config_file],
+        parameters=[joystick_config_file],
     )
 
     control_node = Node(
         package="controller_manager",
         executable="ros2_control_node",
-        output="both", # screen and log
+        output="both",
         parameters=[robot_controllers],
         remappings=[
             ("~/robot_description", "/robot_description"),
         ],
-        # prefix=['xterm -e gdb -ex run --args']
     )
 
     robot_state_pub_node = Node(
@@ -238,20 +228,6 @@ def generate_launch_description():
             moveit_config.joint_limits,
         ],
     )
-
-    joint_state_publisher = Node(
-        package='joint_state_publisher',
-        executable='joint_state_publisher',
-        name='joint_state_publisher',
-        parameters=[joint_state_yaml],
-        output='screen'
-    )
-
-    joint_state_publisher_gui_node = Node( 
-        package='joint_state_publisher_gui',
-        executable='joint_state_publisher_gui',
-        name='joint_state_publisher_gui'
-    ) # This is doing my transformations ONLY when there are no previous joint states.
 
     joint_state_broadcaster_spawner = Node(
         package="controller_manager",
@@ -287,7 +263,6 @@ def generate_launch_description():
             )
         ]
 
-    # Handle switching between controllers
     controller_switcher_node = RegisterEventHandler(
         event_handler=OnProcessExit(
             target_action=inactive_robot_controller_spawners[-1],
@@ -303,7 +278,6 @@ def generate_launch_description():
         )
     )
 
-    # Delay loading and activation of `joint_state_broadcaster` after start of ros2_control_node
     delay_joint_state_broadcaster_spawner_after_ros2_control_node = RegisterEventHandler(
         event_handler=OnProcessStart(
             target_action=control_node,
@@ -316,7 +290,6 @@ def generate_launch_description():
         )
     )
 
-    # Delay motor_status_broadcaster after joint_state_broadcaster
     delay_motor_status_broadcaster_after_joint_state_broadcaster = RegisterEventHandler(
         event_handler=OnProcessExit(
             target_action=joint_state_broadcaster_spawner,
@@ -324,7 +297,6 @@ def generate_launch_description():
         )
     )
 
-    # Delay rviz start after `joint_state_broadcaster`
     delay_rviz_after_joint_state_broadcaster_spawner = RegisterEventHandler(
         event_handler=OnProcessExit(
             target_action=joint_state_broadcaster_spawner,
@@ -332,7 +304,6 @@ def generate_launch_description():
         )
     )
 
-    # Delay loading and activation of robot_controller_names after `joint_state_broadcaster`
     delay_robot_controller_spawners_after_joint_state_broadcaster_spawner = []
     for i, controller in enumerate(robot_controller_spawners):
         delay_robot_controller_spawners_after_joint_state_broadcaster_spawner += [
@@ -348,7 +319,6 @@ def generate_launch_description():
             )
         ]
 
-    # Delay start of inactive_robot_controller_names after other controllers
     delay_inactive_robot_controller_spawners_after_joint_state_broadcaster_spawner = []
     for i, controller in enumerate(inactive_robot_controller_spawners):
         delay_inactive_robot_controller_spawners_after_joint_state_broadcaster_spawner += [
@@ -364,45 +334,23 @@ def generate_launch_description():
             )
         ]
 
-    umdloop_can_node = Node(
-            package='umdloop_can',
-            executable='can_node',
-            name='can_node',
-            output='log',
-            arguments=['--ros-args', '--log-level', 'fatal'] # prevents can node from outputting to terminal
+    jetson_actions = [
+        control_node,
+        robot_state_pub_node,
+        delay_joint_state_broadcaster_spawner_after_ros2_control_node,
+        delay_motor_status_broadcaster_after_joint_state_broadcaster,
+        delay_rviz_after_joint_state_broadcaster_spawner,
+        controller_switcher_node,
+    ] + delay_robot_controller_spawners_after_joint_state_broadcaster_spawner \
+      + delay_inactive_robot_controller_spawners_after_joint_state_broadcaster_spawner
 
-    )
+    base_station_actions = [
+        joystick_publisher,
+    ]
 
-    move_group_node = Node(
-        package="moveit_ros_move_group",
-        executable="move_group",
-        output="screen",
-        parameters=[moveit_config.to_dict()]
-    )
-
-    hello_moveit_node = Node(
-        package="arm_moveit",
-        executable="hello_moveit",
-        output="screen",
-        parameters=[moveit_config.to_dict()],
-    )
-
-    return LaunchDescription(
-        declared_arguments +
-        [
-            # umdloop_can_node,
-            control_node,
-            joystick_publisher,
-            # joint_state_publisher, # sends 0s to /joint_states
-            # joint_state_publisher_gui_node, # sends gui values to /joint_states
-            robot_state_pub_node, # handles tf transforms, uses urdf on startup, then subscribers to /joint_states to update
-            # move_group_node,
-            # hello_moveit_node,
-            delay_joint_state_broadcaster_spawner_after_ros2_control_node, # reads from hardware and sends values to /joint_states
-            delay_motor_status_broadcaster_after_joint_state_broadcaster,
-            delay_rviz_after_joint_state_broadcaster_spawner,
-            controller_switcher_node,
-        ]
-        + delay_robot_controller_spawners_after_joint_state_broadcaster_spawner
-        + delay_inactive_robot_controller_spawners_after_joint_state_broadcaster_spawner
-    )
+    if mode == "jetson":
+        return jetson_actions
+    elif mode == "base_station":
+        return base_station_actions
+    else:
+        return jetson_actions + base_station_actions

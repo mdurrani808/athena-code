@@ -46,6 +46,30 @@ ros2 topic pub /drive_velocity_controller/commands std_msgs/msg/Float64MultiArra
 ```
 
 
+### Launch Modes
+
+`athena_drive.launch.py` accepts a `mode` argument that controls which nodes are started.
+
+By default (`mode:=standalone`), all nodes run on a single machine. For competition, split across two machines using the `mode` argument:
+
+- `standalone` (default): starts all nodes on one machine (control + teleop)
+- `jetson`: starts only the control and hardware nodes, to be run on the rover
+- `base_station`: starts only the teleop nodes (joystick + teleop_twist_joy), to be run on the base station
+
+```bash
+ros2 launch drive_bringup athena_drive.launch.py
+```
+
+```bash
+ros2 launch drive_bringup athena_drive.launch.py mode:=jetson
+```
+
+```bash
+ros2 launch drive_bringup athena_drive.launch.py mode:=base_station
+```
+
+---
+
 ### How to use Control Switching
 **Open another terminal, source the workspace, and call the service to set controllers:**
 ```bash

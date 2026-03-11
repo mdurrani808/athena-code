@@ -60,6 +60,30 @@ Use *ip link* to check that there is a can0/vcan0.
 ---
 
 
+### Launch Modes
+
+`athena_arm.launch.py` accepts a `mode` argument that controls which nodes are started.
+
+By default (`mode:=standalone`), all nodes run on a single machine. For competition, split across two machines using the `mode` argument:
+
+- `standalone` (default): starts all nodes on one machine (control + joystick)
+- `jetson`: starts only the control and hardware nodes, to be run on the rover
+- `base_station`: starts only the joystick node, to be run on the base station
+
+```bash
+ros2 launch arm_bringup athena_arm.launch.py
+```
+
+```bash
+ros2 launch arm_bringup athena_arm.launch.py mode:=jetson
+```
+
+```bash
+ros2 launch arm_bringup athena_arm.launch.py mode:=base_station
+```
+
+---
+
 ### How to use Control Switching
 
 **Open another terminal, source the workspace, and call the service to set controllers:**
