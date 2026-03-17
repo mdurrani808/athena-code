@@ -273,8 +273,10 @@ private:
             gps_msg.position_covariance_type = sensor_msgs::msg::NavSatFix::COVARIANCE_TYPE_UNKNOWN;
         }
         auto heading_msg = msgs::msg::Heading();
-        heading_msg.heading = raw_gps.yaw_deg;
-        heading_msg.heading_acc = raw_gps.heading_uncertainty_deg;
+        heading_msg.header.stamp = this->now();
+        // Convert from compass bearing (0=North, CW, degrees) to ROS convention (0=East, CCW, radians)
+        heading_msg.heading = (90.0 - raw_gps.yaw_deg) * M_PI / 180.0;
+        heading_msg.heading_acc = raw_gps.heading_uncertainty_deg * M_PI / 180.0;
 
         heading_publisher_->publish(heading_msg);
         gps_publisher_->publish(gps_msg);
