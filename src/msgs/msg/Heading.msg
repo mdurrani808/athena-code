@@ -1,2 +1,2 @@
-double heading
-double heading_acc
+float64 heading
+float64 heading_acc
