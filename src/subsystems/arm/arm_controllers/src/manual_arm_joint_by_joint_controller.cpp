@@ -7,6 +7,8 @@
 
 #include "controller_interface/helpers.hpp"
 
+#define DEBUG_MODE 0
+
 namespace
 {  // utility
 
@@ -38,6 +40,22 @@ void reset_controller_reference_msg(
 namespace arm_controllers
 {
 ManualArmJointByJointController::ManualArmJointByJointController() : controller_interface::ControllerInterface() {}
+
+void ManualArmJointByJointController::logger_function()
+{
+  std::string log_msg = "\033[2J\033[H \nManual Joint by Joint Logger";
+  
+  // HWI Specific
+  std::ostringstream oss;
+
+  for (int i = 0; i < 7; i++) {
+    oss << "\nJoint " << i << "\n"
+        << "Joint Velocity: " << joint_velocities_[i] << "\n"
+        << "Max Velocity: " << max_velocities_[i] << "\n";
+  }
+  log_msg += oss.str();
+  RCLCPP_INFO(get_node()->get_logger(), log_msg.c_str());
+}
 
 controller_interface::CallbackReturn ManualArmJointByJointController::on_init()
 {
@@ -224,25 +242,32 @@ controller_interface::return_type ManualArmJointByJointController::update(
 
     // Actuator (EXPERIMENTAL)
     // Pressing square activates actuator movement
-    if((*current_ref)->buttons[3] == 1){
+    if((*current_ref)->buttons[3] == 1 && actuator_active_ == false){
       actuator_active_ = true;
       actuator_iterator = 0.001;
-      joint_velocities_[6] = 0.001; // to start off
-    }
-
-    // Once actuator reaches original position, stop movement
-    if (actuator_active_ == true && joint_velocities_[6] == 0.0 && actuator_iterator < 0){
-      actuator_active_ = false;
     }
 
     // Move actuator up to max position, then begin moving it down
     if (joint_velocities_[6] >= max_velocities_[6] && actuator_active_ == true && actuator_iterator > 0){
       actuator_iterator = -0.001;
     }
+
+    // Once actuator reaches original position, stop movement
+    if (actuator_active_ == true && joint_velocities_[6] == 0.0 && actuator_iterator < 0){
+      actuator_active_ = false;
+      actuator_iterator = 0.0;
+    }
+
     joint_velocities_[6] = joint_velocities_[6] + actuator_iterator;
+
+    if(DEBUG_MODE == 1){
+      logger_function();
+    }
   }
   else{
-    // RCLCPP_INFO(get_node()->get_logger(), "Returning NaN");
+    if(DEBUG_MODE == 1){
+      RCLCPP_INFO(get_node()->get_logger(), "Returning NaN");
+    }
     joint_velocities_.resize(7, 0.0);
   }
 

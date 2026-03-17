@@ -9,16 +9,11 @@ endif()
 find_package(ament_cmake REQUIRED)
 
 # -------------------- Dependencies --------------------
-include(FetchContent)
-
-# Fetch SerialCAN from GitHub
-FetchContent_Declare(
-        SerialCAN
-        GIT_REPOSITORY https://github.com/mac-can/SerialCAN.git
-        GIT_TAG main
-        GIT_SHALLOW TRUE
-)
-FetchContent_MakeAvailable(SerialCAN)
+# SerialCAN — vendored locally for offline builds
+# Upstream: https://github.com/mac-can/SerialCAN
+# Vendored from commit: 4bb7945 (2024-08-28)
+# To update: clone the upstream repo, replace third_party/SerialCAN/, remove .git/
+set(serialcan_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/SerialCAN)
 
 # -------------------- Build SerialCAN --------------------
 add_custom_target(umdloop_can_library_build_serialcan

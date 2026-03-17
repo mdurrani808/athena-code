@@ -71,6 +71,9 @@ public:
   ATHENA_ARM_CONTROLLERS__VISIBILITY_PUBLIC
   controller_interface::return_type update(
     const rclcpp::Time & time, const rclcpp::Duration & period) override;
+    
+  ATHENA_ARM_CONTROLLERS__VISIBILITY_PUBLIC
+  void logger_function();
 
   // TODO(anyone): replace the state and command message types
   using ControllerReferenceMsg = sensor_msgs::msg::Joy;

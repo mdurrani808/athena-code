@@ -1,0 +1,4 @@
+/**:
+  ros__parameters:
+    # 0: PS4    1: Thrustmaster
+    joystick_type: 0

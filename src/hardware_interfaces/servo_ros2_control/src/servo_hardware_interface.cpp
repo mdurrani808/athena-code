@@ -106,9 +106,9 @@ void SERVOHardwareInterface::logger_function(){
         << "Parameters: Node ID: 0x" << std::hex << std::uppercase << joint_node_ids[i]
         << " | Gear Ratio: " << joint_gear_ratios[i]
         << " | Device Status: " << std::hex << std::uppercase << device_status[i] 
+        << " | Control Mode: " << static_cast<int>(control_level_[i])
         << " - " << status << "\n"
         << "-- Commands --\n"
-        << "Control Mode: " << static_cast<int>(control_level_[i]) << "\n"
         << "Motor Position: " << motor_position[i]
         << " | Joint Command Position: " << joint_command_position_[i] << "\n"
         << "Motor Velocity: " << motor_velocity[i]
@@ -188,13 +188,18 @@ hardware_interface::CallbackReturn SERVOHardwareInterface::on_init(
   elapsed_update_time = 0.0;
   elapsed_time = 0.0;
   elapsed_logger_time = 0.0;
+  write_count = 0;
   
   // -- Command and State Interface initialization --
   joint_state_position_.assign(num_joints, std::numeric_limits<double>::quiet_NaN());
+  prev_joint_state_position_.assign(num_joints, std::numeric_limits<double>::quiet_NaN());
   joint_state_velocity_.assign(num_joints, 0);
+  prev_joint_state_velocity_.assign(num_joints, 0);
 
   joint_command_position_.assign(num_joints, std::numeric_limits<double>::quiet_NaN());
+  prev_joint_command_position_.assign(num_joints, std::numeric_limits<double>::quiet_NaN());
   joint_command_velocity_.assign(num_joints, 0);
+  prev_joint_command_velocity_.assign(num_joints, 0);
 
   motor_position.assign(num_joints, 0.0);
   motor_velocity.assign(num_joints, 0.0);
@@ -399,9 +404,15 @@ hardware_interface::return_type SERVOHardwareInterface::read(
   const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/)
 {
   for(int i = 0; i < num_joints; i++) {
-    // CALCULATING JOINT STATE
-    joint_state_velocity_[i] = motor_velocity[i];
-    joint_state_position_[i] = motor_position[i];
+    if (prev_joint_state_velocity_[i] != motor_velocity[i]){
+      joint_state_velocity_[i] = motor_velocity[i];
+      prev_joint_state_velocity_[i] = joint_state_velocity_[i];
+    }
+
+    if (prev_joint_state_position_[i] != motor_position[i]){
+      joint_state_position_[i] = motor_position[i];
+      prev_joint_state_position_[i] = joint_state_position_[i];
+    }
 
     // ACCOUNTING FOR DEVICE STATUS
     if(device_status[i] != 0x00 && device_status[i] != 0x01 && device_status[i] != -1){
@@ -443,88 +454,105 @@ hardware_interface::return_type servo_ros2_control::SERVOHardwareInterface::writ
     elapsed_update_time = 0.0;
       
     // Motor Command for each joint at given frequency
-    for(int i = 0; i < num_joints; i++) {
+    // for(int i = 0; i < num_joints; i++) { // TESTING
+      int i = write_count % num_joints; // TESTING
+      write_count+=1;
+
       // Motor Command for each joint at given frequency
       can_tx_frame_ = CANLib::CanFrame();
       can_tx_frame_.id = can_command_id;
       can_tx_frame_.dlc = 3;
       
-      if(control_level_[i] == integration_level_t::POSITION && servo_type_[i] == servo_type_t::STANDARD && std::isfinite(joint_command_position_[i])) {
-        // CALCULATE DESIRED JOINT ANGLE
-        joint_angle = std::clamp(joint_command_position_[i], 0.0, rated_max[i]); // Input must be within bounds of rated max (positive and either rad or m)
-        if(joint_type_[i] == joint_type_t::REVOLUTE){
-          joint_angle = calculate_motor_position_from_desired_joint_position(joint_angle, joint_gear_ratios[i]);
-        }
-        else if(joint_type_[i] == joint_type_t::PRISMATIC){
-          joint_angle = calculate_motor_position_from_desired_joint_displacement(joint_angle, joint_gear_ratios[i], meters_per_deg[i]);
-        }
-        else{
-          RCLCPP_INFO(rclcpp::get_logger("SERVOHardwareInterface"), "The joint type for joint %s is undefined.", info_.joints[i].name.c_str());
-        }
-       
-        // ENCODING CAN MESSAGE
-        data[0] = ABSOLUTE_POS_CONTROL_CMD + joint_node_ids[i];
-        data[1] = joint_angle & 0xFF;
-        data[2] = (joint_angle >> 8) & 0xFF;
+      if(
+        control_level_[i] == integration_level_t::POSITION && 
+        servo_type_[i] == servo_type_t::STANDARD && 
+        std::isfinite(joint_command_position_[i]) && 
+        joint_command_position_[i] != prev_joint_command_position_[i]
+      ) {
+          // CALCULATE DESIRED JOINT ANGLE
+          joint_command_position_[i] = std::clamp(joint_command_position_[i], 0.0, rated_max[i]); // Input must be within bounds of rated max (positive and either rad or m)
+          if(joint_type_[i] == joint_type_t::REVOLUTE){
+            joint_angle = calculate_motor_position_from_desired_joint_position(joint_command_position_[i], joint_gear_ratios[i]);
+          }
+          else if(joint_type_[i] == joint_type_t::PRISMATIC){
+            joint_angle = calculate_motor_position_from_desired_joint_displacement(joint_command_position_[i], joint_gear_ratios[i], meters_per_deg[i]);
+          }
+          else{
+            RCLCPP_INFO(rclcpp::get_logger("SERVOHardwareInterface"), "The joint type for joint %s is undefined.", info_.joints[i].name.c_str());
+          }
+          
+          // RCLCPP_INFO(rclcpp::get_logger("SERVOHardwareInterface"), 
+          // "Joint %s: cmd_pos=%.4f, joint_angle=%d \n", 
+          // info_.joints[i].name.c_str(), joint_command_position_[i], (int)joint_angle);
 
-        // Cast data to uint8_t
-        for(int j = 0; j < 3; j++){
-          data[j] = static_cast<uint8_t>(data[j]);
-          can_tx_frame_.data[j] = data[j];
-        }
-        
+          // ENCODING CAN MESSAGE
+          data[0] = ABSOLUTE_POS_CONTROL_CMD + joint_node_ids[i];
+          data[1] = joint_angle & 0xFF;
+          data[2] = (joint_angle >> 8) & 0xFF;
+
+          // Cast data to uint8_t
+          for(int j = 0; j < 3; j++){
+            data[j] = static_cast<uint8_t>(data[j]);
+            can_tx_frame_.data[j] = data[j];
+          }
+          
+          // Save previous joint command position
+          prev_joint_command_position_[i] = joint_command_position_[i];
       }
-      else if(control_level_[i] == integration_level_t::VELOCITY && servo_type_[i] == servo_type_t::CONTINUOUS && std::isfinite(joint_command_velocity_[i])) {
+      else if(
+        control_level_[i] == integration_level_t::VELOCITY && 
+        servo_type_[i] == servo_type_t::CONTINUOUS && 
+        std::isfinite(joint_command_velocity_[i]) &&
+        joint_command_velocity_[i] != prev_joint_command_velocity_[i]
+      ) {
+          // CALCULATE DESIRED JOINT VELOCITY
+          joint_command_velocity_[i] = std::clamp(joint_command_velocity_[i], -rated_max[i], rated_max[i]); // Input must be within bounds of rated max (all real values and either rad or m)
+          joint_velocity = joint_command_velocity_[i];
+          if(joint_type_[i] == joint_type_t::REVOLUTE){
+            joint_velocity = calculate_motor_velocity_from_desired_joint_angular_velocity(joint_velocity, joint_gear_ratios[i]);
+          }
+          else if(joint_type_[i] == joint_type_t::PRISMATIC){
+            joint_velocity = calculate_motor_velocity_from_desired_joint_linear_velocity(joint_velocity, joint_gear_ratios[i], meters_per_deg[i]);
+          }
+          else{
+            RCLCPP_INFO(rclcpp::get_logger("SERVOHardwareInterface"), "The joint type for joint %s is undefined.", info_.joints[i].name.c_str());
+          }
         
-        // CALCULATE DESIRED JOINT VELOCITY
-        joint_velocity = std::clamp(joint_command_velocity_[i], -rated_max[i], rated_max[i]); // Input must be within bounds of rated max (all real values and either rad or m)
-        if(joint_type_[i] == joint_type_t::REVOLUTE){
-          joint_velocity = calculate_motor_velocity_from_desired_joint_angular_velocity(joint_velocity, joint_gear_ratios[i]);
-        }
-        else if(joint_type_[i] == joint_type_t::PRISMATIC){
-          joint_velocity = calculate_motor_velocity_from_desired_joint_linear_velocity(joint_velocity, joint_gear_ratios[i], meters_per_deg[i]);
-        }
-        else{
-          RCLCPP_INFO(rclcpp::get_logger("SERVOHardwareInterface"), "The joint type for joint %s is undefined.", info_.joints[i].name.c_str());
-        }
-       
-        // ENCODING CAN MESSAGE
-        data[0] = VELOCITY_CONTROL_CMD + joint_node_ids[i];
-        data[1] = joint_velocity & 0xFF;
-        data[2] = (joint_velocity >> 8) & 0xFF;
+          // ENCODING CAN MESSAGE
+          data[0] = VELOCITY_CONTROL_CMD + joint_node_ids[i];
+          data[1] = joint_velocity & 0xFF;
+          data[2] = (joint_velocity >> 8) & 0xFF;
 
-        // Cast data to uint8_t
-        for(int j = 0; j < 3; j++){
-          data[j] = static_cast<uint8_t>(data[j]);
-          can_tx_frame_.data[j] = data[j];
-        }
+          // Cast data to uint8_t
+          for(int j = 0; j < 3; j++){
+            data[j] = static_cast<uint8_t>(data[j]);
+            can_tx_frame_.data[j] = data[j];
+          }
 
+          // Save previous joint command velocity
+          prev_joint_command_velocity_[i] = joint_command_velocity_[i];
       }
-      else {
+      else 
+      {
         command_nibble = MOTOR_STATE_CMD;       // Motor State Command for each joint at given frequency
         can_tx_frame_.dlc = 1;
         device_id_nibble = joint_node_ids[i] & 0x0F;
         can_tx_frame_.data = { static_cast<uint8_t>((command_nibble << 4) | device_id_nibble) };
-      
-        if (control_level_[i] == integration_level_t::POSITION && servo_type_[i] == servo_type_t::CONTINUOUS) {
-          if (logger_state == 1) {
+        
+        if (logger_state == 0) {
+          if (control_level_[i] == integration_level_t::POSITION && servo_type_[i] == servo_type_t::CONTINUOUS) {
             RCLCPP_WARN(rclcpp::get_logger("SERVOHardwareInterface"), "Joint %s is continuous type and cannot be position controlled.", info_.joints[i].name.c_str());
           }
-        }
-        else if (control_level_[i] == integration_level_t::VELOCITY && servo_type_[i] == servo_type_t::STANDARD) {
-          if (logger_state == 1) {
+          else if (control_level_[i] == integration_level_t::VELOCITY && servo_type_[i] == servo_type_t::STANDARD) {
             RCLCPP_WARN(rclcpp::get_logger("SERVOHardwareInterface"), "Joint %s is standard type and cannot be velocity controlled.", info_.joints[i].name.c_str());
           }
-        }
-        else{
-          if (logger_state == 1) {
-            RCLCPP_WARN(rclcpp::get_logger("SERVOHardwareInterface"), "Joint command value not found or undefined command state");
+          else{
+            RCLCPP_WARN(rclcpp::get_logger("SERVOHardwareInterface"), "Joint command value not found or undefined command state for joint %s", info_.joints[i].name.c_str());          }
           }
         }
-      }
       
       canBus.send(can_tx_frame_);
-    }
+    // }
   }
 
   return hardware_interface::return_type::OK;

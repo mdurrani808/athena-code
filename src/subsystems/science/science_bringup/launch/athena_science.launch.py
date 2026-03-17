@@ -135,6 +135,22 @@ def generate_launch_description():
         [FindPackageShare(description_package), "rviz", "athena_science.rviz"]
     )
 
+    joystick_config_file = PathJoinSubstitution(
+        [FindPackageShare(runtime_config_package), 'config', 'joystick.yaml']
+    )
+
+    joystick_publisher = Node(
+        package='teleop',
+        executable='joystick',
+        name='joystick',
+        output='screen',
+        parameters = [joystick_config_file],
+        remappings=[
+        ('controller_input', 'science_manual'),
+        ('/controller_input', '/science_manual'),
+    ],
+    )
+
     control_node = Node(
         package="controller_manager",
         executable="ros2_control_node",
@@ -319,6 +335,7 @@ def generate_launch_description():
             delay_motor_status_broadcaster_after_joint_state_broadcaster,
             # umdloop_can_node,
             controller_switcher_node,
+            joystick_publisher,
         ]
         + delay_robot_controller_spawners_after_joint_state_broadcaster_spawner
         + delay_inactive_robot_controller_spawners_after_joint_state_broadcaster_spawner

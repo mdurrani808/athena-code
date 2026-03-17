@@ -2,17 +2,6 @@
 # Licensed under the Apache License, Version 2.0 (the "License");
 # ...
 science_manual:
-  joints:
-    type: string_array
-    default_value: []
-    description: >
-      Specifies joints used by the controller. If state joints parameter is defined,
-      then only command joints are defined with this parameter.
-    read_only: true
-    validation:
-      unique<>: null
-      not_empty<>: null
-
   state_joints:
     type: string_array
     default_value: []
@@ -42,27 +31,7 @@ science_manual:
     type: string_array
     default_value: ["velocity", "position"]
 
-  velocity_limits_talon_lift:
-    type: double_array
-    default_value: [1.0, 0.1, 0.0, 0.3] 
-
-  velocity_limits_talon_scoop:
-    type: double_array
-    default_value: [0.0, 0.0, 0.6, 0.0]
-
-  velocity_limits_stepper:
-    type: double_array
-    default_value: [0.0, 0.0, 0.6, 0.0]
-
-  velocity_limits_auger:
-    type: double_array
-    default_value: [0.0, 0.0, 0.0, 0.6]
-
-  velocity_limits_auger_spinner:
-    type: double_array
-    default_value: [0.0, 0.0, 0.0, 0.6]
-
-  stepper_motor_a:
+  pump_a:
     type: string
     default_value: "stepper_motor_a"
     description: "First Stepper Motor"
@@ -70,7 +39,7 @@ science_manual:
     validation:
       not_empty<>: null
 
-  stepper_motor_b:
+  pump_b:
     type: string
     default_value: "stepper_motor_b"
     description: "Second Stepper Motor"
@@ -78,16 +47,32 @@ science_manual:
     validation:
       not_empty<>: null
 
-  talon_lift:
+  lift_rack_and_pinion_l:
+    type: string
+    default_value: "servo_rack_and_pinion_l"
+    description: "The Servo motor controller for the left-sided rack and pinion"
+    read_only: true
+    validation:
+      not_empty<>: null
+
+  lift_rack_and_pinion_r:
+    type: string
+    default_value: "servo_rack_and_pinion_r"
+    description: "The Servo motor controller for the right-sided rack and pinion"
+    read_only: true
+    validation:
+      not_empty<>: null
+
+  scoop_servos:
     type: string_array
-    default_value: ["talon_lift"]
-    description: "The Talon motor controller for the lift (2 motors)"
+    default_value: ["servo_scoop_a", "servo_scoop_b"]
+    description: "The servos for the scoop (2 servos)"
     read_only: true
     validation:
       unique<>: null
       not_empty<>: null
 
-  talon_scoop:
+  scoop_spinner:
     type: string
     default_value: "talon_scoop"
     description: "Scoop Talon motor controller"
@@ -95,49 +80,98 @@ science_manual:
     validation:
       not_empty<>: null
 
-  scoop_servos:
-    type: string_array
-    default_value: ["scoop_a", "scoop_b"]
-    description: "The servos for the scoop (2 servos)"
-    read_only: true
-    validation:
-      unique<>: null
-      not_empty<>: null
-
-  auger_spinner:
+  sampler_lift_l:
     type: string
-    default_value: ""
+    default_value: "servo_sampler_lift_l"
     description: "(Optional)"
     read_only: false
 
-  rack_and_pinion_left:
+  sampler_lift_r:
     type: string
-    default_value: "rack_and_pinion_left"
-    description: "The Servo motor controller for the left-sided rack and pinion"
-    read_only: true
-    validation:
-      not_empty<>: null
+    default_value: "servo_sampler_lift_r"
+    description: "(Optional)"
+    read_only: false
 
-  rack_and_pinion_right:
+  auger_spinner:
     type: string
-    default_value: "rack_and_pinion_right"
-    description: "The Servo motor controller for the right-sided rack and pinion"
-    read_only: true
-    validation:
-      not_empty<>: null
+    default_value: "talon_auger"
+    description: "(Optional)"
+    read_only: false
 
-  auger:
+  auger_lift:
     type: string
-    default_value: "auger"
-    description: "The Servo motor controller for the auger"
+    default_value: "servo_auger_lift"
+    description: "The Servo motor controller for the auger lift"
     read_only: true
     validation:
       not_empty<>: null
+  
+  # Pumps
+  velocity_limits_pumps:
+    type: double_array
+    default_value: [20.0, 0.0, 0.6, 0.0]
+    validation:
+      fixed_size<>: 4
 
-  cap:
-    type: string
-    default_value: "cap"
-    description: "The Servo motor controller for the cap"
-    read_only: true
+  # Lift
+  velocity_limits_lift:
+    type: double_array
+    default_value: [20.0, 0.1, 0.0, 0.3]
     validation:
-      not_empty<>: null
+      fixed_size<>: 4
+
+  position_range_lift_left:
+    type: double_array
+    default_value: [75.0, 235.0]
+    validation:
+      fixed_size<>: 2
+
+  position_range_lift_right:
+    type: double_array
+    default_value: [30.0, 235.0]
+    validation:
+      fixed_size<>: 2
+
+  # Scoops
+  position_range_scoop_servo:
+    type: double_array
+    default_value: [0.0, 120.0]
+    validation:
+      fixed_size<>: 2
+
+  velocity_limits_scoop_spinner:
+    type: double_array
+    default_value: [15.0, 0.0, 0.6, 0.0]
+    validation:
+      fixed_size<>: 4
+
+  # Sampler
+  position_range_sampler_lift:
+    type: double_array
+    default_value: [0.0, 360.0]
+    validation:
+      fixed_size<>: 2
+
+  velocity_limits_sampler_lift:
+    type: double_array
+    default_value: [50.0, 0.0, 0.0, 0.6]
+    validation:
+      fixed_size<>: 4
+
+  velocity_limits_auger:
+    type: double_array
+    default_value: [5.0, 0.0, 0.0, 0.6]
+    validation:
+      fixed_size<>: 4
+
+  velocity_limits_auger_lift:
+    type: double_array
+    default_value: [10.0, 0.0, 0.0, 0.6]
+    validation:
+      fixed_size<>: 4
+
+  position_range_auger_lift:
+    type: double_array
+    default_value: [5.0, 360.0]
+    validation:
+      fixed_size<>: 2
