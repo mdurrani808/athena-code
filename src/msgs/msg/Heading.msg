@@ -1,7 +1,8 @@
-# Heading in ROS convention: 0 = East, increases counter-clockwise, radians.
-# Note: this differs from compass bearing (0 = North, clockwise, degrees).
-# The driver converts from compass bearing via: heading = (90 - bearing_deg) * pi / 180
+# heading: ROS convention (0=East, CCW, radians). Converted from compass bearing,
+#          but does not account for magnetic declination.
+# compass_bearing: raw magnetometer reading (0=magnetic North, CW, degrees).
 
 std_msgs/Header header
 float64 heading
 float64 heading_acc
+float64 compass_bearing
