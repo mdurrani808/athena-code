@@ -22,6 +22,8 @@ find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(eigen3_cmake_module REQUIRED)
 find_package(Eigen3 REQUIRED)
+find_package(msgs REQUIRED)
+find_package(std_msgs REQUIRED)
 
 add_executable(localizer_node src/state_estimator.cpp)
 target_include_directories(localizer_node PUBLIC
@@ -42,7 +44,9 @@ ament_target_dependencies(localizer_node
   tf2
   tf2_ros
   tf2_geometry_msgs
-  Eigen3)
+  Eigen3
+  msgs
+  std_msgs)
 
 add_executable(zed_tf_publisher_node src/zed_tf_publisher.cpp)
 target_include_directories(zed_tf_publisher_node PUBLIC

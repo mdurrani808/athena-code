@@ -5,6 +5,7 @@
 #include <gtsam/slam/BetweenFactor.h>
 #include <gtsam/navigation/GPSFactor.h>
 #include <gtsam/linear/NoiseModel.h>
+#include <gtsam/navigation/AttitudeFactor.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 #include <GeographicLib/LocalCartesian.hpp>
 
@@ -61,6 +62,7 @@ namespace localizer
     StateEstimator::StateEstimator()
         : Node("state_estimator"), current_key_index_(0), oldest_key_index_(0),
           enu_origin_set_(false), origin_lat_(0.0), origin_lon_(0.0), origin_alt_(0.0),
+          initial_heading_(0.0), initial_heading_received_(false),
           filter_initialized_(false)
     {
         init_state_.store(InitState::WAITING_FOR_IMU);
@@ -101,6 +103,14 @@ namespace localizer
             odom_topic, rclcpp::SensorDataQoS(),
             std::bind(&StateEstimator::odom_callback, this, std::placeholders::_1));
 
+        if (params_.enable_heading)
+        {
+            std::string heading_topic = this->get_parameter("heading_topic").as_string();
+            heading_sub_ = create_subscription<msgs::msg::Heading>(
+                heading_topic, rclcpp::SensorDataQoS(),
+                std::bind(&StateEstimator::heading_callback, this, std::placeholders::_1));
+        }
+
         std::string output_topic = this->get_parameter("output_odom_topic").as_string();
         odom_pub_ = create_publisher<nav_msgs::msg::Odometry>(output_topic, 10);
         filtered_imu_pub_ = create_publisher<sensor_msgs::msg::Imu>("/imu/filtered", rclcpp::SensorDataQoS());
@@ -122,6 +132,13 @@ namespace localizer
                     this->get_parameter("gnss_topic").as_string().c_str());
         RCLCPP_INFO(get_logger(), "  Odom topic: %s",
                     this->get_parameter("odom_topic").as_string().c_str());
+        RCLCPP_INFO(get_logger(), "  Heading: %s",
+                    params_.enable_heading ? "enabled" : "disabled");
+        if (params_.enable_heading)
+        {
+            RCLCPP_INFO(get_logger(), "  Heading topic: %s",
+                        this->get_parameter("heading_topic").as_string().c_str());
+        }
     }
 
     StateEstimator::~StateEstimator() = default;
@@ -192,6 +209,11 @@ namespace localizer
         params_.enable_imu_filter = declare_parameter("enable_imu_filter", params_.enable_imu_filter);
         params_.imu_filter_alpha = declare_parameter("imu_filter_alpha", params_.imu_filter_alpha);
 
+        params_.enable_heading = declare_parameter("enable_heading", params_.enable_heading);
+        params_.heading_sigma = declare_parameter("heading_sigma", params_.heading_sigma);
+        params_.heading_max_age = declare_parameter("heading_max_age", params_.heading_max_age);
+        declare_parameter("heading_topic", "/heading");
+
         double origin_lat = declare_parameter("origin_lat", 0.0);
         double origin_lon = declare_parameter("origin_lon", 0.0);
         double origin_alt = declare_parameter("origin_alt", 0.0);
@@ -230,6 +252,11 @@ namespace localizer
         check_positive(params_.initial_rotation_sigma, "initial_rotation_sigma");
         check_positive(params_.tf_publish_rate, "tf_publish_rate");
         check_positive(params_.initial_velocity_sigma, "initial_velocity_sigma");
+        if (params_.enable_heading)
+        {
+            check_positive(params_.heading_sigma, "heading_sigma");
+            check_positive(params_.heading_max_age, "heading_max_age");
+        }
 
         if (!valid)
         {
@@ -356,6 +383,8 @@ namespace localizer
 
         pending_gnss_.reset();
         pending_odom_.reset();
+        pending_heading_.reset();
+        initial_heading_received_ = false;
 
         last_state_time_ = rclcpp::Time(0, 0, RCL_ROS_TIME);
         imu_to_base_.reset();
@@ -525,14 +554,30 @@ namespace localizer
             std::lock_guard<std::mutex> lock(state_mutex_);
             if (init_state_.load() == InitState::WAITING_FOR_POSITION)
             {
-                if (initialize_graph(enu_pos, stamp))
+                if (params_.enable_heading)
                 {
-                    init_state_.store(InitState::RUNNING);
-                    RCLCPP_INFO(get_logger(), "State: RUNNING");
-                    RCLCPP_INFO(get_logger(), "Initialized at ENU (%.2f, %.2f, %.2f)",
-                                enu_pos.x(), enu_pos.y(), enu_pos.z());
+                    initial_gnss_position_ = enu_pos;
+                    initial_gnss_timestamp_ = stamp;
+                    init_state_.store(InitState::WAITING_FOR_HEADING);
+                    RCLCPP_INFO(get_logger(), "State: WAITING_FOR_HEADING");
+                }
+                else
+                {
+                    if (initialize_graph(enu_pos, stamp))
+                    {
+                        init_state_.store(InitState::RUNNING);
+                        RCLCPP_INFO(get_logger(), "State: RUNNING");
+                        RCLCPP_INFO(get_logger(), "Initialized at ENU (%.2f, %.2f, %.2f)",
+                                    enu_pos.x(), enu_pos.y(), enu_pos.z());
+                    }
                 }
             }
+        }
+        else if (current_state == InitState::WAITING_FOR_HEADING)
+        {
+            std::lock_guard<std::mutex> lock(state_mutex_);
+            initial_gnss_position_ = enu_pos;
+            initial_gnss_timestamp_ = stamp;
         }
         else if (current_state == InitState::RUNNING)
         {
@@ -585,6 +630,57 @@ namespace localizer
         pending_odom_.prev_pose = current_pose;
     }
 
+    void StateEstimator::heading_callback(msgs::msg::Heading::SharedPtr msg)
+    {
+        if (!params_.enable_heading)
+        {
+            return;
+        }
+
+        rclcpp::Time stamp(msg->header.stamp);
+        double age = (this->get_clock()->now() - stamp).seconds();
+        if (age > params_.heading_max_age)
+        {
+            RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 5000,
+                                 "Heading: Rejecting stale measurement (%.2fs old)", age);
+            return;
+        }
+
+        double heading_enu = msg->heading;
+        double sigma = std::max(params_.heading_sigma, msg->heading_acc);
+
+        InitState current_state = init_state_.load();
+
+        if (current_state == InitState::WAITING_FOR_HEADING)
+        {
+            std::lock_guard<std::mutex> lock(state_mutex_);
+            if (init_state_.load() == InitState::WAITING_FOR_HEADING)
+            {
+                initial_heading_ = heading_enu;
+                initial_heading_received_ = true;
+
+                if (initialize_graph(initial_gnss_position_, initial_gnss_timestamp_))
+                {
+                    init_state_.store(InitState::RUNNING);
+                    RCLCPP_INFO(get_logger(), "State: RUNNING");
+                    RCLCPP_INFO(get_logger(), "Initialized with heading %.2f deg at ENU (%.2f, %.2f, %.2f)",
+                                heading_enu * 180.0 / M_PI,
+                                initial_gnss_position_.x(),
+                                initial_gnss_position_.y(),
+                                initial_gnss_position_.z());
+                }
+            }
+        }
+        else if (current_state == InitState::RUNNING)
+        {
+            std::lock_guard<std::mutex> lock(state_mutex_);
+            pending_heading_.heading = heading_enu;
+            pending_heading_.sigma = sigma;
+            pending_heading_.timestamp = stamp;
+            pending_heading_.valid = true;
+        }
+    }
+
     bool StateEstimator::initialize_graph(
         const gtsam::Point3 &position,
         const rclcpp::Time &timestamp)
@@ -594,6 +690,14 @@ namespace localizer
         {
             std::lock_guard<std::mutex> lock(imu_mutex_);
             initial_rot = estimate_initial_orientation_locked();
+        }
+
+        if (params_.enable_heading && initial_heading_received_)
+        {
+            auto rpy = initial_rot.rpy();  // (roll, pitch, yaw)
+            initial_rot = gtsam::Rot3::Ypr(initial_heading_, rpy(1), rpy(0));
+            RCLCPP_INFO(get_logger(), "Applied initial heading: %.2f deg (yaw in ENU)",
+                        initial_heading_ * 180.0 / M_PI);
         }
 
         gtsam::Pose3 initial_pose(initial_rot, position);
@@ -773,6 +877,26 @@ namespace localizer
             factors.emplace_shared<gtsam::BetweenFactor<gtsam::Pose3>>(
                 X(prev_key), X(curr_key), pending_odom_.delta, odom_noise_);
             RCLCPP_DEBUG(get_logger(), "Added odom factor %" PRIu64 "->%" PRIu64, prev_key, curr_key);
+        }
+
+        if (pending_heading_.valid && params_.enable_heading)
+        {
+            gtsam::Unit3 heading_direction(
+                std::cos(pending_heading_.heading),
+                std::sin(pending_heading_.heading),
+                0.0);
+            gtsam::Unit3 body_forward(1.0, 0.0, 0.0);
+
+            auto heading_noise = gtsam::noiseModel::Isotropic::Sigma(2, pending_heading_.sigma);
+
+            factors.emplace_shared<gtsam::Pose3AttitudeFactor>(
+                X(curr_key), heading_direction, heading_noise, body_forward);
+
+            RCLCPP_DEBUG(get_logger(),
+                         "Added heading factor at key %" PRIu64 ", heading=%.2f deg, sigma=%.4f",
+                         curr_key, pending_heading_.heading * 180.0 / M_PI, pending_heading_.sigma);
+
+            pending_heading_.reset();
         }
 
         try

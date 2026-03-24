@@ -57,6 +57,12 @@ state_estimator:
     # Buffer Configuration
     imu_buffer_max_size: 5000
 
+    # Heading Parameters
+    enable_heading: false
+    heading_topic: "/heading"
+    heading_sigma: 0.1
+    heading_max_age: 0.5
+
     # Must match gps_goal/config/gps_goal_params.yaml exactly,
     origin_lat: 38.42391162772634
     origin_lon: -110.78490558433397
