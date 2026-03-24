@@ -33,8 +33,17 @@ def generate_launch_description():
     default_params = PathJoinSubstitution([
         FindPackageShare('athena_planner'), 'config', 'nav2_params.yaml'
     ])
+    minimal_params = PathJoinSubstitution([
+        FindPackageShare('athena_planner'), 'config', 'nav2_params_minimal.yaml'
+    ])
 
     sim = LaunchConfiguration('sim')
+    use_minimal = LaunchConfiguration('use_minimal')
+
+    selected_params = PythonExpression([
+        "'", minimal_params, "' if '", use_minimal, "' == 'true' else '", default_params, "'"
+    ])
+
     params_file = LaunchConfiguration('params_file')
     use_respawn = LaunchConfiguration('use_respawn')
     log_level = LaunchConfiguration('log_level')
@@ -129,7 +138,12 @@ def generate_launch_description():
             description='Set true when running in Gazebo simulation (enables sim time and sensor bridges)',
         ),
         DeclareLaunchArgument(
-            'params_file', default_value=default_params,
+            'use_minimal', default_value='false',
+            choices=['true', 'false'],
+            description='Use minimal Nav2 config for ackermann testing (empty costmaps, basic BT)',
+        ),
+        DeclareLaunchArgument(
+            'params_file', default_value=selected_params,
             description='Full path to the Nav2 params YAML',
         ),
         DeclareLaunchArgument('map_frame', default_value='map'),

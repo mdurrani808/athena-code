@@ -1,0 +1,18 @@
+<!--
+  Minimal behavior tree for ackermann navigation.
+  Plans a path at 5 Hz and follows it. On failure, waits 5s then retries.
+-->
+
+<root main_tree_to_execute="MainTree">
+  <BehaviorTree ID="MainTree">
+    <RecoveryNode number_of_retries="3" name="NavigateRecovery">
+      <PipelineSequence name="NavigateWithReplanning">
+        <RateController hz="5.0">
+          <ComputePathToPose goal="{goal}" path="{path}" planner_id="GridBased"/>
+        </RateController>
+        <FollowPath path="{path}" controller_id="FollowPath"/>
+      </PipelineSequence>
+      <Wait wait_duration="5.0"/>
+    </RecoveryNode>
+  </BehaviorTree>
+</root>
