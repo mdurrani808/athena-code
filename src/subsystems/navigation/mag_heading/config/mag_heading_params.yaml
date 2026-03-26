@@ -1,0 +1,13 @@
+mag_heading_node:
+  ros__parameters:
+    mag_topic: "imu/mag"
+    heading_topic: "heading"
+    # Full path to the calibration JSON produced by mag_calib_node.
+    # Defaults to <mag_calib share dir>/<sanitized_topic>_calibration.json,
+    # e.g. imu_mag_calibration.json — matches where mag_calib_node writes.
+    calibration_file: ""
+    # Magnetic declination in degrees (positive = East of true North).
+    # Look up your operating location at:
+    #   https://www.ngdc.noaa.gov/geomag/calculators/magcalc.shtml
+    # Example: College Park, MD ≈ -10.5°  |  College Park, CA ≈ +13.5°
+    declination_deg: 0.0

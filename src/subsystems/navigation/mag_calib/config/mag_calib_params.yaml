@@ -1,0 +1,9 @@
+mag_calib_node:
+  ros__parameters:
+    mag_topic: "imu/mag"
+    # Output directory for calibration JSON, plots, and raw CSV.
+    # Defaults to the mag_calib package share directory
+    # (install/mag_calib/share/mag_calib/ or the source tree with --symlink-install).
+    # The calibration file is named <sanitized_topic>_calibration.json,
+    # e.g. imu_mag_calibration.json, so multiple sensors stay separate.
+    output_dir: ""
