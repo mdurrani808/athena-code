@@ -4,7 +4,11 @@ import math
 
 import rclpy
 from rclpy.node import Node
+<<<<<<< HEAD
 from rclpy.qos import QoSPresetProfiles
+=======
+from rclpy.qos import SensorDataQoS
+>>>>>>> f33dc56 (building)
 from sensor_msgs.msg import MagneticField
 from msgs.msg import Heading
 
@@ -22,25 +26,37 @@ class HeadingPublisher(Node):
         self.heading_acc_ = self.get_parameter('heading_acc').get_parameter_value().double_value
 
         self.pub_ = self.create_publisher(Heading, heading_topic, 10)
+<<<<<<< HEAD
         
         # Always cache the first heading to start at 0 degrees
         self.initial_heading_enu = None
+=======
+>>>>>>> f33dc56 (building)
 
         self.sub_ = self.create_subscription(
             MagneticField,
             mag_topic,
             self.on_mag,
+<<<<<<< HEAD
             QoSPresetProfiles.SENSOR_DATA.value,
         )
 
         self.get_logger().info(
             f'Heading publisher: {mag_topic} -> {heading_topic} (Force Initial Offset: Enabled)'
+=======
+            SensorDataQoS(),
+        )
+
+        self.get_logger().info(
+            f'Heading publisher: {mag_topic} -> {heading_topic}'
+>>>>>>> f33dc56 (building)
         )
 
     def on_mag(self, msg: MagneticField):
         bx = msg.magnetic_field.x
         by = msg.magnetic_field.y
 
+<<<<<<< HEAD
         # In Gazebo's magnetometer the field is reported in the robot body frame
         # with the simulated Earth field pointing North (+Y world).  For a robot
         # with x=forward, y=left this gives:
@@ -62,6 +78,13 @@ class HeadingPublisher(Node):
         # Compass bearing: degrees clockwise from North
         # North is 90 deg ENU.
         compass_bearing = (90.0 - heading_enu + 360.0) % 360.0
+=======
+        # compass bearing: degrees clockwise from north
+        compass_bearing = (math.degrees(math.atan2(-by, bx)) + 360.0) % 360.0
+
+        # ENU heading: degrees CCW from east
+        heading_enu = (90.0 - compass_bearing + 360.0) % 360.0
+>>>>>>> f33dc56 (building)
 
         out = Heading()
         out.header = msg.header
