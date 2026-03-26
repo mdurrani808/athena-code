@@ -47,4 +47,14 @@ def generate_launch_description():
                 '/odom/ground_truth@nav_msgs/msg/Odometry@gz.msgs.Odometry',
             ]
         ),
+
+        Node(
+            package='ros_gz_bridge',
+            executable='parameter_bridge',
+            name='magnetometer_bridge',
+            output='screen',
+            arguments=[
+                '/mag@sensor_msgs/msg/MagneticField[gz.msgs.Magnetometer',
+            ]
+        ),
     ])

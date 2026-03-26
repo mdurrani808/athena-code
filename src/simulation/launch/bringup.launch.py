@@ -41,10 +41,16 @@ ARGUMENTS = [
         description='Publish ground truth odom -> base_link transform'
     ),
     DeclareLaunchArgument(
-    	'rqt', 
+    	'rqt',
         default_value='false',
         choices=['true', 'false'],
         description='Open RQt.'
+    ),
+    DeclareLaunchArgument(
+        'publish_sim_heading',
+        default_value='false',
+        choices=['true', 'false'],
+        description='Run heading_publisher.py to derive heading from simulated magnetometer'
     ),
 ]
 
@@ -92,11 +98,20 @@ def generate_launch_description():
         condition=IfCondition(LaunchConfiguration('publish_ground_truth_tf'))
     )
 
+    sim_heading = Node(
+        package='simulation',
+        executable='heading_publisher.py',
+        name='heading_publisher',
+        output='screen',
+        condition=IfCondition(LaunchConfiguration('publish_sim_heading')),
+    )
+
     ld = LaunchDescription(ARGUMENTS)
     ld.add_action(gazebo)
     ld.add_action(robot_spawn)
     ld.add_action(bridge)
     ld.add_action(control)
     ld.add_action(ground_truth_tf)
-    
+    ld.add_action(sim_heading)
+
     return ld

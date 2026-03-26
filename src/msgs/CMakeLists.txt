@@ -19,8 +19,15 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/Currentdraw.msg"
   "msg/JointReceiver.msg"
   "msg/SystemInfo.msg"
+  "msg/PlannerEvent.msg"
+  "msg/ActiveTarget.msg"
+  "msg/NavStatus.msg"
+  "msg/Heading.msg"
   "srv/SetController.srv"
+  "srv/LatLonToENU.srv"
+  "srv/SetTarget.srv"
   "action/NavigateToGPS.action"
+  "action/NavigateToTarget.action"
   DEPENDENCIES std_msgs geometry_msgs sensor_msgs builtin_interfaces action_msgs
 )
 
