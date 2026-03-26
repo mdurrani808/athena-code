@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+    <xacro:macro name="magnetometer_sensor" params="parent *origin">
+        <joint name="mag_joint" type="fixed">
+            <xacro:insert_block name="origin" />
+            <parent link="${parent}" />
+            <child link="mag_link" />
+        </joint>
+
+        <link name="mag_link">
+            <visual>
+                <geometry>
+                    <box size="0.05 0.05 0.05" />
+                </geometry>
+                <material name="red">
+                    <color rgba="1 0 0 1" />
+                </material>
+            </visual>
+        </link>
+
+        <gazebo reference="mag_link">
+            <sensor name="magnetometer" type="magnetometer">
+                <always_on>true</always_on>
+                <update_rate>50</update_rate>
+                <topic>/mag</topic>
+                <ign_frame_id>mag_link</ign_frame_id>
+                <plugin filename="ignition-gazebo-magnetometer-system" name="ignition::gazebo::systems::Magnetometer"/>
+            </sensor>
+        </gazebo>
+    </xacro:macro>
+</robot>

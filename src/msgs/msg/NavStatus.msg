@@ -1,0 +1,10 @@
+string state
+string active_target_id
+uint8 active_target_type
+uint8 goal_source
+float64 distance_to_goal_m
+float64 cross_track_error_m
+float64 heading_error_rad
+float64 robot_speed_mps
+bool is_return
+uint8 last_planner_event

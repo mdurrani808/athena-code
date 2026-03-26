@@ -28,6 +28,7 @@ endforeach()
 # Install Python scripts
 install(PROGRAMS
   scripts/ground_truth_tf_publisher.py
+  scripts/heading_publisher.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

@@ -1,0 +1,12 @@
+uint8 GNSS_ONLY=0
+uint8 ARUCO_POST=1
+uint8 OBJECT=2
+uint8 LOCAL=3
+uint8 GPS=0
+uint8 METER=1
+string target_id
+uint8 target_type
+float64 tolerance_m
+geometry_msgs/PoseStamped goal_enu
+uint8 goal_source
+string status

@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find:*)",
+      "Bash(git rm:*)",
+      "Bash(git checkout:*)",
+      "Bash(git -C /Users/mdurrani/Development/umdloop/ros2-devenv/main/athena-code diff main...HEAD)",
+      "Bash(xargs sed:*)"
+    ]
+  }
+}

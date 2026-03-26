@@ -1,0 +1,5 @@
+uint8 NEW_GOAL=0
+uint8 PLANNING=1
+uint8 PLAN_SUCCEEDED=2
+uint8 PLAN_FAILED=3
+uint8 event
