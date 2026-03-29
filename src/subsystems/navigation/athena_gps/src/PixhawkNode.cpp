@@ -7,7 +7,7 @@
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/imu.hpp"
 #include "sensor_msgs/msg/nav_sat_fix.hpp"
-#include "std_msgs/msg/float64.hpp"
+#include "msgs/msg/heading.hpp"
 #include <mavsdk/mavsdk.h>
 #include <mavsdk/plugins/telemetry/telemetry.h>
 
@@ -54,7 +54,7 @@ public:
         // Create publishers unconditionally so they're always valid
         imu_publisher_ = this->create_publisher<sensor_msgs::msg::Imu>(imu_topic, 10);
         gps_publisher_ = this->create_publisher<sensor_msgs::msg::NavSatFix>(gps_topic, 10);
-        heading_publisher_ = this->create_publisher<std_msgs::msg::Float64>(heading_topic, 10);
+        heading_publisher_ = this->create_publisher<msgs::msg::Heading>(heading_topic, 10);
 
         // Create MAVSDK instance
         mavsdk_ = std::make_unique<Mavsdk>(Mavsdk::Configuration{
@@ -78,7 +78,7 @@ private:
 
     rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr imu_publisher_;
     rclcpp::Publisher<sensor_msgs::msg::NavSatFix>::SharedPtr gps_publisher_;
-    rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr heading_publisher_;
+    rclcpp::Publisher<msgs::msg::Heading>::SharedPtr heading_publisher_;
     rclcpp::TimerBase::SharedPtr init_timer_;
 
     Telemetry::GpsInfo last_gps_info_;
@@ -93,12 +93,6 @@ private:
     double attitude_rate_;
     bool is_initialized_;
     bool connection_added_;
-
-    void publish_heading() {
-        auto msg = std_msgs::msg::Float64();
-        msg.data = last_heading_deg_;
-        heading_publisher_->publish(msg);
-    }
 
     void try_initialize() {
         if (is_initialized_) {
@@ -151,18 +145,12 @@ private:
 
         RCLCPP_INFO(this->get_logger(), "Telemetry rates configured successfully");
 
-        // Subscribe to telemetry streams
         telemetry_->subscribe_imu([this](const Telemetry::Imu &imu) {
             imu_callback(imu);
         });
 
         telemetry_->subscribe_attitude_quaternion([this](const Telemetry::Quaternion &quaternion) {
             last_attitude_quaternion_ = quaternion;
-        });
-
-        telemetry_->subscribe_heading([this](Telemetry::Heading heading) {
-            last_heading_deg_ = heading.heading_deg;
-            publish_heading();
         });
 
         telemetry_->subscribe_raw_gps([this](const Telemetry::RawGps &raw_gps) {
@@ -228,39 +216,39 @@ private:
     }
 
     void raw_gps_callback(const Telemetry::RawGps raw_gps) {
-        auto msg = sensor_msgs::msg::NavSatFix();
+        auto gps_msg = sensor_msgs::msg::NavSatFix();
 
-        msg.header.stamp = this->now();
-        msg.header.frame_id = gps_frame_id_;
+        gps_msg.header.stamp = this->now();
+        gps_msg.header.frame_id = gps_frame_id_;
 
-        msg.latitude = raw_gps.latitude_deg;
-        msg.longitude = raw_gps.longitude_deg;
-        msg.altitude = raw_gps.altitude_ellipsoid_m;
+        gps_msg.latitude = raw_gps.latitude_deg;
+        gps_msg.longitude = raw_gps.longitude_deg;
+        gps_msg.altitude = raw_gps.altitude_ellipsoid_m;
 
         // Map GPS fix to ROS fix 
         if (last_gps_info_.num_satellites > 0) {
             switch (last_gps_info_.fix_type) {
                 case Telemetry::FixType::NoGps:
                 case Telemetry::FixType::NoFix:
-                    msg.status.status = sensor_msgs::msg::NavSatStatus::STATUS_NO_FIX;
+                    gps_msg.status.status = sensor_msgs::msg::NavSatStatus::STATUS_NO_FIX;
                     break;
                 case Telemetry::FixType::Fix2D:
-                    msg.status.status = sensor_msgs::msg::NavSatStatus::STATUS_FIX;
+                    gps_msg.status.status = sensor_msgs::msg::NavSatStatus::STATUS_FIX;
                     break;
                 case Telemetry::FixType::Fix3D:
                 case Telemetry::FixType::FixDgps:
                 case Telemetry::FixType::RtkFloat:
                 case Telemetry::FixType::RtkFixed:
-                    msg.status.status = sensor_msgs::msg::NavSatStatus::STATUS_GBAS_FIX;
+                    gps_msg.status.status = sensor_msgs::msg::NavSatStatus::STATUS_GBAS_FIX;
                     break;
                 default:
-                    msg.status.status = sensor_msgs::msg::NavSatStatus::STATUS_NO_FIX;
+                    gps_msg.status.status = sensor_msgs::msg::NavSatStatus::STATUS_NO_FIX;
             }
         } else {
-            msg.status.status = sensor_msgs::msg::NavSatStatus::STATUS_NO_FIX;
+            gps_msg.status.status = sensor_msgs::msg::NavSatStatus::STATUS_NO_FIX;
         }
 
-        msg.status.service = sensor_msgs::msg::NavSatStatus::SERVICE_GPS;
+        gps_msg.status.service = sensor_msgs::msg::NavSatStatus::SERVICE_GPS;
 
         // calcilate variances
         if (!std::isnan(raw_gps.horizontal_uncertainty_m) &&
@@ -269,23 +257,30 @@ private:
             double h_variance = raw_gps.horizontal_uncertainty_m * raw_gps.horizontal_uncertainty_m;
             double v_variance = raw_gps.vertical_uncertainty_m * raw_gps.vertical_uncertainty_m;
 
-            msg.position_covariance[0] = h_variance;
-            msg.position_covariance[4] = h_variance;
-            msg.position_covariance[8] = v_variance;
+            gps_msg.position_covariance[0] = h_variance;
+            gps_msg.position_covariance[4] = h_variance;
+            gps_msg.position_covariance[8] = v_variance;
 
             // refine estimate using doppler
             if (!std::isnan(raw_gps.hdop) && !std::isnan(raw_gps.vdop)) {
-                msg.position_covariance[0] = h_variance * (raw_gps.hdop / 2.0);
-                msg.position_covariance[4] = h_variance * (raw_gps.hdop / 2.0);
-                msg.position_covariance[8] = v_variance * raw_gps.vdop;
+                gps_msg.position_covariance[0] = h_variance * (raw_gps.hdop / 2.0);
+                gps_msg.position_covariance[4] = h_variance * (raw_gps.hdop / 2.0);
+                gps_msg.position_covariance[8] = v_variance * raw_gps.vdop;
             }
 
-            msg.position_covariance_type = sensor_msgs::msg::NavSatFix::COVARIANCE_TYPE_DIAGONAL_KNOWN;
+            gps_msg.position_covariance_type = sensor_msgs::msg::NavSatFix::COVARIANCE_TYPE_DIAGONAL_KNOWN;
         } else {
-            msg.position_covariance_type = sensor_msgs::msg::NavSatFix::COVARIANCE_TYPE_UNKNOWN;
+            gps_msg.position_covariance_type = sensor_msgs::msg::NavSatFix::COVARIANCE_TYPE_UNKNOWN;
         }
+        auto heading_msg = msgs::msg::Heading();
+        heading_msg.header.stamp = this->now();
+        heading_msg.compass_bearing = raw_gps.yaw_deg;
+        // Convert from compass bearing (0=magnetic North, CW, degrees) to ROS convention (0=East, CCW, radians)
+        heading_msg.heading = (90.0 - raw_gps.yaw_deg) * M_PI / 180.0;
+        heading_msg.heading_acc = raw_gps.heading_uncertainty_deg * M_PI / 180.0;
 
-        gps_publisher_->publish(msg);
+        heading_publisher_->publish(heading_msg);
+        gps_publisher_->publish(gps_msg);
     }
 };
 

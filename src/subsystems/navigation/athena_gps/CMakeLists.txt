@@ -14,6 +14,7 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
+find_package(msgs REQUIRED)
 find_package(MAVSDK REQUIRED)
 add_executable(athena_gps src/PixhawkNode.cpp)
 
@@ -26,6 +27,7 @@ ament_target_dependencies(athena_gps
         rclcpp
         std_msgs
         sensor_msgs
+        msgs
 )
 target_link_libraries(athena_gps
         MAVSDK::mavsdk
