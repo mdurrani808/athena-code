@@ -1,0 +1,67 @@
+# nav_params.yaml — single parameter file passed to all navigation nodes.
+
+# ── gps_pose_publisher ───────────────────────────────────────────────────────
+gps_pose_publisher:
+  ros__parameters:
+    use_sim_time: true
+    heading_topic: "/gps/heading"
+    heading_offset_deg: 0.0       # set to 180 if sensor is mounted backwards
+    use_start_gate_ref: false     # if true, waits for /start_gate_ref NavSatFix to set origin
+    origin_lat: .nan              # set to a fixed lat/lon to skip first-fix origin logic
+    origin_lon: .nan
+    origin_alt: 0.0
+
+# ── dem_costmap_converter ────────────────────────────────────────────────────
+dem_costmap_converter:
+  ros__parameters:
+    use_sim_time: true
+    dem_file_path: ""             # set by launch file at runtime
+    map_resolution: 1.0           # meters per pixel
+    max_passable_slope_degrees: 15.0
+    output_frame: map
+    origin_x: -400.0
+    origin_y: -400.0
+
+# ── global_planner ───────────────────────────────────────────────────────────
+global_planner:
+  ros__parameters:
+    use_sim_time: true
+    path_resolution_m: 1.0        # spacing between path poses
+    use_costmap: false            # set to true to enable A* on dem_costmap_converter output
+    slope_weight: 10.0            # Phase 2: alpha in g = dist + alpha * (cell_cost / 254)
+
+# ── mission_executive ────────────────────────────────────────────────────────
+mission_executive:
+  ros__parameters:
+    use_sim_time: true
+    stop_angular_vel_threshold: 0.05  # rad/s — IMU gyro magnitude below which robot is "stopped"
+    arrival_hold_time: 1.0            # seconds gyro must stay below threshold to confirm arrival
+    replan_distance_m: 5.0            # cross-track error (m) that triggers a replan
+    latlon_to_enu_service: "/gps_pose_publisher/latlon_to_enu"
+    # Input topics
+    imu_topic: "/imu"
+    planner_event_topic: "/planner_event"
+    global_path_topic: "/global_path"
+    # Output topics
+    goal_pose_topic: "/goal_pose"
+    nav_enabled_topic: "/nav_enabled"
+    nav_mode_topic: "/nav_mode"
+    active_target_topic: "/active_target"
+    nav_status_topic: "/nav_status"
+
+# ── vector_field_planner ──────────────────────────────────────────────────────
+vector_field_planner:
+  ros__parameters:
+    use_sim_time: true
+    map_frame: map
+    base_frame: base_link
+    cmd_vel_topic: "/front_ackermann_controller/reference"
+    tf_timeout_s: 0.1
+    max_speed_mps: 0.8
+    max_steering_angle_rad: 0.5   # radians — clamp on angular.z output
+    lookahead_dist_m: 3.0         # pure-pursuit lookahead distance
+    k_p_steering: 1.5             # proportional gain: angular.z = k_p * heading_error
+    repulsion_gain: 0.0           # Phase 2: obstacle repulsion magnitude (0 = disabled)
+    repulsion_cutoff_m: 3.0       # Phase 2: distance at which repulsion activates
+    goal_tolerance_m: 1.5         # distance to path end that counts as "arrived"
+    publish_debug_markers: true
