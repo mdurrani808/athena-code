@@ -24,7 +24,7 @@
 #include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
 #include "nav2_costmap_2d/costmap_2d_ros.hpp"
 
-#include "geometry_msgs/msg/twist.hpp"
+#include "geometry_msgs/msg/twist_stamped.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "nav_msgs/msg/path.hpp"
 #include "nav_msgs/msg/odometry.hpp"
@@ -70,7 +70,7 @@ public:
     declare_parameter("odom_topic", std::string("/odom"));
     declare_parameter("plan_topic", std::string("/global_path"));
     declare_parameter("nav_enabled_topic", std::string("/nav_enabled"));
-    declare_parameter("cmd_vel_topic", std::string("/cmd_vel"));
+    declare_parameter("cmd_vel_topic", std::string("/rear_ackermann_controller/reference"));
     declare_parameter("robot_base_frame", std::string("base_link"));
     declare_parameter("global_frame", std::string("map"));
   }
@@ -101,7 +101,13 @@ public:
       "local_costmap"    // local namespace
     );
     // Transfer the TF buffer so the costmap shares our TF instance
-    costmap_ros_->set_parameter(rclcpp::Parameter("use_sim_time", get_parameter("use_sim_time").as_bool()));
+    bool use_sim_time = false;
+    get_parameter_or("use_sim_time", use_sim_time, false);
+    costmap_ros_->set_parameter(rclcpp::Parameter("use_sim_time", use_sim_time));
+    // Empty plugin list: rcl_yaml_param_parser cannot represent an empty YAML
+    // sequence (plugins: []) — it produces a null rcl_variant_s that crashes
+    // NodeParameters. Set it programmatically instead.
+    costmap_ros_->set_parameter(rclcpp::Parameter("plugins", std::vector<std::string>{}));
     costmap_ros_->configure();
     costmap_ros_->activate();
 
@@ -133,6 +139,9 @@ public:
           std::lock_guard<std::mutex> lock(plan_mutex_);
           current_plan_ = *msg;
           last_plan_time_ = now();
+          RCLCPP_INFO(get_logger(), "[mppi] plan received: %zu poses", msg->poses.size());
+        } else {
+          RCLCPP_WARN(get_logger(), "[mppi] received empty plan, ignoring");
         }
       });
 
@@ -140,12 +149,13 @@ public:
       nav_enabled_topic, 1,
       [this](const std_msgs::msg::Bool::SharedPtr msg) {
         nav_enabled_.store(msg->data);
+        RCLCPP_INFO(get_logger(), "[mppi] nav_enabled changed → %s", msg->data ? "TRUE" : "FALSE");
       });
 
     // Publisher
     std::string cmd_vel_topic;
     get_parameter("cmd_vel_topic", cmd_vel_topic);
-    cmd_vel_pub_ = create_publisher<geometry_msgs::msg::Twist>(cmd_vel_topic, 1);
+    cmd_vel_pub_ = create_publisher<geometry_msgs::msg::TwistStamped>(cmd_vel_topic, 1);
 
     // Control loop timer
     const auto period = std::chrono::duration<double>(1.0 / controller_frequency);
@@ -175,7 +185,10 @@ private:
   {
     if (!nav_enabled_.load()) {
       RCLCPP_DEBUG(get_logger(), "Navigation disabled — sending zero velocity.");
-      cmd_vel_pub_->publish(geometry_msgs::msg::Twist{});
+      geometry_msgs::msg::TwistStamped zero;
+      zero.header.stamp = now();
+      zero.header.frame_id = base_frame_;
+      cmd_vel_pub_->publish(zero);
       return;
     }
 
@@ -186,7 +199,8 @@ private:
     {
       std::lock_guard<std::mutex> lock(plan_mutex_);
       if (current_plan_.poses.empty()) {
-        return;  // No plan received yet
+        RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000, "[mppi] nav enabled but no plan yet");
+        return;
       }
       plan = current_plan_;
       plan_time = last_plan_time_;
@@ -203,7 +217,10 @@ private:
         get_logger(), *get_clock(), 2000,
         "Plan is stale (%.1f s old, timeout %.1f s) — sending zero velocity.",
         plan_age, plan_timeout_s_);
-      cmd_vel_pub_->publish(geometry_msgs::msg::Twist{});
+      geometry_msgs::msg::TwistStamped zero;
+      zero.header.stamp = now();
+      zero.header.frame_id = base_frame_;
+      cmd_vel_pub_->publish(zero);
       optimizer_.reset();
       return;
     }
@@ -237,13 +254,24 @@ private:
     // Use the last pose of the plan as the goal
     const auto & goal = plan.poses.back().pose;
 
+    RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 1000,
+      "[mppi] running evalControl — pose=(%.2f, %.2f) plan_poses=%zu",
+      robot_pose.pose.position.x, robot_pose.pose.position.y, plan.poses.size());
+
     try {
       auto [cmd, optimal_traj] = optimizer_.evalControl(
         robot_pose, robot_speed, plan, goal);
-      cmd_vel_pub_->publish(cmd.twist);
+      geometry_msgs::msg::TwistStamped stamped;
+      stamped.header.stamp = now();
+      stamped.header.frame_id = base_frame_;
+      stamped.twist = cmd.twist;
+      cmd_vel_pub_->publish(stamped);
     } catch (const std::runtime_error & ex) {
       RCLCPP_ERROR(get_logger(), "MPPI failed: %s — sending zero velocity.", ex.what());
-      cmd_vel_pub_->publish(geometry_msgs::msg::Twist{});
+      geometry_msgs::msg::TwistStamped zero;
+      zero.header.stamp = now();
+      zero.header.frame_id = base_frame_;
+      cmd_vel_pub_->publish(zero);
       optimizer_.reset();
     }
   }
@@ -262,7 +290,7 @@ private:
   rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
   rclcpp::Subscription<nav_msgs::msg::Path>::SharedPtr plan_sub_;
   rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr nav_enabled_sub_;
-  rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_pub_;
+  rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr cmd_vel_pub_;
   rclcpp::TimerBase::SharedPtr control_timer_;
 
   std::atomic<bool> nav_enabled_{true};
