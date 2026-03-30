@@ -15,6 +15,7 @@
   <exec_depend>vector_field_planner</exec_depend>
   <exec_depend>mission_executive</exec_depend>
   <exec_depend>athena_gps</exec_depend>
+  <exec_depend>pointcloud_to_laserscan</exec_depend>
 
   <export>
     <build_type>ament_cmake</build_type>

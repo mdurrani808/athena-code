@@ -11,10 +11,10 @@ from matplotlib.widgets import CheckButtons
 import numpy as np
 import rclpy
 from rclpy.node import Node
-from rclpy.qos import QoSProfile, DurabilityPolicy, ReliabilityPolicy
+from rclpy.qos import QoSProfile, DurabilityPolicy, ReliabilityPolicy, QoSPresetProfiles
 from geometry_msgs.msg import PoseStamped
 from nav_msgs.msg import Path, OccupancyGrid
-from sensor_msgs.msg import NavSatFix
+from sensor_msgs.msg import LaserScan, NavSatFix
 from std_msgs.msg import Bool, String
 
 from msgs.msg import NavStatus, Heading, PlannerEvent
@@ -110,6 +110,7 @@ class EMMNVisualizerNode(Node):
         self.nav_mode          = 'stopped'
         self.heading_msg       = None
         self.costmap           = None
+        self.latest_scan       = None   # sensor_msgs/LaserScan
         self.converter         = CoordinateConverter()
         self.event_log         = deque(maxlen=10)   # (timestamp_str, event_name, is_failure)
         self.new_path_received    = False
@@ -136,6 +137,8 @@ class EMMNVisualizerNode(Node):
         self.create_subscription(PlannerEvent,  '/planner_event',   self._event_cb,   10)
         self.create_subscription(NavSatFix,     '/gps/fix',         self._gps_cb,     10)
         self.create_subscription(Heading,       '/gps/heading',     self._heading_cb, 10)
+        self.create_subscription(LaserScan,     '/scan',            self._scan_cb,
+                                 QoSPresetProfiles.SENSOR_DATA.value)
 
     # ── Callbacks ──────────────────────────────────────────────────────────────
 
@@ -185,6 +188,10 @@ class EMMNVisualizerNode(Node):
     def _heading_cb(self, msg):
         with self.lock:
             self.heading_msg = msg
+
+    def _scan_cb(self, msg):
+        with self.lock:
+            self.latest_scan = msg
 
 
 # ─── Plotting ─────────────────────────────────────────────────────────────────
@@ -289,6 +296,10 @@ class VisualizerPlot:
                                               markersize=12, markeredgewidth=2.5,
                                               zorder=9, label='Goal')
 
+        # Laser scan hits — scatter of obstacle points in map frame
+        self.scan_scatter = self.ax_map.scatter(
+            [], [], s=4, c='#ff6633', alpha=0.65, zorder=8, label='Scan hits')
+
         self.ax_map.legend(loc='lower left', framealpha=0.6,
                            facecolor='#1a1a2e', labelcolor='white',
                            fontsize=9)
@@ -311,9 +322,9 @@ class VisualizerPlot:
         )
 
         # ── Checkboxes (bottom strip) ───────────────────────────────────────────
-        cb_labels = ['Auto-Fit', 'Show Costmap', 'Show Lookahead', 'Show XTE']
-        cb_states = [True,       True,            True,             True]
-        rax = self.fig.add_axes([0.04, 0.01, 0.30, 0.07])
+        cb_labels = ['Auto-Fit', 'Show Costmap', 'Show Lookahead', 'Show XTE', 'Show Scan']
+        cb_states = [True,       True,            True,             True,        True]
+        rax = self.fig.add_axes([0.04, 0.01, 0.38, 0.07])
         rax.set_facecolor('#1a1a2e')
         self.check = CheckButtons(rax, cb_labels, cb_states)
         for txt in self.check.labels:
@@ -323,6 +334,7 @@ class VisualizerPlot:
         self.show_costmap   = True
         self.show_lookahead = True
         self.show_xte       = True
+        self.show_scan      = True
         self.check.on_clicked(self._on_toggle)
 
         # ── Events ─────────────────────────────────────────────────────────────
@@ -367,6 +379,9 @@ class VisualizerPlot:
             self.show_lookahead = not self.show_lookahead
         elif label == 'Show XTE':
             self.show_xte = not self.show_xte
+        elif label == 'Show Scan':
+            self.show_scan = not self.show_scan
+            self.scan_scatter.set_visible(self.show_scan)
 
     # ── Hover ──────────────────────────────────────────────────────────────────
 
@@ -395,6 +410,7 @@ class VisualizerPlot:
             nav_mode     = self.node.nav_mode
             heading_msg  = self.node.heading_msg
             costmap      = self.node.costmap
+            latest_scan  = self.node.latest_scan
             event_log    = list(self.node.event_log)
             new_path     = self.node.new_path_received
             new_costmap  = self.node.new_costmap_received
@@ -469,6 +485,29 @@ class VisualizerPlot:
             self.lookahead_pt.set_data([], [])
             self.lookahead_line.set_data([], [])
 
+        # ── Laser scan hits ──────────────────────────────────────────────────────
+        # Convert scan from base_link polar coords → map Cartesian and scatter-plot.
+        # Assumes scan is in base_link frame (target_frame: base_link in p2l config).
+        if self.show_scan and latest_scan is not None and rx is not None:
+            sc = latest_scan
+            pts_x, pts_y = [], []
+            for i, r in enumerate(sc.ranges):
+                if not math.isfinite(r) or r < sc.range_min or r > sc.range_max:
+                    continue
+                alpha = sc.angle_min + i * sc.angle_increment   # angle in base_link
+                map_x = rx + r * math.cos(yaw + alpha)
+                map_y = ry + r * math.sin(yaw + alpha)
+                pts_x.append(map_x)
+                pts_y.append(map_y)
+            if pts_x:
+                self.scan_scatter.set_offsets(np.column_stack([pts_x, pts_y]))
+            else:
+                self.scan_scatter.set_offsets(np.empty((0, 2)))
+            self.scan_scatter.set_visible(True)
+        else:
+            self.scan_scatter.set_offsets(np.empty((0, 2)))
+            self.scan_scatter.set_visible(self.show_scan)
+
         # ── Viewport ─────────────────────────────────────────────────────────────
         if self.auto_fit and new_path:
             self._fit_viewport(path_poses, rx, ry)
@@ -477,7 +516,8 @@ class VisualizerPlot:
 
         # ── Status panel ─────────────────────────────────────────────────────────
         self._update_status(nav_status, nav_enabled, nav_mode, event_log,
-                            heading_msg, costmap, path_poses, rx, ry)
+                            heading_msg, costmap, path_poses, rx, ry,
+                            latest_scan=latest_scan)
 
     # ── Costmap renderer ─────────────────────────────────────────────────────
 
@@ -539,7 +579,7 @@ class VisualizerPlot:
     # ── Status panel text ────────────────────────────────────────────────────────
 
     def _update_status(self, nav_status, nav_enabled, nav_mode, event_log,
-                       heading_msg, costmap, path_poses, rx, ry):
+                       heading_msg, costmap, path_poses, rx, ry, latest_scan=None):
         state  = nav_status.state if nav_status else 'NO DATA'
         color  = STATE_COLORS.get(state, DEFAULT_STATE_COLOR)
 
@@ -609,6 +649,26 @@ class VisualizerPlot:
                 lines.append(f'  Lon: {lon:.6f}')
         else:
             lines.append('  (no robot pose)')
+        lines.append('')
+
+        # Laser scan stats
+        lines.append('── Laser Scan ───────────────')
+        if latest_scan is not None:
+            sc = latest_scan
+            valid_ranges = [r for r in sc.ranges
+                            if math.isfinite(r) and sc.range_min <= r <= sc.range_max]
+            close_ranges = [r for r in valid_ranges if r < 3.0]
+            min_r = min(valid_ranges) if valid_ranges else float('nan')
+            node_now = self.node.get_clock().now().to_msg()
+            stamp    = sc.header.stamp
+            age_s    = (node_now.sec - stamp.sec) + (node_now.nanosec - stamp.nanosec) * 1e-9
+            lines.append(f'  Frame   : {sc.header.frame_id}')
+            lines.append(f'  Age     : {age_s:>6.2f}s')
+            lines.append(f'  Beams   : {len(sc.ranges)} total / {len(valid_ranges)} valid')
+            lines.append(f'  Min rng : {min_r:>6.2f}m')
+            lines.append(f'  <3m hits: {len(close_ranges)}')
+        else:
+            lines.append('  (no scan received)')
         lines.append('')
 
         # Event log

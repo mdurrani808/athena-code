@@ -21,16 +21,18 @@ Node summary
   gps_pose_publisher    : WGS84→ENU, /robot_pose, map→base_link TF
   dem_costmap_converter : DEM GeoTIFF → nav_msgs/OccupancyGrid /map
   global_planner        : /goal_pose → /global_path (straight-line or A*)
-  vector_field_planner  : /global_path → /cmd_vel  (pure-pursuit)
+  vector_field_planner  : /global_path → /cmd_vel  (pure-pursuit + obstacle avoidance)
   mission_executive     : state machine, action/service operator interface
+  pointcloud_to_laserscan : /zed/.../cloud_registered → /scan (for obstacle avoidance)
 
 Topic graph
 ───────────
-  gps_pose_publisher    → TF map→base_link
-  dem_costmap_converter → /map
-  mission_executive     → /nav_enabled, /goal_pose
-  global_planner        → /global_path
-  vector_field_planner  → /cmd_vel, ~/debug_markers
+  gps_pose_publisher       → TF map→base_link
+  dem_costmap_converter    → /map
+  mission_executive        → /nav_enabled, /goal_pose
+  global_planner           → /global_path
+  pointcloud_to_laserscan  → /scan
+  vector_field_planner     → /cmd_vel, ~/debug_markers
 """
 
 import os
@@ -126,12 +128,44 @@ def generate_launch_description():
         parameters=[nav_params_file],
     )
 
+    # ── reframe_pointcloud (relabels ZED frame_id → base_link, sim only) ────────
+    # The ZED driver in simulation publishes the cloud under
+    # athena/base_footprint/zed_depth_sensor.  pointcloud_to_laserscan needs a
+    # consistent, simple frame name so it can produce a valid scan without any
+    # TF lookup.  This relay just rewrites header.frame_id in-place.
+    reframe_pointcloud_node = Node(
+        package='minimal_nav_bringup',
+        executable='reframe_pointcloud.py',
+        name='reframe_pointcloud',
+        output='screen',
+        parameters=[{
+            'input_topic':  '/zed/zed_node/point_cloud/cloud_registered',
+            'output_topic': '/zed/cloud_base_link',
+            'target_frame': 'base_link',
+        }],
+    )
+
+    # ── pointcloud_to_laserscan (ZED PointCloud2 → LaserScan for obstacle avoidance) ──
+    pointcloud_to_laserscan_node = Node(
+        package='pointcloud_to_laserscan',
+        executable='pointcloud_to_laserscan_node',
+        name='pointcloud_to_laserscan',
+        output='screen',
+        parameters=[nav_params_file],
+        remappings=[
+            ('cloud_in', '/zed/cloud_base_link'),   # reframed cloud, no TF needed
+            ('scan',     '/scan'),
+        ],
+    )
+
     return LaunchDescription([
         sim_arg,
         gps_launch,
         gps_pose_publisher_node,
         dem_costmap_converter_node,
         global_planner_node,
+        reframe_pointcloud_node,
+        pointcloud_to_laserscan_node,
         vector_field_planner_node,
         mission_executive_node,
     ])
