@@ -34,6 +34,7 @@
 #include "std_msgs/msg/string.hpp"
 #include "std_srvs/srv/set_bool.hpp"
 #include "std_srvs/srv/trigger.hpp"
+#include "vision_msgs/msg/detection2_d.hpp"
 
 #include "msgs/action/navigate_to_target.hpp"
 #include "msgs/msg/active_target.hpp"
@@ -52,6 +53,8 @@ enum class State
   NAVIGATING,
   ARRIVING,
   STOPPED_AT_TARGET,
+  SPIRAL_COVERAGE,
+  SPIRAL_DONE,
   ABORTING,
   RETURNING,
   STOPPED_AT_RETURN,
@@ -65,6 +68,8 @@ static std::string stateToStr(State s)
     case State::NAVIGATING:        return "NAVIGATING";
     case State::ARRIVING:          return "ARRIVING";
     case State::STOPPED_AT_TARGET: return "STOPPED_AT_TARGET";
+    case State::SPIRAL_COVERAGE:   return "SPIRAL_COVERAGE";
+    case State::SPIRAL_DONE:       return "SPIRAL_DONE";
     case State::ABORTING:          return "ABORTING";
     case State::RETURNING:         return "RETURNING";
     case State::STOPPED_AT_RETURN: return "STOPPED_AT_RETURN";
@@ -104,6 +109,17 @@ public:
     declare_parameter("latlon_to_enu_service",
       std::string("/gps_pose_publisher/latlon_to_enu"));
 
+    // Spiral coverage parameters
+    declare_parameter("spiral_timeout_s",            120.0);
+    declare_parameter("spiral_radius_m",             15.0);
+    declare_parameter("spiral_spacing_m",            2.0);
+    declare_parameter("spiral_angular_step",         0.5);
+    declare_parameter("spiral_waypoint_tolerance_m", 2.0);
+
+    // Detection topics
+    declare_parameter("aruco_detection_topic", std::string("/aruco_loc"));
+    declare_parameter("yolo_detection_topic",  std::string("/yolo_detection"));
+
     // Input topics
     declare_parameter("imu_topic",           std::string("/imu"));
     declare_parameter("planner_event_topic", std::string("/planner_event"));
@@ -116,10 +132,19 @@ public:
     declare_parameter("active_target_topic", std::string("/active_target"));
     declare_parameter("nav_status_topic",    std::string("/nav_status"));
 
-    stop_angular_vel_threshold_ = get_parameter("stop_angular_vel_threshold").as_double();
-    arrival_hold_time_          = get_parameter("arrival_hold_time").as_double();
-    replan_distance_m_          = get_parameter("replan_distance_m").as_double();
-    const auto latlon_svc       = get_parameter("latlon_to_enu_service").as_string();
+    stop_angular_vel_threshold_   = get_parameter("stop_angular_vel_threshold").as_double();
+    arrival_hold_time_            = get_parameter("arrival_hold_time").as_double();
+    replan_distance_m_            = get_parameter("replan_distance_m").as_double();
+    const auto latlon_svc         = get_parameter("latlon_to_enu_service").as_string();
+
+    spiral_timeout_s_             = get_parameter("spiral_timeout_s").as_double();
+    spiral_radius_m_              = get_parameter("spiral_radius_m").as_double();
+    spiral_spacing_m_             = get_parameter("spiral_spacing_m").as_double();
+    spiral_angular_step_          = get_parameter("spiral_angular_step").as_double();
+    spiral_waypoint_tolerance_m_  = get_parameter("spiral_waypoint_tolerance_m").as_double();
+
+    const auto aruco_detection_topic = get_parameter("aruco_detection_topic").as_string();
+    const auto yolo_detection_topic  = get_parameter("yolo_detection_topic").as_string();
 
     const auto imu_topic           = get_parameter("imu_topic").as_string();
     const auto planner_event_topic = get_parameter("planner_event_topic").as_string();
@@ -179,7 +204,8 @@ public:
         std::lock_guard<std::mutex> lk(mutex_);
         if (state_ == State::IDLE || state_ == State::TELEOP ||
             state_ == State::ABORTING ||
-            state_ == State::STOPPED_AT_TARGET || state_ == State::STOPPED_AT_RETURN)
+            state_ == State::STOPPED_AT_TARGET || state_ == State::STOPPED_AT_RETURN ||
+            state_ == State::SPIRAL_DONE)
         {
           res->success = false;
           res->message = "Nothing to abort in state " + stateToStr(state_);
@@ -258,6 +284,28 @@ public:
         global_path_ = *msg;
       });
 
+    // Aruco detection — any message means a marker was found
+    aruco_sub_ = create_subscription<vision_msgs::msg::Detection2D>(
+      aruco_detection_topic, 10,
+      [this](const vision_msgs::msg::Detection2D::SharedPtr) {
+        std::lock_guard<std::mutex> lk(mutex_);
+        if (state_ == State::SPIRAL_COVERAGE) {
+          detection_received_ = true;
+          transition(State::SPIRAL_DONE, "aruco marker detected");
+        }
+      });
+
+    // YOLO detection — Bool(True) signals an object was found
+    yolo_sub_ = create_subscription<std_msgs::msg::Bool>(
+      yolo_detection_topic, 10,
+      [this](const std_msgs::msg::Bool::SharedPtr msg) {
+        std::lock_guard<std::mutex> lk(mutex_);
+        if (msg->data && state_ == State::SPIRAL_COVERAGE) {
+          detection_received_ = true;
+          transition(State::SPIRAL_DONE, "yolo object detected");
+        }
+      });
+
     // ── 2 Hz status timer ────────────────────────────────────────────────────
     // Also drives arrival detection and replan checks; 2 Hz is fine for both.
     status_timer_ = create_wall_timer(
@@ -267,6 +315,7 @@ public:
         refreshPoseFromTF();   // updates robot_pose_ for all checks below
         checkArrival();
         checkCrossTrackError();
+        checkSpiralProgress();
         publishStatus();
         checkActionResult();
       });
@@ -289,9 +338,10 @@ private:
     state_ = new_state;
 
     const bool nav_active =
-      state_ == State::NAVIGATING ||
-      state_ == State::ARRIVING   ||
-      state_ == State::RETURNING;
+      state_ == State::NAVIGATING      ||
+      state_ == State::ARRIVING        ||
+      state_ == State::RETURNING       ||
+      state_ == State::SPIRAL_COVERAGE;
     publishNavEnabled(nav_active);
     publishNavMode();
     publishStatus();
@@ -320,6 +370,7 @@ private:
       case State::NAVIGATING:
       case State::ARRIVING:
       case State::RETURNING:
+      case State::SPIRAL_COVERAGE:
         msg.data = "autonomous"; break;
       default:
         msg.data = "stopped"; break;
@@ -508,6 +559,102 @@ private:
     }
   }
 
+  // ── Spiral coverage ───────────────────────────────────────────────────────
+
+  // Called with mutex_ held.
+  std::vector<geometry_msgs::msg::PoseStamped> generateSpiralWaypoints(
+    const geometry_msgs::msg::PoseStamped & start)
+  {
+    std::vector<geometry_msgs::msg::PoseStamped> waypoints;
+    const double a = spiral_spacing_m_ / (2.0 * M_PI);
+    if (a <= 0.0) return waypoints;
+
+    const double max_angle       = spiral_radius_m_ / a;
+    const double min_start_r     = 1.5;
+    const double yaw0            = quaternionToYaw(start.pose.orientation);
+    const rclcpp::Time stamp     = now();
+
+    double theta = 0.0;
+    while (theta <= max_angle) {
+      const double r = min_start_r + a * theta;
+      if (r > spiral_radius_m_) break;
+
+      const double x = start.pose.position.x + r * std::cos(yaw0 + theta + M_PI_2);
+      const double y = start.pose.position.y + r * std::sin(yaw0 + theta + M_PI_2);
+
+      geometry_msgs::msg::PoseStamped pose;
+      pose.header.frame_id = "map";
+      pose.header.stamp    = stamp;
+      pose.pose.position.x = x;
+      pose.pose.position.y = y;
+      pose.pose.orientation.w = 1.0;
+      waypoints.push_back(pose);
+
+      theta += spiral_angular_step_;
+    }
+    return waypoints;
+  }
+
+  // Called with mutex_ held, immediately after transitioning to SPIRAL_COVERAGE.
+  void startSpiralCoverage()
+  {
+    if (!robot_pose_.has_value()) {
+      RCLCPP_WARN(get_logger(), "[mission_executive] No robot pose — skipping spiral");
+      transition(State::SPIRAL_DONE, "no pose available for spiral");
+      return;
+    }
+
+    spiral_waypoints_     = generateSpiralWaypoints(*robot_pose_);
+    spiral_waypoint_idx_  = 0;
+    spiral_start_time_    = now();
+    detection_received_   = false;
+
+    if (spiral_waypoints_.empty()) {
+      RCLCPP_WARN(get_logger(), "[mission_executive] Empty spiral path — completing immediately");
+      transition(State::SPIRAL_DONE, "empty spiral path");
+      return;
+    }
+
+    RCLCPP_INFO(get_logger(),
+      "[mission_executive] Spiral started: %zu waypoints, radius=%.1fm, timeout=%.1fs",
+      spiral_waypoints_.size(), spiral_radius_m_, spiral_timeout_s_);
+
+    goal_pub_->publish(spiral_waypoints_[0]);
+  }
+
+  // Called from the status timer with mutex_ held.
+  void checkSpiralProgress()
+  {
+    if (state_ != State::SPIRAL_COVERAGE) return;
+
+    // Check timeout
+    const double elapsed = (now() - spiral_start_time_).seconds();
+    if (elapsed >= spiral_timeout_s_) {
+      RCLCPP_INFO(get_logger(),
+        "[mission_executive] Spiral timeout after %.1fs", elapsed);
+      transition(State::SPIRAL_DONE, "spiral timeout");
+      return;
+    }
+
+    if (!robot_pose_.has_value() || spiral_waypoints_.empty()) return;
+
+    // Advance to the next waypoint when within tolerance of the current one
+    const auto & wp = spiral_waypoints_[spiral_waypoint_idx_];
+    const double dist = std::hypot(
+      robot_pose_->pose.position.x - wp.pose.position.x,
+      robot_pose_->pose.position.y - wp.pose.position.y);
+
+    if (dist < spiral_waypoint_tolerance_m_) {
+      ++spiral_waypoint_idx_;
+      if (spiral_waypoint_idx_ >= spiral_waypoints_.size()) {
+        RCLCPP_INFO(get_logger(), "[mission_executive] All spiral waypoints visited");
+        transition(State::SPIRAL_DONE, "spiral complete");
+        return;
+      }
+      goal_pub_->publish(spiral_waypoints_[spiral_waypoint_idx_]);
+    }
+  }
+
   // ── Action result dispatch (called from the 2 Hz status timer) ────────────
   // Must be called with mutex_ held.
 
@@ -529,7 +676,32 @@ private:
     }
 
     switch (state_) {
-      case State::STOPPED_AT_TARGET:
+      case State::STOPPED_AT_TARGET: {
+        // For targets that need spiral coverage, kick off the spiral instead of completing.
+        const bool needs_spiral = active_target_.has_value() &&
+          (active_target_->target_type == msgs::srv::SetTarget::Request::ARUCO_POST ||
+           active_target_->target_type == msgs::srv::SetTarget::Request::OBJECT);
+        if (needs_spiral) {
+          transition(State::SPIRAL_COVERAGE, "starting spiral coverage");
+          startSpiralCoverage();
+          return;
+        }
+        result->success = true;
+        result->message = "Arrived at target";
+        active_goal_handle_->succeed(result);
+        active_goal_handle_ = nullptr;
+        return;
+      }
+
+      case State::SPIRAL_DONE:
+        result->success = true;
+        result->message = detection_received_
+          ? "Detection found during spiral coverage"
+          : "Spiral coverage complete (timeout or all waypoints visited)";
+        active_goal_handle_->succeed(result);
+        active_goal_handle_ = nullptr;
+        return;
+
       case State::STOPPED_AT_RETURN:
         result->success = true;
         result->message = "Arrived at target";
@@ -781,10 +953,21 @@ private:
   bool                                            low_speed_tracking_{false};
   uint8_t                                         last_planner_event_{0};
 
+  // Spiral state
+  std::vector<geometry_msgs::msg::PoseStamped> spiral_waypoints_;
+  size_t                                        spiral_waypoint_idx_{0};
+  rclcpp::Time                                  spiral_start_time_{0, 0, RCL_ROS_TIME};
+  bool                                          detection_received_{false};
+
   // Parameters
   double stop_angular_vel_threshold_{0.05};
   double arrival_hold_time_{1.0};
   double replan_distance_m_{3.0};
+  double spiral_timeout_s_{120.0};
+  double spiral_radius_m_{15.0};
+  double spiral_spacing_m_{2.0};
+  double spiral_angular_step_{0.5};
+  double spiral_waypoint_tolerance_m_{2.0};
 
   // ROS interfaces
   rclcpp::CallbackGroup::SharedPtr reentrant_group_;
@@ -808,6 +991,8 @@ private:
   rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr           imu_sub_;
   rclcpp::Subscription<msgs::msg::PlannerEvent>::SharedPtr         planner_event_sub_;
   rclcpp::Subscription<nav_msgs::msg::Path>::SharedPtr             global_path_sub_;
+  rclcpp::Subscription<vision_msgs::msg::Detection2D>::SharedPtr   aruco_sub_;
+  rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr             yolo_sub_;
 
   rclcpp::Client<msgs::srv::LatLonToENU>::SharedPtr latlon_client_;
 
