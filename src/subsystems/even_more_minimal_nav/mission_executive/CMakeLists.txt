@@ -15,6 +15,7 @@ find_package(std_msgs REQUIRED)
 find_package(std_srvs REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
+find_package(vision_msgs REQUIRED)
 find_package(msgs REQUIRED)
 
 add_executable(mission_executive_node src/mission_executive_node.cpp)
@@ -29,6 +30,7 @@ target_link_libraries(mission_executive_node
   ${std_srvs_TARGETS}
   tf2::tf2
   tf2_ros::tf2_ros
+  ${vision_msgs_TARGETS}
   ${msgs_TARGETS}
 )
 
