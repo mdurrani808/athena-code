@@ -31,7 +31,6 @@ public:
   explicit GlobalPlannerNode(const rclcpp::NodeOptions & options = rclcpp::NodeOptions())
   : Node("global_planner", options)
   {
-    declare_parameter("use_sim_time", false);
   }
 
   void configure()
@@ -41,6 +40,10 @@ public:
       get_namespace(),
       "global_costmap");
     costmap_ros_->set_parameter(rclcpp::Parameter("use_sim_time", get_parameter("use_sim_time").as_bool()));
+    // Empty plugin list: rcl_yaml_param_parser cannot represent an empty YAML
+    // sequence (plugins: []) — it produces a null rcl_variant_s that crashes
+    // NodeParameters. Set it programmatically instead.
+    costmap_ros_->set_parameter(rclcpp::Parameter("plugins", std::vector<std::string>{}));
     costmap_ros_->configure();
     costmap_ros_->activate();
 

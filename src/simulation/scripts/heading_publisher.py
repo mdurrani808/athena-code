@@ -4,7 +4,7 @@ import math
 
 import rclpy
 from rclpy.node import Node
-from rclpy.qos import SensorDataQoS
+from rclpy.qos import QoSPresetProfiles
 from sensor_msgs.msg import MagneticField
 from msgs.msg import Heading
 
@@ -27,7 +27,7 @@ class HeadingPublisher(Node):
             MagneticField,
             mag_topic,
             self.on_mag,
-            SensorDataQoS(),
+            QoSPresetProfiles.SENSOR_DATA.value,
         )
 
         self.get_logger().info(

@@ -88,6 +88,7 @@ target_link_libraries(ackermann_mppi_node
   nav2_costmap_2d::nav2_costmap_2d_core
   ${nav_msgs_TARGETS}
   ${geometry_msgs_TARGETS}
+  ${visualization_msgs_TARGETS}
 )
 
 # --- Install ---

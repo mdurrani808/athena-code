@@ -21,9 +21,8 @@ Launch order / node summary
   gps_pose_publisher : WGS84→ENU, /robot_pose, map→base_link TF
   map_node           : DEM GeoTIFF → nav_msgs/OccupancyGrid /map
   global_planner     : Hybrid-A* planner, /goal_pose → /global_path
-  ackermann_mppi     : MPPI local controller, /global_path → /cmd_vel_nav
+  ackermann_mppi     : MPPI local controller, /global_path → /rear_ackermann_controller/reference
   mission_executive  : State machine, action/service operator interface
-  cmd_vel_stamper    : TwistStamped bridge → /rear_ackermann_controller/reference
 """
 
 import os
@@ -122,19 +121,6 @@ def generate_launch_description():
         ],
     )
 
-    # ── twist_stamper: /cmd_vel_nav → /rear_ackermann_controller/reference ────
-    twist_stamper_node = Node(
-        package='twist_stamper',
-        executable='twist_stamper',
-        name='cmd_vel_stamper',
-        output='screen',
-        parameters=[{'use_sim_time': sim}],
-        remappings=[
-            ('cmd_vel_in',  '/cmd_vel_nav'),
-            ('cmd_vel_out', '/rear_ackermann_controller/reference'),
-        ],
-    )
-
     return LaunchDescription([
         sim_arg,
         gps_launch,
@@ -143,5 +129,4 @@ def generate_launch_description():
         global_planner_node,
         ackermann_mppi_node,
         mission_executive_node,
-        twist_stamper_node,
     ])
