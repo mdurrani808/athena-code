@@ -223,8 +223,8 @@ controller_interface::return_type FrontAckermannController::update(
 
     // Assign angles and velocities based on the hardware's actual behavior
     if (steer_cmd > 0.0) {  // LEFT TURN: left wheel is INNER
-      front_left_steer_angle = -inner_angle;
-      front_right_steer_angle = -outer_angle;
+      front_left_steer_angle = inner_angle;
+      front_right_steer_angle = outer_angle;
 
       front_left_vel = inner_front_vel;
       front_right_vel = outer_front_vel;
@@ -232,8 +232,8 @@ controller_interface::return_type FrontAckermannController::update(
       rear_right_vel = outer_rear_vel;
 
     } else {  // RIGHT TURN: right wheel is INNER
-      front_left_steer_angle = outer_angle;
-      front_right_steer_angle = inner_angle;
+      front_left_steer_angle = -outer_angle;
+      front_right_steer_angle = -inner_angle;
 
       front_left_vel = outer_front_vel;
       front_right_vel = inner_front_vel;
