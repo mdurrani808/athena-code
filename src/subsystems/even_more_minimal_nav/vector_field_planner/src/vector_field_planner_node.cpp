@@ -14,12 +14,14 @@
 
 // vector_field_planner_node.cpp
 //
-// Pure-pursuit path follower for an Ackermann rover.
+// Pure-pursuit path follower for an Ackermann rover with optional obstacle avoidance.
 //
 // Inputs:
-//   /global_path  (nav_msgs/Path, transient_local) — from global_planner
-//   /nav_enabled  (std_msgs/Bool, reliable)         — from mission_executive
-//   TF map→base_link                                — current robot pose
+//   /global_path              (nav_msgs/Path, transient_local) — from global_planner
+//   /nav_enabled              (std_msgs/Bool, reliable)         — from mission_executive
+//   /obstacle_avoidance_enabled (std_msgs/Bool, reliable)       — runtime avoidance toggle
+//   /scan                     (sensor_msgs/LaserScan)           — from pointcloud_to_laserscan
+//   TF map→base_link                                            — current robot pose
 //
 // Outputs:
 //   /cmd_vel          (geometry_msgs/Twist)              — linear.x + angular.z
@@ -32,28 +34,50 @@
 //     3. Find the lookahead point: walk forward from the closest path pose
 //        until a point is >= lookahead_dist_m from the robot.
 //     4. Compute heading error from current yaw to the lookahead direction.
-//     5. angular.z = k_p_steering * heading_error, clamped to +-max_steering_angle_rad.
-//     6. linear.x = max_speed_mps (constant; slow-down near goal is left for a later pass).
+//     5. If obstacle_avoidance_enabled and repulsion_gain > 0:
+//        - On each scan callback, transform every hit within repulsion_cutoff_m
+//          into map frame and store it in obstacle_map_ with a timestamp.
+//        - Each tick, evict points older than obstacle_memory_time_s.
+//        - For each remaining point within repulsion_cutoff_m:
+//            repulsion direction = unit vector from obstacle to robot
+//            lateral component  = project onto robot's left axis (-sin(yaw), cos(yaw))
+//            weight             = (cutoff - dist) / cutoff
+//            lateral_sum       += lateral * weight
+//        - repulsion_steering = repulsion_gain * lateral_sum
+//        - Total steering = k_p_steering * heading_err + repulsion_steering
+//     6. angular.z = clamped total steering, linear.x = max_speed_mps.
 //
-// repulsion_gain / repulsion_cutoff_m are declared for completeness but not
-// yet implemented — they will be used in a future phase when a local costmap
-// or laser scan is available.
+// Obstacle memory design:
+//   Hits are stored in map frame, not sensor frame.  This means the repulsion
+//   direction is recomputed from correct world-frame geometry every tick,
+//   regardless of how the robot has turned since the hit was recorded.
+//   The robot will not "forget" an obstacle just because it rotated away from it,
+//   and the steering magnitude correctly reflects the actual geometric clearance.
 
+#include <algorithm>
 #include <cmath>
 #include <limits>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "rclcpp/rclcpp.hpp"
 #include "geometry_msgs/msg/point.hpp"
 #include "geometry_msgs/msg/twist_stamped.hpp"
 #include "nav_msgs/msg/path.hpp"
+#include "sensor_msgs/msg/laser_scan.hpp"
 #include "std_msgs/msg/bool.hpp"
 #include "visualization_msgs/msg/marker.hpp"
 #include "visualization_msgs/msg/marker_array.hpp"
 #include "tf2_ros/buffer.h"
 #include "tf2_ros/transform_listener.h"
 #include "tf2/exceptions.h"
+
+struct ObstaclePoint
+{
+  double x, y;        // map frame
+  rclcpp::Time stamp;
+};
 
 class VectorFieldPlanner : public rclcpp::Node
 {
@@ -68,21 +92,33 @@ public:
     declare_parameter("max_steering_angle_rad", 0.5);
     declare_parameter("lookahead_dist_m",       3.0);
     declare_parameter("k_p_steering",           1.5);
-    declare_parameter("repulsion_gain",         0.0);   // reserved — Phase 2
-    declare_parameter("repulsion_cutoff_m",     3.0);   // reserved — Phase 2
-    declare_parameter("goal_tolerance_m",       1.5);
-    declare_parameter("publish_debug_markers",  true);
+    declare_parameter("repulsion_gain",               0.5);
+    declare_parameter("repulsion_cutoff_m",           3.0);
+    declare_parameter("obstacle_memory_time_s",       3.0);
+    declare_parameter("obstacle_max_points",          2000);
+    declare_parameter("obstacle_avoidance_enabled",   false);
+    declare_parameter("scan_topic",                   std::string("/scan"));
+    declare_parameter("scan_max_age_s",               0.5);
+    declare_parameter("goal_tolerance_m",             1.5);
+    declare_parameter("publish_debug_markers",        true);
 
-    map_frame_             = get_parameter("map_frame").as_string();
-    base_frame_            = get_parameter("base_frame").as_string();
-    cmd_vel_topic_         = get_parameter("cmd_vel_topic").as_string();
-    tf_timeout_s_          = get_parameter("tf_timeout_s").as_double();
-    max_speed_mps_         = get_parameter("max_speed_mps").as_double();
-    max_steering_angle_rad_= get_parameter("max_steering_angle_rad").as_double();
-    lookahead_dist_m_      = get_parameter("lookahead_dist_m").as_double();
-    k_p_steering_          = get_parameter("k_p_steering").as_double();
-    goal_tolerance_m_      = get_parameter("goal_tolerance_m").as_double();
-    publish_debug_markers_ = get_parameter("publish_debug_markers").as_bool();
+    map_frame_                  = get_parameter("map_frame").as_string();
+    base_frame_                 = get_parameter("base_frame").as_string();
+    cmd_vel_topic_              = get_parameter("cmd_vel_topic").as_string();
+    tf_timeout_s_               = get_parameter("tf_timeout_s").as_double();
+    max_speed_mps_              = get_parameter("max_speed_mps").as_double();
+    max_steering_angle_rad_     = get_parameter("max_steering_angle_rad").as_double();
+    lookahead_dist_m_           = get_parameter("lookahead_dist_m").as_double();
+    k_p_steering_               = get_parameter("k_p_steering").as_double();
+    repulsion_gain_             = get_parameter("repulsion_gain").as_double();
+    repulsion_cutoff_m_         = get_parameter("repulsion_cutoff_m").as_double();
+    obstacle_memory_time_s_     = get_parameter("obstacle_memory_time_s").as_double();
+    obstacle_max_points_        = get_parameter("obstacle_max_points").as_int();
+    obstacle_avoidance_enabled_ = get_parameter("obstacle_avoidance_enabled").as_bool();
+    scan_topic_                 = get_parameter("scan_topic").as_string();
+    scan_max_age_s_             = get_parameter("scan_max_age_s").as_double();
+    goal_tolerance_m_           = get_parameter("goal_tolerance_m").as_double();
+    publish_debug_markers_      = get_parameter("publish_debug_markers").as_bool();
 
     tf_buffer_   = std::make_shared<tf2_ros::Buffer>(get_clock());
     tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
@@ -101,6 +137,7 @@ public:
         last_closest_idx_ = std::numeric_limits<size_t>::max();
         tick_count_ = 0;
         consecutive_clamped_ = 0;
+        obstacle_map_.clear();
 
         // Log path quality — sparse paths (spacing > lookahead_dist_m) trigger the
         // findLookahead-behind-robot bug documented in the unit tests.
@@ -136,9 +173,99 @@ public:
           tick_count_ = 0;
           consecutive_clamped_ = 0;
           stuck_ticks_ = 0;
+          obstacle_map_.clear();
           publishStop();
         } else if (!was_enabled && nav_enabled_) {
           RCLCPP_INFO(get_logger(), "[NAV_ENABLED] starting navigation");
+        }
+      });
+
+    obstacle_avoidance_sub_ = create_subscription<std_msgs::msg::Bool>(
+      "/obstacle_avoidance_enabled", rclcpp::QoS(1).reliable(),
+      [this](const std_msgs::msg::Bool::SharedPtr msg) {
+        const bool was_enabled = obstacle_avoidance_enabled_;
+        obstacle_avoidance_enabled_ = msg->data;
+        if (was_enabled != obstacle_avoidance_enabled_) {
+          RCLCPP_INFO(get_logger(), "[AVOIDANCE_%s]",
+            obstacle_avoidance_enabled_ ? "ENABLED" : "DISABLED");
+        }
+      });
+
+    scan_sub_ = create_subscription<sensor_msgs::msg::LaserScan>(
+      scan_topic_, rclcpp::SensorDataQoS(),
+      [this](const sensor_msgs::msg::LaserScan::SharedPtr msg) {
+        ++scan_msg_count_;
+        // Log details on the first scan and every 100th thereafter
+        if (scan_msg_count_ == 1 || scan_msg_count_ % 100 == 0) {
+          float min_r = std::numeric_limits<float>::infinity();
+          int   valid = 0;
+          for (float r : msg->ranges) {
+            if (r >= msg->range_min && r <= msg->range_max) {
+              min_r = std::min(min_r, r);
+              ++valid;
+            }
+          }
+          RCLCPP_INFO(get_logger(),
+            "[SCAN #%u] frame='%s' beams=%zu angle=[%.2f,%.2f]rad"
+            " range=[%.2f,%.2f]m  valid_beams=%d min_range=%.2fm cutoff=%.2fm",
+            scan_msg_count_,
+            msg->header.frame_id.c_str(),
+            msg->ranges.size(),
+            msg->angle_min, msg->angle_max,
+            msg->range_min, msg->range_max,
+            valid,
+            std::isinf(min_r) ? -1.0f : min_r,
+            static_cast<float>(repulsion_cutoff_m_));
+        }
+        latest_scan_ = msg;
+
+        // Transform hits into map frame and add to the obstacle buffer.
+        // Storing in map frame means repulsion geometry stays correct after
+        // the robot turns — we don't lose obstacles that have left the FoV.
+        if (!obstacle_avoidance_enabled_) return;
+
+        geometry_msgs::msg::TransformStamped tf_to_map;
+        try {
+          tf_to_map = tf_buffer_->lookupTransform(
+            map_frame_, msg->header.frame_id,
+            tf2::TimePointZero,
+            tf2::durationFromSec(tf_timeout_s_));
+        } catch (const tf2::TransformException & ex) {
+          RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000,
+            "[SCAN_TF] %s→%s failed: %s — skipping buffer update",
+            msg->header.frame_id.c_str(), map_frame_.c_str(), ex.what());
+          return;
+        }
+
+        const double ox = tf_to_map.transform.translation.x;
+        const double oy = tf_to_map.transform.translation.y;
+        const auto & qm = tf_to_map.transform.rotation;
+        const double map_yaw = std::atan2(
+          2.0 * (qm.w * qm.z + qm.x * qm.y),
+          1.0 - 2.0 * (qm.y * qm.y + qm.z * qm.z));
+        const double cos_my = std::cos(map_yaw);
+        const double sin_my = std::sin(map_yaw);
+
+        const rclcpp::Time stamp = now();
+        for (size_t i = 0; i < msg->ranges.size(); ++i) {
+          const float r = msg->ranges[i];
+          if (r < msg->range_min || r > msg->range_max) continue;
+          if (static_cast<double>(r) >= repulsion_cutoff_m_) continue;
+          const double alpha = msg->angle_min +
+            static_cast<double>(i) * msg->angle_increment;
+          const double bx = r * std::cos(alpha);
+          const double by = r * std::sin(alpha);
+          obstacle_map_.push_back({
+            ox + bx * cos_my - by * sin_my,
+            oy + bx * sin_my + by * cos_my,
+            stamp});
+        }
+
+        // Cap buffer size — evict oldest entries if over limit
+        if (static_cast<int>(obstacle_map_.size()) > obstacle_max_points_) {
+          const size_t excess =
+            obstacle_map_.size() - static_cast<size_t>(obstacle_max_points_);
+          obstacle_map_.erase(obstacle_map_.begin(), obstacle_map_.begin() + excess);
         }
       });
 
@@ -147,7 +274,19 @@ public:
       std::chrono::milliseconds(50),
       [this]() { controlLoop(); });
 
-    RCLCPP_INFO(get_logger(), "VectorFieldPlanner ready");
+    // ── Startup parameter summary ────────────────────────────────────────────
+    RCLCPP_INFO(get_logger(),
+      "VectorFieldPlanner ready  "
+      "speed=%.2f steer_max=%.3f lookahead=%.1fm kp=%.2f goal_tol=%.1fm",
+      max_speed_mps_, max_steering_angle_rad_, lookahead_dist_m_,
+      k_p_steering_, goal_tolerance_m_);
+    RCLCPP_INFO(get_logger(),
+      "[AVOIDANCE CONFIG] enabled=%d scan_topic='%s' cutoff=%.2fm gain=%.3f"
+      " memory_time=%.1fs max_points=%d  — publish true/false to /obstacle_avoidance_enabled to toggle",
+      static_cast<int>(obstacle_avoidance_enabled_),
+      scan_topic_.c_str(),
+      repulsion_cutoff_m_, repulsion_gain_,
+      obstacle_memory_time_s_, obstacle_max_points_);
   }
 
 private:
@@ -244,8 +383,93 @@ private:
     while (heading_err >  M_PI) heading_err -= 2.0 * M_PI;
     while (heading_err < -M_PI) heading_err += 2.0 * M_PI;
 
-    // Proportional steering, clamped to physical limits
-    const double steering_unclamped = k_p_steering_ * heading_err;
+    // ── Obstacle avoidance (map-frame buffer) ─────────────────────────────────
+    // Evict obstacle points older than obstacle_memory_time_s_.
+    // This runs every tick regardless of avoidance toggle so the buffer
+    // doesn't grow unboundedly when avoidance is toggled off.
+    const rclcpp::Time now_time = now();
+    obstacle_map_.erase(
+      std::remove_if(obstacle_map_.begin(), obstacle_map_.end(),
+        [&](const ObstaclePoint & p) {
+          return (now_time - p.stamp).seconds() > obstacle_memory_time_s_;
+        }),
+      obstacle_map_.end());
+
+    double repulsion_steering = 0.0;
+
+    if (obstacle_avoidance_enabled_) {
+      if (repulsion_gain_ <= 0.0) {
+        RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 5000,
+          "[AVOIDANCE] avoidance enabled but repulsion_gain=%.3f — no effect. "
+          "Set repulsion_gain > 0 in nav_params.yaml.", repulsion_gain_);
+      } else if (!latest_scan_) {
+        RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000,
+          "[AVOIDANCE] avoidance enabled but NO scan received yet on '%s'. "
+          "Check pointcloud_to_laserscan is running and publishing.",
+          scan_topic_.c_str());
+      } else {
+        const double scan_age = (now_time - latest_scan_->header.stamp).seconds();
+        if (scan_age > scan_max_age_s_) {
+          RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000,
+            "[AVOIDANCE] scan stale: age=%.3fs > max=%.2fs — obstacle buffer may be outdated.",
+            scan_age, scan_max_age_s_);
+        }
+
+        // Recompute repulsion from all buffered map-frame obstacle points.
+        // For each point within repulsion_cutoff_m:
+        //   unit_repulsion = (robot - obstacle) / dist   (push away from obstacle)
+        //   lateral        = unit_repulsion · (-sin(yaw), cos(yaw))
+        //   weight         = (cutoff - dist) / cutoff
+        //   lateral_sum   += lateral * weight
+        double lateral_sum   = 0.0;
+        double lateral_left  = 0.0;
+        double lateral_right = 0.0;
+        int    active_points = 0;
+        float  closest_r     = std::numeric_limits<float>::infinity();
+
+        for (const auto & p : obstacle_map_) {
+          const double dx   = rx - p.x;
+          const double dy   = ry - p.y;
+          const double dist = std::hypot(dx, dy);
+          if (dist >= repulsion_cutoff_m_ || dist < 1e-6) continue;
+          closest_r = std::min(closest_r, static_cast<float>(dist));
+          const double weight  = (repulsion_cutoff_m_ - dist) / repulsion_cutoff_m_;
+          // Project unit repulsion vector onto robot's left lateral axis
+          const double lateral =
+            (dx / dist) * (-std::sin(yaw)) + (dy / dist) * std::cos(yaw);
+          lateral_sum += lateral * weight;
+          ++active_points;
+          if (lateral > 0.0) lateral_left  += lateral * weight;
+          else               lateral_right += lateral * weight;
+        }
+
+        repulsion_steering = repulsion_gain_ * lateral_sum;
+
+        RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 500,
+          "[AVOIDANCE age=%.3fs] buffered=%zu in_range=%d closest=%.2fm "
+          "lateral_sum=%.3f left=%.3f right=%.3f rep_steer=%.4f",
+          scan_age,
+          obstacle_map_.size(), active_points,
+          std::isinf(closest_r) ? -1.0f : closest_r,
+          lateral_sum, lateral_left, lateral_right,
+          repulsion_steering);
+
+        if (active_points > 0) {
+          RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 250,
+            "[AVOIDANCE ACTIVE] %d pts within %.1fm  "
+            "left=%.3f right=%.3f  rep_steer=%.4f  path_steer=%.4f",
+            active_points, repulsion_cutoff_m_,
+            lateral_left, lateral_right,
+            repulsion_steering, k_p_steering_ * heading_err);
+        }
+      }
+    } else {
+      RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 10000,
+        "[AVOIDANCE OFF] publish 'true' to /obstacle_avoidance_enabled to activate");
+    }
+
+    // Proportional path-following steering + repulsion, clamped to physical limits
+    const double steering_unclamped = k_p_steering_ * heading_err + repulsion_steering;
     const double steering = std::clamp(
       steering_unclamped,
       -max_steering_angle_rad_, max_steering_angle_rad_);
@@ -256,28 +480,28 @@ private:
       if (consecutive_clamped_ == 40) {  // 2 seconds saturated
         RCLCPP_WARN(get_logger(),
           "[STEER_SAT] steering saturated for %u consecutive ticks (%.1f s). "
-          "err=%.1fd unclamped=%.3f max=%.3f. "
-          "Consider increasing max_steering_angle_rad or k_p_steering.",
+          "err=%.1fd repulsion=%.3f unclamped=%.3f max=%.3f. "
+          "Consider increasing max_steering_angle_rad or reducing repulsion_gain.",
           consecutive_clamped_,
           consecutive_clamped_ / 20.0,
           heading_err * 180.0 / M_PI,
-          steering_unclamped, max_steering_angle_rad_);
+          repulsion_steering, steering_unclamped, max_steering_angle_rad_);
       }
     } else {
       consecutive_clamped_ = 0;
     }
 
     // ── Single structured log line (4 Hz) — paste directly into an LLM ──────
-    // Fields: tick  pos  yaw  goal_dist  path_idx  lookahead  lk_fwd_dot  heading_err  steer  flags
     RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 250,
       "[NAV t=%u pos=(%.2f,%.2f) yaw=%.1fd goal=%.2fm idx=%zu/%zu "
-      "lk=(%.2f,%.2f) lk_dist=%.2fm fwd=%.2f err=%.1fd steer=%.3f%s%s]",
+      "lk=(%.2f,%.2f) lk_dist=%.2fm fwd=%.2f err=%.1fd rep=%.3f steer=%.3f%s%s%s]",
       tick_count_, rx, ry, yaw * 180.0 / M_PI, dist_to_goal,
       closest_idx, path_->poses.size() - 1,
       lx, ly, lookahead_dist, fwd_dot,
-      heading_err * 180.0 / M_PI, steering,
+      heading_err * 180.0 / M_PI, repulsion_steering, steering,
       clamped   ? " CLAMPED"   : "",
-      lk_behind ? " LK_BEHIND" : "");
+      lk_behind ? " LK_BEHIND" : "",
+      (obstacle_avoidance_enabled_ && repulsion_gain_ > 0.0) ? " AVOID_ON" : "");
 
     geometry_msgs::msg::TwistStamped cmd;
     cmd.header.stamp    = now();
@@ -309,9 +533,6 @@ private:
       }
     }
 
-    // Warn if the closest index jumped backwards — a common cause of
-    // oscillation on turns when the robot is equidistant to path segments
-    // before and after the apex.
     if (best < last_closest_idx_ && last_closest_idx_ != std::numeric_limits<size_t>::max()) {
       RCLCPP_WARN(get_logger(),
         "[closest_idx] BACKWARDS JUMP: %zu → %zu (dist=%.3f m) — "
@@ -401,6 +622,13 @@ private:
   double      max_steering_angle_rad_;
   double      lookahead_dist_m_;
   double      k_p_steering_;
+  double      repulsion_gain_;
+  double      repulsion_cutoff_m_;
+  double      obstacle_memory_time_s_;
+  int         obstacle_max_points_;
+  bool        obstacle_avoidance_enabled_;
+  std::string scan_topic_;
+  double      scan_max_age_s_;
   double      goal_tolerance_m_;
   bool        publish_debug_markers_;
 
@@ -413,15 +641,20 @@ private:
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr   marker_pub_;
   rclcpp::Subscription<nav_msgs::msg::Path>::SharedPtr                 path_sub_;
   rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr                 nav_enabled_sub_;
+  rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr                 obstacle_avoidance_sub_;
+  rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr         scan_sub_;
   rclcpp::TimerBase::SharedPtr                                         timer_;
 
   // ── State ───────────────────────────────────────────────────────────────────
-  nav_msgs::msg::Path::SharedPtr path_;
-  bool                           nav_enabled_{false};
-  size_t                         last_closest_idx_{std::numeric_limits<size_t>::max()};
-  unsigned int                   tick_count_{0};
-  unsigned int                   consecutive_clamped_{0};
-  unsigned int                   stuck_ticks_{0};
+  nav_msgs::msg::Path::SharedPtr             path_;
+  sensor_msgs::msg::LaserScan::SharedPtr     latest_scan_;
+  bool                                       nav_enabled_{false};
+  size_t                                     last_closest_idx_{std::numeric_limits<size_t>::max()};
+  unsigned int                               tick_count_{0};
+  unsigned int                               consecutive_clamped_{0};
+  unsigned int                               stuck_ticks_{0};
+  unsigned int                               scan_msg_count_{0};
+  std::vector<ObstaclePoint>                 obstacle_map_;
 };
 
 int main(int argc, char ** argv)

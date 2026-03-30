@@ -7,4 +7,8 @@ install(DIRECTORY launch config
   DESTINATION share/${PROJECT_NAME}
 )
 
+install(PROGRAMS scripts/reframe_pointcloud.py
+  DESTINATION lib/${PROJECT_NAME}
+)
+
 ament_package()

@@ -49,6 +49,26 @@ mission_executive:
     active_target_topic: "/active_target"
     nav_status_topic: "/nav_status"
 
+# ── pointcloud_to_laserscan ───────────────────────────────────────────────────
+# Converts the ZED stereo camera's registered point cloud into a 2D laser scan
+# used by the vector_field_planner for obstacle avoidance.
+# Input topic remapped to /zed/zed_node/point_cloud/cloud_registered in nav.launch.py.
+pointcloud_to_laserscan:
+  ros__parameters:
+    use_sim_time: true
+    target_frame: base_link       # cloud arrives already reframed to base_link by reframe_pointcloud
+    transform_tolerance: 0.01
+    min_height: 0.1               # ignore ground returns (m above sensor origin)
+    max_height: 1.5               # ignore returns above rover body
+    angle_min: -1.5708            # -90 deg  (left  side of forward arc)
+    angle_max:  1.5708            #  90 deg  (right side of forward arc)
+    angle_increment: 0.00873      # 0.5 deg resolution
+    scan_time: 0.05               # 20 Hz to match planner
+    range_min: 0.3                # ignore very close returns (ZED blind zone)
+    range_max: 15.0               # maximum useful range for obstacle avoidance
+    use_inf: true                 # emit inf for beams with no return (not 0)
+    inf_epsilon: 1e-9
+
 # ── vector_field_planner ──────────────────────────────────────────────────────
 vector_field_planner:
   ros__parameters:
@@ -61,7 +81,14 @@ vector_field_planner:
     max_steering_angle_rad: 0.5   # radians — clamp on angular.z output
     lookahead_dist_m: 3.0         # pure-pursuit lookahead distance
     k_p_steering: 1.5             # proportional gain: angular.z = k_p * heading_error
-    repulsion_gain: 0.0           # Phase 2: obstacle repulsion magnitude (0 = disabled)
-    repulsion_cutoff_m: 3.0       # Phase 2: distance at which repulsion activates
+    # ── Obstacle avoidance ──────────────────────────────────────────────────
+    obstacle_avoidance_enabled: true   # set true or publish to /obstacle_avoidance_enabled
+    scan_topic: "/scan"                 # LaserScan source (from pointcloud_to_laserscan)
+    scan_max_age_s: 0.5                 # reject scans older than this (seconds)
+    repulsion_gain: 2.5                 # lateral force scale; tune up to ~1.5 for strong avoidance
+    repulsion_cutoff_m: 5.0             # obstacles beyond this range are ignored (meters)
+    obstacle_memory_time_s: 3.0         # how long (s) to remember obstacle hits after they leave the scan FoV
+    obstacle_max_points: 2000           # cap on buffered map-frame obstacle points
+    # ────────────────────────────────────────────────────────────────────────
     goal_tolerance_m: 1.5         # distance to path end that counts as "arrived"
     publish_debug_markers: true
