@@ -182,12 +182,12 @@ private:
         // Nav2 costmap2d cost values:
         // 0: Free space
         // 1-252: Scaled costs
-        // 253: Possibly circumscribed 
-        // 254: Unknown
-        // 255: Lethal obstacle (impassable)
-        
+        // 253: Possibly circumscribed
+        // 254: Lethal obstacle (impassable)
+        // 255: No information / unknown
+
         if (slope_degrees >= max_passable_slope_degrees_) {
-            return 255;  // Lethal - impassable
+            return 254;  // Lethal - impassable
         } else if (slope_degrees >= 10.0) {
             // High cost: linear scale from 150-252 for 10-15 degrees
             float ratio = (slope_degrees - 10.0) / (max_passable_slope_degrees_ - 10.0);
