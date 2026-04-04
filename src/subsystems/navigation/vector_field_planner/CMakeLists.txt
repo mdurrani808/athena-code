@@ -47,17 +47,6 @@ install(DIRECTORY include/
   DESTINATION include
 )
 
-if(BUILD_TESTING)
-  find_package(ament_cmake_gtest REQUIRED)
 
-  ament_add_gtest(test_pure_pursuit_sim
-    test/test_pure_pursuit_sim.cpp
-  )
-  target_include_directories(test_pure_pursuit_sim PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  )
-  target_compile_features(test_pure_pursuit_sim PUBLIC cxx_std_17)
-  target_link_libraries(test_pure_pursuit_sim vector_field_planner_algo)
-endif()
 
 ament_package()

@@ -69,23 +69,46 @@ class VectorFieldPlannerAlgo {
 public:
   VectorFieldPlannerAlgo() = default;
 
+  /*
+   * Sets the parameters for the vector field planner, such as speeds and lookahead distance.
+   * Param: params - The new planner configuration.
+   */
   void setParams(const PlannerParams& params) {
     params_ = params;
   }
 
+  /*
+   * Returns the current planner parameters.
+   */
   const PlannerParams& getParams() const {
     return params_;
   }
 
+  /*
+   * Sets the path that the planner should follow.
+   * Param: path - Sequence of 2D poses constituting the path.
+   */
   void setPath(const std::vector<Pose2D>& path) {
     path_ = path;
   }
 
-  // obstacle_map should only contain valid (non-stale) points in map frame
+  /*
+   * Updates the local obstacle map used for repulsive avoidance.
+   * Expects valid (non-stale) points in the map frame.
+   * Param: obstacles - A list of obstacle points.
+   */
   void updateObstacles(const std::vector<ObstaclePoint>& obstacles) {
     obstacles_ = obstacles;
   }
 
+  /*
+   * Computes the velocity and steering commands to follow the path and avoid obstacles.
+   * Evaluates purely based on current state against the path and obstacles.
+   * Param: rx - Current robot X position.
+   * Param: ry - Current robot Y position.
+   * Param: yaw - Current robot heading (yaw).
+   * Returns: PlannerResult containing commanded linear/angular velocities and diagnostic info.
+   */
   PlannerResult compute(double rx, double ry, double yaw);
 
   // Expose for testing and debugging

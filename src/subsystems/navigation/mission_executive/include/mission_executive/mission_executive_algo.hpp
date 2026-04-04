@@ -92,24 +92,91 @@ class MissionExecutiveAlgo {
 public:
   MissionExecutiveAlgo() = default;
 
+  /*
+   * Sets the configuration parameters for the mission executive.
+   * Param: p - The new mission parameters to apply.
+   */
   void setParams(const MissionParams& p) { params_ = p; }
 
   // Inputs
+
+  /*
+   * Updates the robot's current estimated pose.
+   * Param: pose - The latest 2D pose (x, y, yaw).
+   */
   void updateRobotPose(const Pose2D& pose) { robot_pose_ = pose; }
+  
+  /*
+   * Updates the planned global path for cross-track error calculations.
+   * Param: path - A sequence of 2D poses representing the path.
+   */
   void updateGlobalPath(const std::vector<Pose2D>& path) { global_path_ = path; }
+  
+  /*
+   * Updates the current IMU angular velocity, used to detect if the robot has stopped.
+   * Param: angular_vel_mag - Magnitude of angular velocity.
+   * Param: current_time_s - Current time in seconds.
+   */
   void updateImu(double angular_vel_mag, double current_time_s);
+  
+  /*
+   * Records the latest planner event from the navigation stack.
+   * Param: event - The event code (e.g., plan failed).
+   */
   void updatePlannerEvent(uint8_t event) { last_planner_event_ = event; }
   
+  /*
+   * Handles a failure in the global planner by aborting the current navigation.
+   */
   void onPlanFailed();
+  
+  /*
+   * Handles a successful visual detection, usually ending a spiral search.
+   */
   void onDetection();
 
   // Commands
+  
+  /*
+   * Adds or updates a target in the internal target registry.
+   * Param: entry - The target information to store.
+   * Returns: CommandResult indicating success or failure.
+   */
   CommandResult setTarget(const TargetEntry& entry);
+  
+  /*
+   * Initiates navigation to a specific target or an inline provided target.
+   * Param: target_id - The ID of a registered target (can be empty).
+   * Param: inline_target - A target provided directly (used if target_id is empty).
+   * Param: is_return - True if this is a return trip to a previously visited target.
+   * Returns: StartNavResult detailing if the command was accepted and any goals to publish.
+   */
   StartNavResult startNav(const std::string& target_id, const std::optional<TargetEntry>& inline_target, bool is_return);
+  
+  /*
+   * Aborts the current navigation or autonomous action.
+   * Returns: CommandResult indicating if the abort was successful.
+   */
   CommandResult abort();
+
+  /*
+   * Toggles the teleoperation state, preventing autonomous navigation when enabled.
+   * Param: enable - True to enable teleop, false to return to idle.
+   * Returns: CommandResult indicating success.
+   */
   CommandResult setTeleop(bool enable);
+
+  /*
+   * Cancels the active navigation and resets the state to IDLE.
+   * Returns: CommandResult indicating success.
+   */
   CommandResult cancelNav(); 
   
+  /*
+   * Main update step for the state machine, evaluated periodically.
+   * Param: current_time_s - Current system time in seconds.
+   * Returns: TickResult with actions the node should perform (e.g., publishing goals).
+   */
   TickResult tick(double current_time_s);
 
   // Getters

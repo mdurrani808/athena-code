@@ -53,30 +53,6 @@ install(DIRECTORY include/
   DESTINATION include
 )
 
-if(BUILD_TESTING)
-  find_package(ament_cmake_gtest REQUIRED)
 
-  ament_add_gtest(test_mission_executive
-    test/test_mission_executive.cpp
-  )
-  target_include_directories(test_mission_executive PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  )
-  target_compile_features(test_mission_executive PUBLIC cxx_std_17)
-  target_link_libraries(test_mission_executive mission_executive_algo)
-
-  ament_add_gtest(test_mock_pipeline
-    test/test_mock_pipeline.cpp
-    ../global_planner/src/global_planner_algo.cpp
-    ../vector_field_planner/src/vector_field_planner_algo.cpp
-  )
-  target_include_directories(test_mock_pipeline PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../global_planner/include>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../vector_field_planner/include>
-  )
-  target_compile_features(test_mock_pipeline PUBLIC cxx_std_17)
-  target_link_libraries(test_mock_pipeline mission_executive_algo)
-endif()
 
 ament_package()

@@ -47,7 +47,6 @@ from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
 def generate_launch_description():
-    # ── Arguments ────────────────────────────────────────────────────────────
     sim_arg = DeclareLaunchArgument(
         'sim',
         default_value='false',
@@ -57,7 +56,6 @@ def generate_launch_description():
 
     sim = LaunchConfiguration('sim')
 
-    # ── Config ───────────────────────────────────────────────────────────────
     nav_bringup_dir = get_package_share_directory('nav_bringup')
     
     from launch.substitutions import PythonExpression
@@ -69,7 +67,6 @@ def generate_launch_description():
     dem_costmap_dir = get_package_share_directory('dem_costmap')
     dem_file = os.path.join(dem_costmap_dir, 'maps', 'north_site800m.tif')
 
-    # ── Robot State Publisher ────────────────────────────────────────────────
     robot_description_content = Command([
         PathJoinSubstitution([FindExecutable(name='xacro')]),
         ' ',
@@ -89,7 +86,6 @@ def generate_launch_description():
         }],
     )
 
-    # ── Sensors Bringup ──────────────────────────────────────────────────────
     sensors_share = get_package_share_directory('athena_sensors')
     sensors_launch_file = os.path.join(sensors_share, 'launch', 'sensors.launch.py')
 
@@ -101,28 +97,6 @@ def generate_launch_description():
         }.items(),
     )
 
-    # ── Aruco Detection ──────────────────────────────────────────────────────
-    aruco_bt_share = get_package_share_directory('aruco_bt')
-    aruco_launch_file = os.path.join(aruco_bt_share, 'launch', 'aruco.launch.py')
-
-    aruco_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(aruco_launch_file),
-        launch_arguments={'use_sim_time': sim, 'marker_size': '0.20'}.items()
-    )
-
-    # ── YOLO Detection ───────────────────────────────────────────────────────
-    # yolo_ros expects /zed/zed_node/left_gray/image_rect_gray and publishes to /yolo_detection
-    yolo_inference_node = Node(
-        package='yolo_ros',
-        executable='inference',
-        name='yolo_inference',
-        output='screen',
-        parameters=[{'use_sim_time': sim}],
-        # Provide compatible remapping if ZED color is needed instead:
-        # remappings=[('/zed/zed_node/left_gray/image_rect_gray', '/zed/zed_node/left/image_rect_color')],
-    )
-
-    # ── GPS hardware / sim bridge ─────────────────────────────────────────────
     gps_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             os.path.join(
@@ -134,7 +108,6 @@ def generate_launch_description():
         launch_arguments={'sim': sim}.items(),
     )
 
-    # ── gps_pose_publisher ────────────────────────────────────────────────────
     gps_pose_publisher_node = Node(
         package='gps_pose_publisher',
         executable='gps_pose_publisher_node',
@@ -143,8 +116,6 @@ def generate_launch_description():
         parameters=[nav_params_file],
     )
 
-    # ── dem_costmap_converter (DEM GeoTIFF → OccupancyGrid /map) ─────────────
-    # dem_file_path is passed inline so the YAML can leave it blank by default.
     dem_costmap_converter_node = Node(
         package='dem_costmap',
         executable='map_node',
@@ -156,7 +127,6 @@ def generate_launch_description():
         ],
     )
 
-    # ── global_planner (/goal_pose → /global_path) ────────────────────────────
     global_planner_node = Node(
         package='global_planner',
         executable='global_planner_node',
@@ -165,7 +135,6 @@ def generate_launch_description():
         parameters=[nav_params_file],
     )
 
-    # ── vector_field_planner (/global_path → /cmd_vel) ────────────────────────
     vector_field_planner_node = Node(
         package='vector_field_planner',
         executable='vector_field_planner_node',
@@ -178,7 +147,6 @@ def generate_launch_description():
         ],
     )
 
-    # ── mission_executive (state machine) ────────────────────────────────────
     mission_executive_node = Node(
         package='mission_executive',
         executable='mission_executive_node',
@@ -187,11 +155,7 @@ def generate_launch_description():
         parameters=[nav_params_file],
     )
 
-    # ── reframe_pointcloud (relabels ZED frame_id → base_link, sim only) ────────
-    # The ZED driver in simulation publishes the cloud under
-    # athena/base_footprint/zed_depth_sensor.  pointcloud_to_laserscan needs a
-    # consistent, simple frame name so it can produce a valid scan without any
-    # TF lookup.  This relay just rewrites header.frame_id in-place.
+
     reframe_pointcloud_node = Node(
         package='nav_bringup',
         executable='reframe_pointcloud.py',
@@ -201,7 +165,6 @@ def generate_launch_description():
         condition=IfCondition(sim)
     )
 
-    # ── pointcloud_to_laserscan (ZED PointCloud2 → LaserScan for obstacle avoidance) ──
     pointcloud_to_laserscan_node = Node(
         package='pointcloud_to_laserscan',
         executable='pointcloud_to_laserscan_node',
@@ -218,8 +181,6 @@ def generate_launch_description():
         sim_arg,
         robot_state_publisher_node,
         sensors_launch,
-        aruco_launch,
-        yolo_inference_node,
         gps_launch,
         gps_pose_publisher_node,
         dem_costmap_converter_node,

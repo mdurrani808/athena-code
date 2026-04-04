@@ -45,14 +45,54 @@ class GlobalPlannerAlgo {
 public:
   GlobalPlannerAlgo() = default;
 
+  /*
+   * Sets the global planner parameters (e.g., costmap usage, resolution).
+   * Param: params - The configuration parameters.
+   */
   void setParams(const PlannerParams& params) { params_ = params; }
+
+  /*
+   * Returns the current configuration parameters.
+   */
   const PlannerParams& getParams() const { return params_; }
 
+  /*
+   * Sets the costmap used for A* planning.
+   * Param: costmap - The 2D grid costmap representing obstacles and terrain slopes.
+   */
   void setCostmap(const Costmap& costmap) { costmap_ = costmap; }
+
+  /*
+   * Clears the internal costmap, forcing straight-line fallback.
+   */
   void clearCostmap() { costmap_ = std::nullopt; }
+
+  /*
+   * Checks if a costmap is currently loaded.
+   * Returns: True if a costmap is present.
+   */
   bool hasCostmap() const { return costmap_.has_value(); }
 
+  /*
+   * Generates a simple straight-line path from start to goal.
+   * Ignores obstacles, used as a baseline or fallback.
+   * Param: sx - Start X position.
+   * Param: sy - Start Y position.
+   * Param: gx - Goal X position.
+   * Param: gy - Goal Y position.
+   * Returns: A sequence of poses forming a straight line.
+   */
   std::vector<Pose2D> planStraightLine(double sx, double sy, double gx, double gy) const;
+
+  /*
+   * Generates an optimal path using A* over the loaded costmap.
+   * Evaluates cost based on distance and cell weights (slopes).
+   * Param: sx - Start X position.
+   * Param: sy - Start Y position.
+   * Param: gx - Goal X position.
+   * Param: gy - Goal Y position.
+   * Returns: A sequence of poses if a path is found, or std::nullopt if unreachable.
+   */
   std::optional<std::vector<Pose2D>> planAstar(double sx, double sy, double gx, double gy) const;
 
 private:

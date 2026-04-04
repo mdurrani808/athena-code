@@ -41,9 +41,6 @@ install(DIRECTORY include/
   DESTINATION include
 )
 
-if(BUILD_TESTING)
-  find_package(ament_cmake_gtest REQUIRED)
-  # Add tests here when they exist
-endif()
+
 
 ament_package()
