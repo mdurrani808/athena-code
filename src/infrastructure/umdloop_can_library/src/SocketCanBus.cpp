@@ -86,10 +86,11 @@ bool SocketCanBus::open(const std::string& interface_name, ReceiveCallback callb
     setsockopt(socketFd_, SOL_CAN_RAW, CAN_RAW_LOOPBACK,
                &loopback, sizeof(loopback));
 
-    // Enable receipt of CAN FD frames
-    int canfd_on = 1;
-    setsockopt(socketFd_, SOL_CAN_RAW, CAN_RAW_FD_FRAMES,
-               &canfd_on, sizeof(canfd_on));
+    // NOTE: CAN FD disabled — enabling this on non-FD interfaces can cause
+    // TX frames to be dropped at the hardware level while still appearing in candump.
+    // int canfd_on = 1;
+    // setsockopt(socketFd_, SOL_CAN_RAW, CAN_RAW_FD_FRAMES,
+    //            &canfd_on, sizeof(canfd_on));
 
     running_ = true;
     receiveThread_ = std::thread(&SocketCanBus::receiveLoop_, this);

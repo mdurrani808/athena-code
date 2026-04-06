@@ -2,6 +2,7 @@
 
 #include <netdb.h>
 #include <sys/socket.h>
+#include <unistd.h>
 #include <chrono>
 #include <cmath>
 #include <iostream>
@@ -137,6 +138,8 @@ hardware_interface::CallbackReturn RMDHardwareInterface::on_init(
   logger_rate = std::stoi(info_.hardware_parameters.at("logger_rate"));
   logger_state = std::stoi(info_.hardware_parameters.at("logger_state"));
   can_interface = info_.hardware_parameters.at("can_interface");
+  can_send_delay_us = info_.hardware_parameters.count("can_send_delay_us")
+    ? std::stoi(info_.hardware_parameters.at("can_send_delay_us")) : 0;
 
   elapsed_update_time = 0.0;
   elapsed_time = 0.0;
@@ -155,6 +158,7 @@ hardware_interface::CallbackReturn RMDHardwareInterface::on_init(
   motor_temperature_.assign(num_joints, 0.0);
   motor_torque_current_.assign(num_joints, 0.0);
 
+  last_sent_frames_.assign(num_joints, CANLib::CanFrame());
   control_level_.resize(num_joints, integration_level_t::POSITION);
 
   return hardware_interface::CallbackReturn::SUCCESS;
@@ -403,7 +407,15 @@ hardware_interface::return_type rmd_ros2_control::RMDHardwareInterface::write(
         data[j] = static_cast<uint8_t>(data[j]);
         can_tx_frame_.data[j] = data[j];
       }
-      canBus.send(can_tx_frame_);
+      if (can_tx_frame_.data != last_sent_frames_[i].data ||
+          can_tx_frame_.id   != last_sent_frames_[i].id) {
+        if (control_level_[i] == integration_level_t::VELOCITY) {
+          send_command(joint_node_write_ids[i], BRAKE_RELEASE_CMD);
+        }
+        canBus.send(can_tx_frame_);
+        last_sent_frames_[i] = can_tx_frame_;
+        if (can_send_delay_us > 0) usleep(static_cast<useconds_t>(can_send_delay_us));
+      }
     }
   }
 

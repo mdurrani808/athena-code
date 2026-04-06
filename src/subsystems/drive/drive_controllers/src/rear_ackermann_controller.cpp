@@ -16,12 +16,39 @@
 
 #include <algorithm>
 #include <cmath>
+#include "umdloop_can_library/SocketCanBus.hpp"
 #include <memory>
 #include <string>
 #include <vector>
 
 #include "controller_interface/helpers.hpp"
 #include "rclcpp/rclcpp.hpp"
+
+namespace
+{
+// HACK: FR motor (CAN 0x145) is bypassed from the HWI and driven directly.
+// Speed is in 0.01 dps/LSB (RMD 0xA2 command), gear ratio = 1.
+CANLib::SocketCanBus fr_can_bus;
+
+void send_fr_bypass(double vel_rad_s)
+{
+  fr_can_bus.open("can0", [](const CANLib::CanFrame &) {});  // no-op if already open
+
+  int32_t speed = static_cast<int32_t>(std::round(vel_rad_s * (180.0 / M_PI) * 100.0));
+  CANLib::CanFrame frame;
+  frame.id  = 0x145;
+  frame.dlc = 8;
+  frame.data[0] = 0xA2;
+  frame.data[1] = 0x00;
+  frame.data[2] = 0x00;
+  frame.data[3] = 0x00;
+  frame.data[4] = static_cast<uint8_t>(speed);
+  frame.data[5] = static_cast<uint8_t>(speed >> 8);
+  frame.data[6] = static_cast<uint8_t>(speed >> 16);
+  frame.data[7] = static_cast<uint8_t>(speed >> 24);
+  fr_can_bus.send(frame);
+}
+}  // namespace
 
 namespace drive_controllers
 {
@@ -126,8 +153,10 @@ controller_interface::return_type RearAckermannController::update(
   auto current_ref = input_ref_.readFromRT();
   if (!current_ref || !(*current_ref)) {
     for (size_t i = 0; i < command_interfaces_.size(); ++i) {
+      if (i == 3) continue;  // FR bypassed
       command_interfaces_[i].set_value(0.0);
     }
+    send_fr_bypass(0.0);
     return controller_interface::return_type::OK;
   }
 
@@ -152,8 +181,10 @@ controller_interface::return_type RearAckermannController::update(
   if (std::abs(v) < 1e-4) {
     // Zero linear velocity: zero all propulsion and return steer to 0
     for (size_t i = 0; i < command_interfaces_.size(); ++i) {
+      if (i == 3) continue;  // FR bypassed
       command_interfaces_[i].set_value(0.0);
     }
+    send_fr_bypass(0.0);
     return controller_interface::return_type::OK;
   }
 
@@ -163,7 +194,7 @@ controller_interface::return_type RearAckermannController::update(
     command_interfaces_[0].set_value(0.0);
     command_interfaces_[1].set_value(0.0);
     command_interfaces_[2].set_value(drive_ang);
-    command_interfaces_[3].set_value(drive_ang);
+    send_fr_bypass(drive_ang);  // FR bypassed (CAN 0x145)
     command_interfaces_[4].set_value(drive_ang);
     command_interfaces_[5].set_value(drive_ang);
 
@@ -223,7 +254,7 @@ controller_interface::return_type RearAckermannController::update(
   command_interfaces_[0].set_value(rear_left_steer);
   command_interfaces_[1].set_value(rear_right_steer);
   command_interfaces_[2].set_value(front_left_vel);
-  command_interfaces_[3].set_value(front_right_vel);
+  send_fr_bypass(front_right_vel);  // FR bypassed (CAN 0x145)
   command_interfaces_[4].set_value(rear_left_vel);
   command_interfaces_[5].set_value(rear_right_vel);
 

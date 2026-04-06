@@ -113,6 +113,8 @@ private:
   CANLib::CanFrame can_tx_frame_;
   CANLib::CanFrame can_rx_frame_;
   std::string can_interface;
+  std::vector<CANLib::CanFrame> last_sent_frames_;
+  int can_send_delay_us;
   
   // Joint specific parameters
   std::vector<uint32_t> joint_node_write_ids;
