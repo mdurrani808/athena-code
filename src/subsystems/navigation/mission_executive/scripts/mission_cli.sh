@@ -258,9 +258,7 @@ _send_nav_goal() {
   echo "  is_return   : $is_return"
   echo
 
-  local yaml="{target_id: '$target_id', lat: $lat, lon: $lon, x_m: $x, y_m: $y, \
-goal_type: $goal_type, target_type: $target_type, \
-tolerance_m: $tolerance, is_return: $is_return}"
+  local yaml="{target_id: \"$target_id\", lat: $lat, lon: $lon, x_m: $x, y_m: $y, goal_type: $goal_type, target_type: $target_type, tolerance_m: $tolerance, is_return: $is_return}"
 
   _run_nav_with_status "$yaml" "$target_type"
 }
@@ -309,8 +307,7 @@ cmd_nav_by_id() {
   local is_return="${2:-false}"
   title "navigate_to_target  (id=$id  is_return=$is_return)"
 
-  local yaml="{target_id: '$id', lat: 0.0, lon: 0.0, x_m: 0.0, y_m: 0.0, \
-goal_type: 0, target_type: 0, tolerance_m: 3.0, is_return: $is_return}"
+  local yaml="{target_id: \"$id\", lat: 0.0, lon: 0.0, x_m: 0.0, y_m: 0.0, goal_type: 0, target_type: 0, tolerance_m: 3.0, is_return: $is_return}"
 
   # target_type unknown here — pass 0 (spiral check uses what's in the registry)
   _run_nav_with_status "$yaml" 0

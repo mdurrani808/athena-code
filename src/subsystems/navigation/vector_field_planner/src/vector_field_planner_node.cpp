@@ -65,6 +65,7 @@ public:
     declare_parameter("scan_max_age_s",               0.5);
     declare_parameter("goal_tolerance_m",             1.5);
     declare_parameter("publish_debug_markers",        true);
+    declare_parameter("min_approach_linear_velocity",  0.3);
 
     map_frame_                  = get_parameter("map_frame").as_string();
     base_frame_                 = get_parameter("base_frame").as_string();
@@ -80,7 +81,8 @@ public:
     p.repulsion_cutoff_m         = get_parameter("repulsion_cutoff_m").as_double();
     p.obstacle_avoidance_enabled = get_parameter("obstacle_avoidance_enabled").as_bool();
     p.goal_tolerance_m           = get_parameter("goal_tolerance_m").as_double();
-    
+    p.min_approach_linear_velocity = get_parameter("min_approach_linear_velocity").as_double();
+
     algo_.setParams(p);
 
     obstacle_memory_time_s_     = get_parameter("obstacle_memory_time_s").as_double();
@@ -149,6 +151,7 @@ public:
           tick_count_ = 0;
           consecutive_clamped_ = 0;
           stuck_ticks_ = 0;
+          last_cmd_linear_vel_ = 0.0;
           obstacle_map_.clear();
           publishStop();
         } else if (!was_enabled && nav_enabled_) {
@@ -332,7 +335,7 @@ private:
     }
     algo_.updateObstacles(algo_obstacles);
 
-    const auto res = algo_.compute(rx, ry, yaw);
+    const auto res = algo_.compute(rx, ry, yaw, last_cmd_linear_vel_);
 
     if (res.goal_reached) {
       const auto & goal_pos = path_->poses.back().pose.position;
@@ -405,11 +408,15 @@ private:
     
     RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 250,
       "[NAV t=%u pos=(%.2f,%.2f) yaw=%.1fd goal=%.2fm idx=%zu/%zu "
-      "lk=(%.2f,%.2f) lk_dist=%.2fm err=%.1fd rep=%.3f steer=%.3f%s%s%s]",
+      "lk=(%.2f,%.2f) lk_dist=%.2fm(eff=%.2fm%s) err=%.1fd "
+      "approach_scale=%.2f lin=%.3f steer=%.3f%s%s%s]",
       tick_count_, rx, ry, yaw * 180.0 / M_PI, dist_to_goal,
       res.closest_idx, path_->poses.size() - 1,
       res.lookahead_x, res.lookahead_y, lookahead_dist,
-      res.heading_err * 180.0 / M_PI, res.repulsion_steering, res.angular_vel,
+      res.effective_lookahead_dist,
+      res.lookahead_interpolated ? "/interp" : "/snap",
+      res.heading_err * 180.0 / M_PI,
+      res.approach_velocity_scale, res.linear_vel, res.angular_vel,
       res.clamped   ? " CLAMPED"   : "",
       res.lookahead_behind ? " LK_BEHIND" : "",
       (p.obstacle_avoidance_enabled && p.repulsion_gain > 0.0) ? " AVOID_ON" : "");
@@ -420,6 +427,7 @@ private:
     cmd.twist.linear.x  = res.linear_vel;
     cmd.twist.angular.z = res.angular_vel;
     cmd_pub_->publish(cmd);
+    last_cmd_linear_vel_ = res.linear_vel;
 
     if (publish_debug_markers_) {
       publishDebugMarkers(rx, ry, res.lookahead_x, res.lookahead_y);
@@ -502,6 +510,7 @@ private:
   unsigned int                               consecutive_clamped_{0};
   unsigned int                               stuck_ticks_{0};
   unsigned int                               scan_msg_count_{0};
+  double                                     last_cmd_linear_vel_{0.0};
   std::vector<StampedObstaclePoint>          obstacle_map_;
   vector_field_planner::VectorFieldPlannerAlgo algo_;
 };

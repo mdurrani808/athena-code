@@ -64,8 +64,8 @@ def generate_launch_description():
         os.path.join(nav_bringup_dir, 'config', 'nav_params_real.yaml'), "'"
     ])
 
-    dem_costmap_dir = get_package_share_directory('dem_costmap')
-    dem_file = os.path.join(dem_costmap_dir, 'maps', 'north_site800m.tif')
+    athena_map_dir = get_package_share_directory('athena_map')
+    dem_file = os.path.join(athena_map_dir, 'maps', 'north_site800m.tif')
 
     robot_description_content = Command([
         PathJoinSubstitution([FindExecutable(name='xacro')]),
@@ -117,7 +117,7 @@ def generate_launch_description():
     )
 
     dem_costmap_converter_node = Node(
-        package='dem_costmap',
+        package='athena_map',
         executable='map_node',
         name='dem_costmap_converter',
         output='screen',
@@ -156,15 +156,6 @@ def generate_launch_description():
     )
 
 
-    reframe_pointcloud_node = Node(
-        package='nav_bringup',
-        executable='reframe_pointcloud.py',
-        name='reframe_pointcloud',
-        output='screen',
-        parameters=[nav_params_file],
-        condition=IfCondition(sim)
-    )
-
     pointcloud_to_laserscan_node = Node(
         package='pointcloud_to_laserscan',
         executable='pointcloud_to_laserscan_node',
@@ -185,7 +176,6 @@ def generate_launch_description():
         gps_pose_publisher_node,
         dem_costmap_converter_node,
         global_planner_node,
-        reframe_pointcloud_node,
         pointcloud_to_laserscan_node,
         vector_field_planner_node,
         mission_executive_node,

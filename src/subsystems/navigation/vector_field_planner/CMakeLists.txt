@@ -47,6 +47,15 @@ install(DIRECTORY include/
   DESTINATION include
 )
 
+if(BUILD_TESTING)
+  find_package(ament_cmake_gtest REQUIRED)
 
+  ament_add_gtest(test_vector_field_planner_algo
+    test/test_vector_field_planner_algo.cpp
+  )
+  target_link_libraries(test_vector_field_planner_algo
+    vector_field_planner_algo
+  )
+endif()
 
 ament_package()

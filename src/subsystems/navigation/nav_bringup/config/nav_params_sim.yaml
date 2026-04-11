@@ -87,6 +87,10 @@ vector_field_planner:
     repulsion_cutoff_m: 5.0             # obstacles beyond this range are ignored (meters)
     obstacle_memory_time_s: 3.0         # how long (s) to remember obstacle hits after they leave the scan FoV
     obstacle_max_points: 2000           # cap on buffered map-frame obstacle points
+    # ── Approach / velocity-scaled lookahead ────────────────────────────────
+    # Lookahead scales from lookahead_dist_m (at rest) to 2x (at max_speed_mps).
+    # Speed ramps down to min_approach_linear_velocity inside lookahead_dist_m of goal.
+    min_approach_linear_velocity: 0.3     # floor speed when nearing goal (m/s)
     # ────────────────────────────────────────────────────────────────────────
     goal_tolerance_m: 1.5         # distance to path end that counts as "arrived"
     publish_debug_markers: true

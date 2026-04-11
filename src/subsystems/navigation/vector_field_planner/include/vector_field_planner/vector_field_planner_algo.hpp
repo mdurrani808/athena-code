@@ -16,7 +16,6 @@
 
 #include <vector>
 #include <cstddef>
-#include <utility>
 
 namespace vector_field_planner {
 
@@ -42,6 +41,12 @@ struct PlannerParams {
   bool obstacle_avoidance_enabled = false;
   double repulsion_gain = 0.5;
   double repulsion_cutoff_m = 3.0;
+
+  // Approach velocity scaling: ramp speed down to min_approach_linear_velocity
+  // as the robot closes within lookahead_dist_m of the goal. The velocity-scaled
+  // lookahead and approach window are both derived from lookahead_dist_m and
+  // max_speed_mps so no additional parameters are needed.
+  double min_approach_linear_velocity = 0.3;
 };
 
 struct PlannerResult {
@@ -63,6 +68,11 @@ struct PlannerResult {
   double lateral_right = 0.0;
   int active_points = 0;
   double closest_r = -1.0;
+
+  // Debug info for new features
+  double effective_lookahead_dist = 0.0;  // actual lookahead used this tick
+  bool lookahead_interpolated = false;     // true when carrot was interpolated between waypoints
+  double approach_velocity_scale = 1.0;   // fraction applied by approach scaling (1.0 = full speed)
 };
 
 class VectorFieldPlannerAlgo {
@@ -103,22 +113,38 @@ public:
 
   /*
    * Computes the velocity and steering commands to follow the path and avoid obstacles.
-   * Evaluates purely based on current state against the path and obstacles.
-   * Param: rx - Current robot X position.
-   * Param: ry - Current robot Y position.
-   * Param: yaw - Current robot heading (yaw).
+   * Param: rx           - Current robot X position (map frame).
+   * Param: ry           - Current robot Y position (map frame).
+   * Param: yaw          - Current robot heading (yaw, radians).
+   * Param: current_speed - Current linear speed (m/s), used for velocity-scaled lookahead.
    * Returns: PlannerResult containing commanded linear/angular velocities and diagnostic info.
    */
-  PlannerResult compute(double rx, double ry, double yaw);
+  PlannerResult compute(double rx, double ry, double yaw, double current_speed);
 
-  // Expose for testing and debugging
+  // Exposed for testing and debugging
   size_t findClosestIndex(double rx, double ry) const;
-  std::pair<double, double> findLookahead(double rx, double ry, size_t closest_idx) const;
+
+  /*
+   * Finds the lookahead carrot point at exactly lookahead_dist from the robot by
+   * linearly interpolating between waypoints.  Falls back to the last path point
+   * when no segment intersection is found (i.e. near goal).
+   * Returns {x, y, interpolated} where interpolated=true when the point lies between waypoints.
+   */
+  struct LookaheadResult {
+    double x;
+    double y;
+    bool interpolated;
+  };
+  LookaheadResult findLookahead(double rx, double ry, size_t closest_idx,
+                                double lookahead_dist) const;
 
 private:
   PlannerParams params_;
   std::vector<Pose2D> path_;
   std::vector<ObstaclePoint> obstacles_;
+
+  double effectiveLookaheadDist(double current_speed) const;
+  double approachVelocityScale(double dist_to_goal) const;
 };
 
 }  // namespace vector_field_planner

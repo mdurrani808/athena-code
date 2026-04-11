@@ -4,6 +4,7 @@ uint8 GNSS_ONLY=0
 uint8 ARUCO_POST=1
 uint8 OBJECT=2
 uint8 LOCAL=3
+
 string target_id
 float64 lat
 float64 lon
