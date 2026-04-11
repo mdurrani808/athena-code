@@ -97,17 +97,6 @@ def generate_launch_description():
         }.items(),
     )
 
-    gps_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            os.path.join(
-                get_package_share_directory('athena_gps'),
-                'launch',
-                'gps_launch.py',
-            )
-        ),
-        launch_arguments={'sim': sim}.items(),
-    )
-
     gps_pose_publisher_node = Node(
         package='gps_pose_publisher',
         executable='gps_pose_publisher_node',
@@ -172,7 +161,6 @@ def generate_launch_description():
         sim_arg,
         robot_state_publisher_node,
         sensors_launch,
-        gps_launch,
         gps_pose_publisher_node,
         dem_costmap_converter_node,
         global_planner_node,

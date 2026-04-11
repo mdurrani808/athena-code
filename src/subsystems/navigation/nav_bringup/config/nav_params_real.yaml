@@ -3,7 +3,7 @@
 gps_pose_publisher:
   ros__parameters:
     use_sim_time: false
-    heading_topic: "/gps/heading"
+    heading_topic: "/heading"
     heading_offset_deg: 0.0       # set to 180 if sensor is mounted backwards
     use_start_gate_ref: false     # if true, waits for /start_gate_ref NavSatFix to set origin
     origin_lat: .nan              # set to a fixed lat/lon to skip first-fix origin logic
