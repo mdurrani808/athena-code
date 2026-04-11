@@ -215,13 +215,14 @@ controller_interface::return_type RearAckermannController::update(
   const double rad_s_to_rpm = 60.0 / (2.0 * M_PI);
   if (DEBUG_MODE == 1) {
     RCLCPP_INFO_THROTTLE(get_node()->get_logger(), *get_node()->get_clock(), 500,
-      "Wheel speeds [RPM] - FL: %.2f, FR: %.2f, RL: %.2f, RR: %.2f | Steer [rad] - RL: %.3f, RR: %.3f",
+      "Wheel speeds [RPM] - FL: %.2f, FR: %.2f, RL: %.2f, RR: %.2f | Steer [rad] - RL: %.3f, RR: %.3f \n%.2f",
       fl_wheel_ang_vel * rad_s_to_rpm,
       fr_wheel_ang_vel * rad_s_to_rpm,
       rl_wheel_ang_vel * rad_s_to_rpm,
       rr_wheel_ang_vel * rad_s_to_rpm,
       rear_left_angle_clamped,
-      rear_right_angle_clamped);
+      rear_right_angle_clamped,
+      turn_radius);
   }
 
   return controller_interface::return_type::OK;
