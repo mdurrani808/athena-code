@@ -73,7 +73,7 @@ vector_field_planner:
     use_sim_time: false
     map_frame: map
     base_frame: base_link
-    cmd_vel_topic: "/front_ackermann_controller/reference"
+    cmd_vel_topic: "/rear_ackermann_controller/reference"
     tf_timeout_s: 0.2             # slightly longer to handle wireless / CPU spikes
     max_speed_mps: 0.5            # LOWERED FOR REAL LIFE SAFETY - adjust up to 1.0 once tested
     max_steering_angle_rad: 0.5   # radians — clamp on angular.z output
