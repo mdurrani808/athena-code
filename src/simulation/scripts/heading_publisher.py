@@ -4,11 +4,7 @@ import math
 
 import rclpy
 from rclpy.node import Node
-<<<<<<< HEAD
-from rclpy.qos import QoSPresetProfiles
-=======
 from rclpy.qos import SensorDataQoS
->>>>>>> f33dc56 (building)
 from sensor_msgs.msg import MagneticField
 from msgs.msg import Heading
 
@@ -26,69 +22,34 @@ class HeadingPublisher(Node):
         self.heading_acc_ = self.get_parameter('heading_acc').get_parameter_value().double_value
 
         self.pub_ = self.create_publisher(Heading, heading_topic, 10)
-<<<<<<< HEAD
-        
-        # Always cache the first heading to start at 0 degrees
-        self.initial_heading_enu = None
-=======
->>>>>>> f33dc56 (building)
 
         self.sub_ = self.create_subscription(
             MagneticField,
             mag_topic,
             self.on_mag,
-<<<<<<< HEAD
-            QoSPresetProfiles.SENSOR_DATA.value,
-        )
-
-        self.get_logger().info(
-            f'Heading publisher: {mag_topic} -> {heading_topic} (Force Initial Offset: Enabled)'
-=======
             SensorDataQoS(),
         )
 
         self.get_logger().info(
             f'Heading publisher: {mag_topic} -> {heading_topic}'
->>>>>>> f33dc56 (building)
         )
 
     def on_mag(self, msg: MagneticField):
         bx = msg.magnetic_field.x
         by = msg.magnetic_field.y
 
-<<<<<<< HEAD
-        # In Gazebo's magnetometer the field is reported in the robot body frame
-        # with the simulated Earth field pointing North (+Y world).  For a robot
-        # with x=forward, y=left this gives:
-        #   bx = H * sin(yaw_enu)   (North projected onto forward axis)
-        #   by = H * cos(yaw_enu)   (North projected onto left axis)
-        # So atan2(bx, by) = atan2(sin θ, cos θ) = θ, the correct CCW-from-East
-        # ENU heading.  Using atan2(by, bx) would give a CW compass bearing
-        # instead, inverting the sign of every turn.
-        heading_enu_raw = math.degrees(math.atan2(bx, by))
-
-        if self.initial_heading_enu is None:
-            self.initial_heading_enu = heading_enu_raw
-            self.get_logger().info(f'Initial raw heading cached: {self.initial_heading_enu:.2f} deg. Starting at 0.00 deg.')
-        
-        # Apply offset so we start at 0 (East)
-        # ENU heading: degrees CCW from East
-        heading_enu = (heading_enu_raw - self.initial_heading_enu + 360.0) % 360.0
+        # Gazebo magnetometer reports field in robot body frame (x=forward, y=left).
+        # Earth's horizontal field points North, so:
+        #   bx = H*sin(yaw_enu),  by = H*cos(yaw_enu)
+        # atan2(bx, by) = atan2(sin θ, cos θ) = θ = ENU heading directly.
+        heading_enu_deg = math.degrees(math.atan2(bx, by))
 
         # Compass bearing: degrees clockwise from North
-        # North is 90 deg ENU.
-        compass_bearing = (90.0 - heading_enu + 360.0) % 360.0
-=======
-        # compass bearing: degrees clockwise from north
-        compass_bearing = (math.degrees(math.atan2(-by, bx)) + 360.0) % 360.0
-
-        # ENU heading: degrees CCW from east
-        heading_enu = (90.0 - compass_bearing + 360.0) % 360.0
->>>>>>> f33dc56 (building)
+        compass_bearing = (90.0 - heading_enu_deg + 360.0) % 360.0
 
         out = Heading()
         out.header = msg.header
-        out.heading = heading_enu
+        out.heading = heading_enu_deg   # degrees — gps_pose_publisher applies * pi/180
         out.heading_acc = self.heading_acc_
         out.compass_bearing = compass_bearing
         self.pub_.publish(out)
