@@ -10,7 +10,7 @@ mag_heading_node:
 
 
     # hard_iron: [x, y, z] bias in Tesla subtracted from raw reading
-    hard_iron: [-0.00000004, -0.00000004, 0.00000075]
+    hard_iron: [-0.00000004, -0.00000004, -0.00000075]
 
     # soft_iron: row-major 3x3 correction matrix (9 values)
     #   [ r00 r01 r02  r10 r11 r12  r20 r21 r22 ]
