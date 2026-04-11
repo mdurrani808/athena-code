@@ -19,7 +19,6 @@ def _wrap_pi(a: float) -> float:
     return (a + math.pi) % (2.0 * math.pi) - math.pi
 
 
-
 class MagHeadingNode(Node):
     def __init__(self):
         super().__init__('mag_heading_node')
