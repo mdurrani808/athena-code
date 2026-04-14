@@ -132,12 +132,11 @@ controller_interface::return_type RearAckermannController::update(
   double linear_vel_cmd = std::clamp(
     (*current_ref)->twist.linear.x, -params_.max_speed, params_.max_speed);
 
-  // Bicycle model: same formula as front steering — sign of steer_cmd determines left vs right
+  // Bicycle model: sign of steer_cmd determines left vs right
   double steer_cmd = 0.0;
   if (std::abs(linear_vel_cmd) > 1e-4) {
     steer_cmd = std::atan((*current_ref)->twist.angular.z * params_.wheelbase / linear_vel_cmd);
   }
-  //steer_cmd = std::clamp(steer_cmd, -params_.max_steer_angle, params_.max_steer_angle);
 
   double wheelbase = params_.wheelbase;
   double track_width = params_.track_width;
@@ -165,43 +164,31 @@ controller_interface::return_type RearAckermannController::update(
     double inner_angle = std::atan(wheelbase / (std::abs(safe_turn_radius) - track_width / 2.0));
     double outer_angle = std::atan(wheelbase / (std::abs(safe_turn_radius) + track_width / 2.0));
 
-    // Rear axle is the steered axle: it traces the longer (front) arc
-    // Front axle is the fixed axle: it traces the shorter (rear) arc
-    // Steer angles are negated vs front steering: rear wheels point right to turn left
-    double inner_rear_vel = angular_vel * (std::abs(safe_turn_radius) - track_width / 2.0);
-    double outer_rear_vel = angular_vel * (std::abs(safe_turn_radius) + track_width / 2.0);
-    double inner_front_vel = angular_vel * std::sqrt(
+    // Rear wheels steer; the front axle is the pivot. All four wheels share the
+    // same angular velocity about the turn center, so inner/outer speeds use the
+    // hypotenuse distance from that center to each front-axle corner.
+    double inner_vel = angular_vel * std::sqrt(
       std::pow(wheelbase, 2) + std::pow(std::abs(safe_turn_radius) - track_width / 2.0, 2));
-    double outer_front_vel = angular_vel * std::sqrt(
+    double outer_vel = angular_vel * std::sqrt(
       std::pow(wheelbase, 2) + std::pow(std::abs(safe_turn_radius) + track_width / 2.0, 2));
 
-    if (steer_cmd > 0.0) {  // LEFT TURN: left wheel is INNER
-      // if (inner_front_vel < 0) {
-      //      rear_left_steer_angle = -inner_angle;
-      // } else {
-      //      rear_left_steer_angle = inner_angle;
-      // }
+    if (steer_cmd > 0.0) {  // LEFT TURN: left wheel is inner
       rear_left_steer_angle = inner_angle;
       rear_right_steer_angle = outer_angle;
 
-      rear_left_vel = inner_front_vel;
-      rear_right_vel = outer_front_vel;
-      front_left_vel = inner_front_vel;
-      front_right_vel = outer_front_vel;
+      rear_left_vel = inner_vel;
+      rear_right_vel = outer_vel;
+      front_left_vel = inner_vel;
+      front_right_vel = outer_vel;
 
-    } else {  // RIGHT TURN: right wheel is INNER
-      // 
-      // if (inner_front_vel < 0) {
-      //      rear_right_steer_angle = std::abs(inner_angle);
-      // } else {
-      //      rear_right_steer_angle = -inner_angle;
-      // }
+    } else {  // RIGHT TURN: right wheel is inner
       rear_left_steer_angle = -outer_angle;
       rear_right_steer_angle = -inner_angle;
-      rear_left_vel = outer_front_vel;
-      rear_right_vel = inner_front_vel;
-      front_left_vel = outer_front_vel;
-      front_right_vel = inner_front_vel;
+
+      rear_left_vel = outer_vel;
+      rear_right_vel = inner_vel;
+      front_left_vel = outer_vel;
+      front_right_vel = inner_vel;
     }
   }
 
@@ -211,11 +198,8 @@ controller_interface::return_type RearAckermannController::update(
   double rr_wheel_ang_vel = rear_right_vel / wheel_radius;
 
   // Set steering positions (rear wheels)
-
   double rear_left_angle_clamped = std::clamp(rear_left_steer_angle, -params_.max_steer_angle, params_.max_steer_angle);
-  double rear_right_angle_clamped = -1* std::clamp(rear_right_steer_angle, -params_.max_steer_angle, params_.max_steer_angle);
-
-
+  double rear_right_angle_clamped = -1 * std::clamp(rear_right_steer_angle, -params_.max_steer_angle, params_.max_steer_angle);
 
   command_interfaces_[0].set_value(rear_left_angle_clamped);
   command_interfaces_[1].set_value(rear_right_angle_clamped);
