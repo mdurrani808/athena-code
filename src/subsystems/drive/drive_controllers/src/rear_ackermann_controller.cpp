@@ -150,45 +150,58 @@ controller_interface::return_type RearAckermannController::update(
   double front_right_vel = linear_vel_cmd;
   double rear_left_vel = linear_vel_cmd;
   double rear_right_vel = linear_vel_cmd;
+  double turn_radius = 0.0;
 
-  if (std::abs(steer_cmd) > 1e-4) {
-    double turn_radius = wheelbase / std::tan(steer_cmd);
-    double angular_vel = std::abs(linear_vel_cmd) / std::abs(turn_radius);
+  if (std::abs(steer_cmd) > 1e-4 && std::abs(linear_vel_cmd) > .05) {
+    turn_radius = wheelbase / std::tan(steer_cmd);
+    double safe_turn_radius = std::max(std::abs(turn_radius), track_width / 2.0 + 1e-4);
+
+    double angular_vel = std::abs(linear_vel_cmd) / std::abs(safe_turn_radius);
 
     if (linear_vel_cmd < 0) {
       angular_vel = -angular_vel;
     }
 
-    double inner_angle = std::atan(wheelbase / (std::abs(turn_radius) - track_width / 2.0));
-    double outer_angle = std::atan(wheelbase / (std::abs(turn_radius) + track_width / 2.0));
+    double inner_angle = std::atan(wheelbase / (std::abs(safe_turn_radius) - track_width / 2.0));
+    double outer_angle = std::atan(wheelbase / (std::abs(safe_turn_radius) + track_width / 2.0));
 
     // Rear axle is the steered axle: it traces the longer (front) arc
     // Front axle is the fixed axle: it traces the shorter (rear) arc
     // Steer angles are negated vs front steering: rear wheels point right to turn left
-    double inner_rear_vel = angular_vel * (std::abs(turn_radius) - track_width / 2.0);
-    double outer_rear_vel = angular_vel * (std::abs(turn_radius) + track_width / 2.0);
+    double inner_rear_vel = angular_vel * (std::abs(safe_turn_radius) - track_width / 2.0);
+    double outer_rear_vel = angular_vel * (std::abs(safe_turn_radius) + track_width / 2.0);
     double inner_front_vel = angular_vel * std::sqrt(
-      std::pow(wheelbase, 2) + std::pow(std::abs(turn_radius) - track_width / 2.0, 2));
+      std::pow(wheelbase, 2) + std::pow(std::abs(safe_turn_radius) - track_width / 2.0, 2));
     double outer_front_vel = angular_vel * std::sqrt(
-      std::pow(wheelbase, 2) + std::pow(std::abs(turn_radius) + track_width / 2.0, 2));
+      std::pow(wheelbase, 2) + std::pow(std::abs(safe_turn_radius) + track_width / 2.0, 2));
 
     if (steer_cmd > 0.0) {  // LEFT TURN: left wheel is INNER
+      // if (inner_front_vel < 0) {
+      //      rear_left_steer_angle = -inner_angle;
+      // } else {
+      //      rear_left_steer_angle = inner_angle;
+      // }
       rear_left_steer_angle = inner_angle;
       rear_right_steer_angle = outer_angle;
 
-      front_left_vel = inner_rear_vel;
-      front_right_vel = outer_rear_vel;
       rear_left_vel = inner_front_vel;
       rear_right_vel = outer_front_vel;
+      front_left_vel = inner_front_vel;
+      front_right_vel = outer_front_vel;
 
     } else {  // RIGHT TURN: right wheel is INNER
+      // 
+      // if (inner_front_vel < 0) {
+      //      rear_right_steer_angle = std::abs(inner_angle);
+      // } else {
+      //      rear_right_steer_angle = -inner_angle;
+      // }
       rear_left_steer_angle = -outer_angle;
       rear_right_steer_angle = -inner_angle;
-
-      front_left_vel = outer_rear_vel;
-      front_right_vel = inner_rear_vel;
       rear_left_vel = outer_front_vel;
       rear_right_vel = inner_front_vel;
+      front_left_vel = outer_front_vel;
+      front_right_vel = inner_front_vel;
     }
   }
 
@@ -215,13 +228,14 @@ controller_interface::return_type RearAckermannController::update(
 
   const double rad_s_to_rpm = 60.0 / (2.0 * M_PI);
   RCLCPP_INFO_THROTTLE(get_node()->get_logger(), *get_node()->get_clock(), 500,
-    "Wheel speeds [RPM] - FL: %.2f, FR: %.2f, RL: %.2f, RR: %.2f | Steer [rad] - RL: %.3f, RR: %.3f",
+    "Wheel speeds [RPM] - FL: %.2f, FR: %.2f, RL: %.2f, RR: %.2f | Steer [rad] - RL: %.3f, RR: %.3f \n%.2f",
     fl_wheel_ang_vel * rad_s_to_rpm,
     fr_wheel_ang_vel * rad_s_to_rpm,
     rl_wheel_ang_vel * rad_s_to_rpm,
     rr_wheel_ang_vel * rad_s_to_rpm,
     rear_left_angle_clamped,
-    rear_right_angle_clamped);
+    rear_right_angle_clamped,
+    turn_radius);
 
   return controller_interface::return_type::OK;
 }
