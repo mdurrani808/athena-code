@@ -5,7 +5,9 @@
 mag_heading_node:
   ros__parameters:
     mag_topic: /zed/zed_node/imu/mag
+    imu_topic: /zed/zed_node/imu/data
     frame_id: base_link
+
 
     # hard_iron: [x, y, z] bias in Tesla subtracted from raw reading
     hard_iron: [-0.00000004, -0.00000004, -0.00000075]
@@ -15,3 +17,9 @@ mag_heading_node:
     soft_iron: [396424.63185682, -6099.08650397, -37968.68889522,
                 -6099.08650397, 364405.96660082, -22546.53691954,
                 -37968.68889522, -22546.53691954, 5105.15902572]
+
+    mahony_kp: 2.0
+
+    mahony_ki: 0.005
+
+    mag_field_gate: 0.3

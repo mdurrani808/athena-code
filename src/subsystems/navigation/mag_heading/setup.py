@@ -15,7 +15,7 @@ setup(
         (os.path.join('share', package_name, 'launch'), glob('launch/*.py')),
         (os.path.join('share', package_name, 'config'), glob('config/*.yaml')),
     ],
-    install_requires=['setuptools'],
+    install_requires=['setuptools', 'ahrs'],
     zip_safe=True,
     maintainer='mdurrani',
     maintainer_email='mdurrani808@gmail.com',
