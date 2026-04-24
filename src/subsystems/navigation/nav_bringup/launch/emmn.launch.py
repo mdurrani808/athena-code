@@ -41,7 +41,7 @@ from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration, IfElseSubstitution, Command, FindExecutable, PathJoinSubstitution
+from launch.substitutions import LaunchConfiguration, Command, FindExecutable, PathJoinSubstitution
 from launch.conditions import IfCondition
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
@@ -145,6 +145,14 @@ def generate_launch_description():
     )
 
 
+    point_cloud_filterer_node = Node(
+        package='point_cloud_filterer',
+        executable='point_cloud_filtered',
+        name='point_cloud_filterer',
+        output='screen',
+        parameters=[nav_params_file],
+    )
+
     pointcloud_to_laserscan_node = Node(
         package='pointcloud_to_laserscan',
         executable='pointcloud_to_laserscan_node',
@@ -152,7 +160,7 @@ def generate_launch_description():
         output='screen',
         parameters=[nav_params_file],
         remappings=[
-            ('cloud_in', IfElseSubstitution(sim, if_value='/zed/cloud_base_link', else_value='/zed/zed_node/point_cloud/cloud_registered')),
+            ('cloud_in', '/zed/cloud_base_link'),
             ('scan',     '/scan'),
         ],
     )
@@ -164,6 +172,7 @@ def generate_launch_description():
         gps_pose_publisher_node,
         dem_costmap_converter_node,
         global_planner_node,
+        point_cloud_filterer_node,
         pointcloud_to_laserscan_node,
         vector_field_planner_node,
         mission_executive_node,

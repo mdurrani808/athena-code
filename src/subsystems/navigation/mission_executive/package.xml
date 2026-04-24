@@ -21,6 +21,9 @@
   <depend>vision_msgs</depend>
   <depend>msgs</depend>
 
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>action_msgs</exec_depend>
+
   <export>
     <build_type>ament_cmake</build_type>
   </export>

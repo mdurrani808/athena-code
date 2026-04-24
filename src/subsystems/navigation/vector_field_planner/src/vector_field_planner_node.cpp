@@ -58,6 +58,7 @@ public:
     declare_parameter("k_p_steering",           1.5);
     declare_parameter("repulsion_gain",               0.5);
     declare_parameter("repulsion_cutoff_m",           3.0);
+    declare_parameter("vfh_threshold",                0.5);
     declare_parameter("obstacle_memory_time_s",       3.0);
     declare_parameter("obstacle_max_points",          2000);
     declare_parameter("obstacle_avoidance_enabled",   false);
@@ -79,6 +80,7 @@ public:
     p.k_p_steering               = get_parameter("k_p_steering").as_double();
     p.repulsion_gain             = get_parameter("repulsion_gain").as_double();
     p.repulsion_cutoff_m         = get_parameter("repulsion_cutoff_m").as_double();
+    p.vfh_threshold              = get_parameter("vfh_threshold").as_double();
     p.obstacle_avoidance_enabled = get_parameter("obstacle_avoidance_enabled").as_bool();
     p.goal_tolerance_m           = get_parameter("goal_tolerance_m").as_double();
     p.min_approach_linear_velocity = get_parameter("min_approach_linear_velocity").as_double();
@@ -374,19 +376,18 @@ private:
       stuck_ticks_ = 0;
     }
 
-    if (p.obstacle_avoidance_enabled && p.repulsion_gain > 0.0 && latest_scan_) {
+    if (p.obstacle_avoidance_enabled && latest_scan_) {
       const double scan_age = (now_time - latest_scan_->header.stamp).seconds();
       RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 500,
         "[AVOIDANCE age=%.3fs] buffered=%zu in_range=%d closest=%.2fm "
-        "lateral_sum=%.3f left=%.3f right=%.3f rep_steer=%.4f",
+        "vfh_k_best=%d heading_err=%.1fd",
         scan_age, obstacle_map_.size(), res.active_points, res.closest_r,
-        res.lateral_sum, res.lateral_left, res.lateral_right, res.repulsion_steering);
+        res.vfh_k_best, res.heading_err * 180.0 / M_PI);
 
       if (res.active_points > 0) {
         RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 250,
-          "[AVOIDANCE ACTIVE] %d pts within %.1fm  left=%.3f right=%.3f  rep_steer=%.4f  path_steer=%.4f",
-          res.active_points, p.repulsion_cutoff_m, res.lateral_left, res.lateral_right,
-          res.repulsion_steering, p.k_p_steering * res.heading_err);
+          "[AVOIDANCE ACTIVE] %d pts within %.1fm  k_best=%d  steer=%.4f",
+          res.active_points, p.repulsion_cutoff_m, res.vfh_k_best, res.angular_vel);
       }
     }
 

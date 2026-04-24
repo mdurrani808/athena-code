@@ -262,3 +262,111 @@ TEST(Regression, StraightAheadZeroSteering)
   EXPECT_NEAR(res.angular_vel, 0.0, 1e-6);
   EXPECT_NEAR(res.linear_vel, p.max_speed_mps, 1e-6);
 }
+
+// ---------------------------------------------------------------------------
+// VFH* Obstacle Avoidance
+// ---------------------------------------------------------------------------
+
+TEST(VfhStar, AvoidsWallInFront)
+{
+  PlannerParams p;
+  p.obstacle_avoidance_enabled = true;
+  p.vfh_threshold = 0.5;
+  p.repulsion_cutoff_m = 3.0;
+  p.lookahead_dist_m = 5.0;
+  p.max_speed_mps = 1.0;
+  p.k_p_steering = 1.0;
+
+  auto algo = makeAlgo(p);
+  algo.setPath(straightPath(20.0));
+
+  // Place a dense wall at x=2, from y=-2 to y=2
+  std::vector<ObstaclePoint> obs;
+  for (double y = -2.0; y <= 2.0; y += 0.1) {
+    obs.push_back({2.0, y});
+  }
+  algo.updateObstacles(obs);
+
+  // Robot at origin facing +X. Target is at x=5 (lookahead).
+  // Wall is in between. VFH* should steer away.
+  auto res = algo.compute(0.0, 0.0, 0.0, 0.0);
+
+  EXPECT_GT(res.active_points, 0);
+  EXPECT_NE(res.vfh_k_best, 0); // 0 corresponds to +X (roughly)
+  EXPECT_GT(std::abs(res.angular_vel), 0.1);
+}
+
+TEST(VfhStar, TargetHeadingWhenClear)
+{
+  PlannerParams p;
+  p.obstacle_avoidance_enabled = true;
+  p.vfh_threshold = 0.5;
+  p.repulsion_cutoff_m = 3.0;
+
+  auto algo = makeAlgo(p);
+  algo.setPath(straightPath(20.0));
+
+  // No obstacles
+  algo.updateObstacles({});
+
+  auto res = algo.compute(0.0, 0.0, 0.0, 0.0);
+  EXPECT_NEAR(res.heading_err, 0.0, 0.1);
+  EXPECT_EQ(res.active_points, 0);
+}
+
+TEST(VfhStar, ThresholdFilter)
+{
+  PlannerParams p;
+  p.obstacle_avoidance_enabled = true;
+  p.vfh_threshold = 10.0; // Extremely high threshold - everything should be clear
+  p.repulsion_cutoff_m = 3.0;
+
+  auto algo = makeAlgo(p);
+  algo.setPath(straightPath(20.0));
+
+  // Place a single obstacle at x=1
+  algo.updateObstacles({{1.0, 0.0}});
+
+  auto res = algo.compute(0.0, 0.0, 0.0, 0.0);
+  // High threshold means it should ignore the obstacle
+  EXPECT_NEAR(res.heading_err, 0.0, 0.1);
+}
+
+TEST(VfhStar, TrapScenario)
+{
+  PlannerParams p;
+  p.obstacle_avoidance_enabled = true;
+  p.vfh_threshold = 0.5;
+  p.repulsion_cutoff_m = 4.0;
+  p.lookahead_dist_m = 3.0;
+  p.max_speed_mps = 1.0;
+  p.k_p_steering = 1.0;
+  p.max_steering_angle_rad = 1.0; // Allow sharp turns
+
+  auto algo = makeAlgo(p);
+  algo.setPath(straightPath(20.0));
+
+  // Create a U-shaped trap blocking +X
+  // Front wall at x=2
+  std::vector<ObstaclePoint> obs;
+  for (double y = -1.5; y <= 1.5; y += 0.1) {
+    obs.push_back({2.0, y});
+  }
+  // Side walls
+  for (double x = 2.0; x <= 5.0; x += 0.2) {
+    obs.push_back({x, 1.5});
+    obs.push_back({x, -1.5});
+  }
+  algo.updateObstacles(obs);
+
+  // Robot at origin facing +X. 
+  // A local planner (VFH+) might steer slightly but stay in the U.
+  // VFH* should see that all paths through the front wall are blocked
+  // and steer much more aggressively to the side to go around the trap.
+  auto res = algo.compute(0.0, 0.0, 0.0, 0.0);
+
+  EXPECT_GT(res.active_points, 0);
+  // Heading error should be significant (steering away from the U)
+  // 0 rad is straight into the trap.
+  EXPECT_GT(std::abs(res.heading_err), 0.5);
+}

@@ -41,6 +41,7 @@ struct PlannerParams {
   bool obstacle_avoidance_enabled = false;
   double repulsion_gain = 0.5;
   double repulsion_cutoff_m = 3.0;
+  double vfh_threshold = 0.5;
 
   // Approach velocity scaling: ramp speed down to min_approach_linear_velocity
   // as the robot closes within lookahead_dist_m of the goal. The velocity-scaled
@@ -68,6 +69,10 @@ struct PlannerResult {
   double lateral_right = 0.0;
   int active_points = 0;
   double closest_r = -1.0;
+
+  // VFH* debug info
+  int vfh_k_best = -1;
+  int vfh_candidates_n = 0;
 
   // Debug info for new features
   double effective_lookahead_dist = 0.0;  // actual lookahead used this tick
@@ -142,9 +147,19 @@ private:
   PlannerParams params_;
   std::vector<Pose2D> path_;
   std::vector<ObstaclePoint> obstacles_;
+  int prev_k_{0};
 
   double effectiveLookaheadDist(double current_speed) const;
   double approachVelocityScale(double dist_to_goal) const;
+
+  // VFH* internals
+  std::vector<double> buildHistogram(const std::vector<ObstaclePoint>& obs,
+                                     double rx, double ry) const;
+  std::vector<double> smoothHistogram(const std::vector<double>& h) const;
+  std::vector<int>    findCandidates(const std::vector<double>& h,
+                                     int k_target, int k_prev) const;
+  int                 runAstar(double rx, double ry, double yaw,
+                               int k_target, int k_prev) const;
 };
 
 }  // namespace vector_field_planner
