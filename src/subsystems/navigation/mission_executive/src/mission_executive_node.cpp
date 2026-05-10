@@ -29,6 +29,7 @@
 #include "nav_msgs/msg/path.hpp"
 #include "sensor_msgs/msg/imu.hpp"
 #include "tf2/exceptions.h"
+#include "tf2/time.h"
 #include "tf2_ros/buffer.h"
 #include "tf2_ros/transform_listener.h"
 #include "std_msgs/msg/bool.hpp"
@@ -39,6 +40,7 @@
 
 #include "msgs/action/navigate_to_target.hpp"
 #include "msgs/msg/active_target.hpp"
+#include "msgs/msg/led_status.hpp"
 #include "msgs/msg/nav_status.hpp"
 #include "msgs/msg/planner_event.hpp"
 #include "msgs/srv/lat_lon_to_enu.hpp"
@@ -58,6 +60,7 @@ using namespace std::chrono_literals;
 enum class State {
   IDLE,
   NAVIGATING,
+  ARUCO_APPROACH,
   ARRIVING,
   STOPPED_AT_TARGET,
   SPIRAL_COVERAGE,
@@ -72,6 +75,7 @@ static std::string stateToStr(State s) {
   switch (s) {
     case State::IDLE:              return "IDLE";
     case State::NAVIGATING:        return "NAVIGATING";
+    case State::ARUCO_APPROACH:    return "ARUCO_APPROACH";
     case State::ARRIVING:          return "ARRIVING";
     case State::STOPPED_AT_TARGET: return "STOPPED_AT_TARGET";
     case State::SPIRAL_COVERAGE:   return "SPIRAL_COVERAGE";
@@ -109,6 +113,9 @@ struct MissionParams {
   double spiral_spacing_m{2.0};
   double spiral_angular_step{0.5};
   double spiral_waypoint_tolerance_m{2.0};
+  int    aruco_confirm_frames{5};
+  double aruco_stop_dist_m{1.8};
+  double aruco_max_age_s{0.5};
 };
 
 struct CommandResult {
@@ -154,6 +161,9 @@ public:
     declare_parameter("spiral_spacing_m",            2.0);
     declare_parameter("spiral_angular_step",         0.5);
     declare_parameter("spiral_waypoint_tolerance_m", 2.0);
+    declare_parameter("aruco_confirm_frames",         5);
+    declare_parameter("aruco_stop_dist_m",            1.8);
+    declare_parameter("aruco_max_age_s",              0.5);
     declare_parameter("aruco_detection_topic", std::string("/aruco_loc"));
     declare_parameter("yolo_detection_topic",  std::string("/yolo_detection"));
     declare_parameter("imu_topic",           std::string("/imu"));
@@ -164,6 +174,7 @@ public:
     declare_parameter("nav_mode_topic",      std::string("/nav_mode"));
     declare_parameter("active_target_topic", std::string("/active_target"));
     declare_parameter("nav_status_topic",    std::string("/nav_status"));
+    declare_parameter("led_status_topic",    std::string("/led_status"));
 
     params_.stop_angular_vel_threshold  = get_parameter("stop_angular_vel_threshold").as_double();
     params_.arrival_hold_time           = get_parameter("arrival_hold_time").as_double();
@@ -173,6 +184,9 @@ public:
     params_.spiral_spacing_m            = get_parameter("spiral_spacing_m").as_double();
     params_.spiral_angular_step         = get_parameter("spiral_angular_step").as_double();
     params_.spiral_waypoint_tolerance_m = get_parameter("spiral_waypoint_tolerance_m").as_double();
+    params_.aruco_confirm_frames         = get_parameter("aruco_confirm_frames").as_int();
+    params_.aruco_stop_dist_m            = get_parameter("aruco_stop_dist_m").as_double();
+    params_.aruco_max_age_s              = get_parameter("aruco_max_age_s").as_double();
 
     const auto latlon_svc           = get_parameter("latlon_to_enu_service").as_string();
     const auto aruco_detection_topic = get_parameter("aruco_detection_topic").as_string();
@@ -185,6 +199,7 @@ public:
     const auto nav_mode_topic       = get_parameter("nav_mode_topic").as_string();
     const auto active_target_topic  = get_parameter("active_target_topic").as_string();
     const auto nav_status_topic     = get_parameter("nav_status_topic").as_string();
+    const auto led_status_topic     = get_parameter("led_status_topic").as_string();
 
     reentrant_group_ = create_callback_group(rclcpp::CallbackGroupType::Reentrant);
 
@@ -198,6 +213,8 @@ public:
     active_target_pub_ = create_publisher<msgs::msg::ActiveTarget>(active_target_topic, 10);
     nav_status_pub_    = create_publisher<msgs::msg::NavStatus>(
       nav_status_topic, rclcpp::QoS(1).reliable());
+    led_status_pub_    = create_publisher<msgs::msg::LedStatus>(
+      led_status_topic, rclcpp::QoS(1).reliable());
 
     latlon_client_ = create_client<msgs::srv::LatLonToENU>(
       latlon_svc,
@@ -227,7 +244,7 @@ public:
         auto cmd = abort();
         res->success = cmd.success;
         res->message = cmd.message;
-        if (cmd.success) { publishNavEnabled(); publishNavMode(); publishStatus(); }
+        if (cmd.success) { publishNavEnabled(); publishNavMode(); publishLedStatus(); publishStatus(); }
       });
 
     set_target_srv_ = create_service<msgs::srv::SetTarget>(
@@ -249,7 +266,7 @@ public:
         auto cmd = setTeleop(req->data);
         res->success = cmd.success;
         res->message = cmd.message;
-        if (cmd.success) { publishNavEnabled(); publishNavMode(); publishStatus(); }
+        if (cmd.success) { publishNavEnabled(); publishNavMode(); publishLedStatus(); publishStatus(); }
       });
 
     imu_sub_ = create_subscription<sensor_msgs::msg::Imu>(
@@ -269,6 +286,7 @@ public:
           onPlanFailed();
           publishNavEnabled();
           publishNavMode();
+          publishLedStatus();
           publishStatus();
         }
       });
@@ -288,9 +306,9 @@ public:
 
     aruco_sub_ = create_subscription<vision_msgs::msg::Detection2D>(
       aruco_detection_topic, 10,
-      [this](const vision_msgs::msg::Detection2D::SharedPtr) {
+      [this](const vision_msgs::msg::Detection2D::SharedPtr msg) {
         std::lock_guard<std::mutex> lk(mutex_);
-        onDetection();
+        onArucoDetection(msg);
       });
 
     yolo_sub_ = create_subscription<std_msgs::msg::Bool>(
@@ -311,11 +329,13 @@ public:
         checkActionResult(res);
         publishNavEnabled();
         publishNavMode();
+        publishLedStatus();
         publishStatus();
       });
 
     publishNavEnabled();
     publishNavMode();
+    publishLedStatus();
     RCLCPP_INFO(get_logger(), "MissionExecutive ready — state: IDLE");
   }
 
@@ -323,19 +343,31 @@ private:
   // ── State machine ─────────────────────────────────────────────────────────
 
   bool isNavEnabled() const {
-    return state_ == State::NAVIGATING || state_ == State::ARRIVING ||
-           state_ == State::RETURNING  || state_ == State::SPIRAL_COVERAGE;
+    return state_ == State::NAVIGATING    || state_ == State::ARUCO_APPROACH ||
+           state_ == State::ARRIVING      || state_ == State::RETURNING  ||
+           state_ == State::SPIRAL_COVERAGE;
   }
 
   std::string getNavMode() const {
     switch (state_) {
       case State::TELEOP:        return "teleop";
       case State::NAVIGATING:
+      case State::ARUCO_APPROACH:
       case State::ARRIVING:
       case State::RETURNING:
       case State::SPIRAL_COVERAGE: return "autonomous";
       default:                   return "stopped";
     }
+  }
+
+  bool isArucoTarget() const {
+    return active_target_.has_value() &&
+           (active_target_->target_type == 1 || active_target_->target_type == 2);
+  }
+
+  bool isArucoEstimateFresh(double current_time_s) const {
+    return aruco_estimated_dist_m_ > 0.0 &&
+           (current_time_s - aruco_estimated_time_s_) < params_.aruco_max_age_s;
   }
 
   void transition(State new_state) {
@@ -412,9 +444,45 @@ private:
   }
 
   void onDetection() {
-    if (state_ == State::SPIRAL_COVERAGE) {
+    if (state_ == State::SPIRAL_COVERAGE && !isArucoTarget()) {
       detection_received_ = true;
       transition(State::SPIRAL_DONE);
+    }
+  }
+
+  void onArucoDetection(const vision_msgs::msg::Detection2D::SharedPtr& msg) {
+    if (msg->results.empty()) return;
+
+    const double now_s = now().seconds();
+
+    // Reset candidate count if the tag was lost between frames
+    if (now_s - aruco_last_detection_s_ > params_.aruco_max_age_s) {
+      aruco_candidate_frames_ = 0;
+    }
+    aruco_last_detection_s_ = now_s;
+    aruco_candidate_frames_++;
+
+    if (aruco_candidate_frames_ < params_.aruco_confirm_frames) {
+      RCLCPP_DEBUG(get_logger(), "ArUco: confirming (%d/%d frames)",
+        aruco_candidate_frames_, params_.aruco_confirm_frames);
+      return;
+    }
+
+    // Transform tag pose from camera frame to map frame
+    geometry_msgs::msg::PoseStamped cam_pose;
+    cam_pose.header = msg->header;
+    cam_pose.pose   = msg->results[0].pose.pose;
+    try {
+      auto map_pose = tf_buffer_->transform(cam_pose, "map", tf2::durationFromSec(0.1));
+      aruco_estimated_goal_   = {map_pose.pose.position.x, map_pose.pose.position.y, 0.0};
+      aruco_estimated_dist_m_ = msg->results[0].pose.pose.position.z;
+      aruco_estimated_time_s_ = now_s;
+      RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 500,
+        "ArUco confirmed: dist=%.2fm goal=(%.2f, %.2f)",
+        aruco_estimated_dist_m_, aruco_estimated_goal_.x, aruco_estimated_goal_.y);
+    } catch (const tf2::TransformException& e) {
+      RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000,
+        "ArUco TF transform failed: %s", e.what());
     }
   }
 
@@ -460,8 +528,11 @@ private:
                                 state_ != State::SPIRAL_DONE);
     if (is_active_nav) res.preempted_old = true;
 
-    active_target_ = entry;
-    is_return_     = is_return;
+    active_target_          = entry;
+    is_return_              = is_return;
+    aruco_candidate_frames_ = 0;
+    aruco_last_detection_s_ = 0.0;
+    aruco_estimated_dist_m_ = 0.0;
     transition(is_return ? State::RETURNING : State::NAVIGATING);
 
     res.accepted       = true;
@@ -524,11 +595,46 @@ private:
   TickResult tick(double current_time_s) {
     TickResult res;
 
-    // 1. Check arrival
+    // 1a. ArUco-guided approach — highest priority for Post 1 / Post 2 targets.
+    //     Runs from any active state so the tag can be spotted en-route.
+    if (isArucoTarget() && isArucoEstimateFresh(current_time_s)) {
+      const bool in_active = (state_ == State::NAVIGATING    ||
+                              state_ == State::ARUCO_APPROACH ||
+                              state_ == State::SPIRAL_COVERAGE ||
+                              state_ == State::ARRIVING);
+      if (in_active) {
+        if (aruco_estimated_dist_m_ < params_.aruco_stop_dist_m) {
+          transition(State::STOPPED_AT_TARGET);
+          res.action_finished = true;
+          res.action_success  = true;
+          res.action_message  = "Arrived within " +
+            std::to_string(params_.aruco_stop_dist_m) + "m of ArUco post";
+          return res;
+        }
+        if (state_ != State::ARUCO_APPROACH) transition(State::ARUCO_APPROACH);
+        res.publish_goal    = true;
+        res.goal_to_publish = aruco_estimated_goal_;
+        return res;  // vector_field_planner drives from here; re-evaluate next tick
+      }
+    }
+
+    // 1b. GPS arrival check
     if ((state_ == State::NAVIGATING || state_ == State::RETURNING) &&
         active_target_.has_value()) {
       const double d = getDistToGoal();
-      if (d >= 0.0 && d < active_target_->tolerance_m) transition(State::ARRIVING);
+      if (d >= 0.0 && d < active_target_->tolerance_m) {
+        if (isArucoTarget()) {
+          // GPS vicinity reached but tag not yet confirmed — start spiral scan
+          transition(State::SPIRAL_COVERAGE);
+          startSpiralCoverage(current_time_s);
+          if (state_ == State::SPIRAL_COVERAGE && !spiral_waypoints_.empty()) {
+            res.publish_goal    = true;
+            res.goal_to_publish = spiral_waypoints_[0];
+          }
+        } else {
+          transition(State::ARRIVING);
+        }
+      }
     }
 
     // 2. Check cross-track error → replan
@@ -562,8 +668,9 @@ private:
 
     // 4. Action result resolution
     if (state_ == State::STOPPED_AT_TARGET) {
+      // type 3 = OBJECT (needs spiral+YOLO); ArUco posts (1,2) finish via aruco_stop above
       const bool needs_spiral = active_target_.has_value() &&
-        (active_target_->target_type == 1 || active_target_->target_type == 2);
+        active_target_->target_type == 3;
       if (needs_spiral) {
         transition(State::SPIRAL_COVERAGE);
         startSpiralCoverage(current_time_s);
@@ -644,6 +751,39 @@ private:
     std_msgs::msg::String msg;
     msg.data = getNavMode();
     nav_mode_pub_->publish(msg);
+  }
+
+  void publishLedStatus() {
+    msgs::msg::LedStatus led;
+    switch (state_) {
+      case State::NAVIGATING:
+      case State::ARUCO_APPROACH:
+      case State::ARRIVING:
+      case State::RETURNING:
+      case State::SPIRAL_COVERAGE:
+      case State::ABORTING:
+        // Red — autonomous operation
+        led.cmd = msgs::msg::LedStatus::CMD_SOLID;
+        led.r   = 255; led.g = 0; led.b = 0;
+        break;
+      case State::TELEOP:
+        // Blue — teleoperation
+        led.cmd = msgs::msg::LedStatus::CMD_SOLID;
+        led.r   = 0; led.g = 0; led.b = 255;
+        break;
+      case State::STOPPED_AT_TARGET:
+      case State::STOPPED_AT_RETURN:
+      case State::SPIRAL_DONE:
+        // Flashing green — successful arrival
+        led.cmd   = msgs::msg::LedStatus::CMD_FLASH;
+        led.r     = 0; led.g = 255; led.b = 0;
+        led.param = 20;  // 2 Hz
+        break;
+      default:
+        led.cmd = msgs::msg::LedStatus::CMD_OFF;
+        break;
+    }
+    led_status_pub_->publish(led);
   }
 
   void publishActiveTarget() {
@@ -793,6 +933,7 @@ private:
       }
       publishNavEnabled();
       publishNavMode();
+      publishLedStatus();
       publishStatus();
     }
   }
@@ -863,6 +1004,13 @@ private:
   double spiral_start_time_s_{0.0};
   bool detection_received_{false};
 
+  // ArUco approach state
+  int    aruco_candidate_frames_{0};
+  double aruco_last_detection_s_{0.0};
+  Pose2D aruco_estimated_goal_{};
+  double aruco_estimated_dist_m_{0.0};
+  double aruco_estimated_time_s_{0.0};
+
   // ── ROS handles ───────────────────────────────────────────────────────────
 
   rclcpp::CallbackGroup::SharedPtr reentrant_group_;
@@ -875,6 +1023,7 @@ private:
   rclcpp::Publisher<std_msgs::msg::String>::SharedPtr           nav_mode_pub_;
   rclcpp::Publisher<msgs::msg::ActiveTarget>::SharedPtr         active_target_pub_;
   rclcpp::Publisher<msgs::msg::NavStatus>::SharedPtr            nav_status_pub_;
+  rclcpp::Publisher<msgs::msg::LedStatus>::SharedPtr            led_status_pub_;
 
   rclcpp_action::Server<NavAction>::SharedPtr action_server_;
 

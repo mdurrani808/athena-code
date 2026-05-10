@@ -6,24 +6,25 @@ Usage:
   ros2 run mission_executive mission_cli [command] [args...]
 
 Commands:
-  status                          Print current nav status once
-  watch                           Stream nav status (Ctrl-C to stop)
-  abort                           Abort the current mission
-  teleop on|off                   Enable / disable teleop mode
+  status                           Print current nav status once
+  watch                            Stream nav status (Ctrl-C to stop)
+  abort                            Abort the current mission
+  teleop on|off                    Enable / disable teleop mode
 
-  nav gps    <lat> <lon> [tol]   Navigate to GPS coords (GNSS_ONLY target)
-  nav meter  <x>   <y>   [tol]   Navigate to ENU metre coords
-  nav aruco  <lat> <lon> [tol]   Navigate + spiral for ArUco post
-  nav object <lat> <lon> [tol]   Navigate + spiral for OBJECT detection
+  nav gps    <lat> <lon> [tol]    Navigate to GPS coords (GNSS_ONLY)
+  nav meter  <x>   <y>   [tol]    Navigate to ENU metre coords (GNSS_ONLY)
+  nav post1  <lat> <lon> [tol]    ArUco Post 1 (GPS 5-10m from post, tol default 13m)
+  nav post2  <lat> <lon> [tol]    ArUco Post 2 (GPS 10-20m from post, tol default 23m)
+  nav object <lat> <lon> [tol]    YOLO object detection + spiral
 
   set-target gps   <id> <lat> <lon> [type] [tol]   Register GPS target
   set-target meter <id> <x>   <y>   [type] [tol]   Register ENU target
-  nav-by-id <id> [is_return]     Navigate to a pre-registered target id
+  nav-by-id <id> [is_return]      Navigate to a pre-registered target id
 
-  menu                            Interactive menu (default if no args)
+  menu                             Interactive menu (default if no args)
 
-target_type: 0=GNSS_ONLY  1=ARUCO_POST  2=OBJECT  3=LOCAL
-tol: arrival radius in metres (default 3.0)
+target_type: 0=GNSS_ONLY  1=ARUCO_POST_1  2=ARUCO_POST_2  3=OBJECT  4=LOCAL
+tol: arrival radius in metres (GPS vicinity — aruco posts use camera for final 2m)
 """
 
 import signal
@@ -55,7 +56,12 @@ BLD = "\033[1m"
 DIM = "\033[2m"
 RST = "\033[0m"
 
-TARGET_TYPE_NAMES = {0: "GNSS_ONLY", 1: "ARUCO_POST", 2: "OBJECT", 3: "LOCAL"}
+TARGET_TYPE_NAMES = {0: "GNSS_ONLY", 1: "ARUCO_POST_1", 2: "ARUCO_POST_2", 3: "OBJECT", 4: "LOCAL"}
+
+# Default GPS vicinity tolerances for each post type.
+# The rover drives to within tol of the GPS fix, then uses the camera for the final approach.
+POST1_DEFAULT_TOL = 13.0   # GPS 5-10m from post + 3m margin
+POST2_DEFAULT_TOL = 23.0   # GPS 10-20m from post + 3m margin
 
 GOAL_STATUS_NAMES = {
     GoalStatus.STATUS_UNKNOWN:   "UNKNOWN",
@@ -236,8 +242,14 @@ class MissionCLI:
     def _run_nav_with_status(self, goal: NavigateToTarget.Goal):
         target_type = goal.target_type
         if target_type in (1, 2):
-            print(f"  {CYN}Note: After arrival the node will enter SPIRAL_COVERAGE{RST}")
-            print(f"  {CYN}      and complete when a detection is received or it times out.{RST}")
+            print(f"  {CYN}Note: ArUco post — rover drives to GPS vicinity, then enters{RST}")
+            print(f"  {CYN}      ARUCO_APPROACH once the tag is confirmed for {CYN}aruco_confirm_frames{RST}")
+            print(f"  {CYN}      consecutive frames. Stops when camera depth < aruco_stop_dist_m.{RST}")
+            print(f"  {CYN}      Falls back to SPIRAL_COVERAGE if GPS arrived without tag lock.{RST}")
+            print()
+        elif target_type == 3:
+            print(f"  {CYN}Note: OBJECT — after GPS arrival the node enters SPIRAL_COVERAGE{RST}")
+            print(f"  {CYN}      and completes when YOLO detects the target or spiral times out.{RST}")
             print()
 
         if not self._wait_for_action_server(timeout=5.0):
@@ -359,30 +371,38 @@ class MissionCLI:
 
     def _nav_usage(self):
         error("Usage:")
-        error("  nav gps    <lat> <lon>  [tol]   — GNSS_ONLY target")
-        error("  nav meter  <x>   <y>    [tol]   — ENU metre target")
-        error("  nav aruco  <lat> <lon>  [tol]   — navigate + spiral (ArUco)")
-        error("  nav object <lat> <lon>  [tol]   — navigate + spiral (YOLO object)")
+        error("  nav gps    <lat> <lon>  [tol]    — GNSS_ONLY target")
+        error("  nav meter  <x>   <y>    [tol]    — ENU metre target")
+        error(f"  nav post1  <lat> <lon>  [tol]    — ArUco Post 1 (default tol={POST1_DEFAULT_TOL}m)")
+        error(f"  nav post2  <lat> <lon>  [tol]    — ArUco Post 2 (default tol={POST2_DEFAULT_TOL}m)")
+        error("  nav object <lat> <lon>  [tol]    — YOLO object detection + spiral")
         sys.exit(1)
 
     def cmd_nav(self, args: list):
         if not args:
             self._nav_usage()
         coord = args[0].lower()
-        tol = float(args[3]) if len(args) > 3 else 3.0
 
         if coord == "gps":
             if len(args) < 3: self._nav_usage()
+            tol = float(args[3]) if len(args) > 3 else 3.0
             goal = self._build_nav_goal(0, "", args[1], args[2], 0, tol)
         elif coord in ("meter", "m"):
             if len(args) < 3: self._nav_usage()
+            tol = float(args[3]) if len(args) > 3 else 3.0
             goal = self._build_nav_goal(1, "", args[1], args[2], 0, tol)
-        elif coord == "aruco":
+        elif coord == "post1":
             if len(args) < 3: self._nav_usage()
+            tol = float(args[3]) if len(args) > 3 else POST1_DEFAULT_TOL
             goal = self._build_nav_goal(0, "", args[1], args[2], 1, tol)
+        elif coord == "post2":
+            if len(args) < 3: self._nav_usage()
+            tol = float(args[3]) if len(args) > 3 else POST2_DEFAULT_TOL
+            goal = self._build_nav_goal(0, "", args[1], args[2], 2, tol)
         elif coord in ("object", "obj"):
             if len(args) < 3: self._nav_usage()
-            goal = self._build_nav_goal(0, "", args[1], args[2], 2, tol)
+            tol = float(args[3]) if len(args) > 3 else 3.0
+            goal = self._build_nav_goal(0, "", args[1], args[2], 3, tol)
         else:
             self._nav_usage()
             return
@@ -448,22 +468,31 @@ class MissionCLI:
         print()
         print("Navigation type:")
         print("  1) GPS point  (GNSS_ONLY)")
-        print("  2) GPS point  (ArUco post  — will spiral after arrival)")
-        print("  3) GPS point  (YOLO object — will spiral after arrival)")
-        print("  4) ENU metres (GNSS_ONLY)")
-        print("  5) By registered target ID")
+        print(f"  2) ArUco Post 1  (GPS 5-10m from post,  default tol={POST1_DEFAULT_TOL}m)")
+        print(f"  3) ArUco Post 2  (GPS 10-20m from post, default tol={POST2_DEFAULT_TOL}m)")
+        print("  4) GPS point  (YOLO object — spiral after arrival)")
+        print("  5) ENU metres (GNSS_ONLY)")
+        print("  6) By registered target ID")
         ct = input("Choice: ").strip()
 
-        if ct == "5":
+        if ct == "6":
             tid = input("Target ID: ").strip()
             ret = input("Is return? [y/N]: ").strip().lower()
             self.cmd_nav_by_id(tid, ret in ("y", "yes"))
             return
 
         goal_type, target_type = 0, 0
-        if ct == "2":   target_type = 1
-        elif ct == "3": target_type = 2
-        elif ct == "4": goal_type   = 1
+        default_tol = 3.0
+        if ct == "2":
+            target_type = 1
+            default_tol = POST1_DEFAULT_TOL
+        elif ct == "3":
+            target_type = 2
+            default_tol = POST2_DEFAULT_TOL
+        elif ct == "4":
+            target_type = 3
+        elif ct == "5":
+            goal_type = 1
 
         if goal_type == 0:
             a = input("Latitude:  ").strip()
@@ -472,9 +501,9 @@ class MissionCLI:
             a = input("x_m: ").strip()
             b = input("y_m: ").strip()
 
-        tol_s = input("Arrival tolerance in metres [3.0]: ").strip()
+        tol_s = input(f"GPS vicinity tolerance in metres [{default_tol}]: ").strip()
         goal = self._build_nav_goal(goal_type, "", a, b, target_type,
-                                    float(tol_s) if tol_s else 3.0, False)
+                                    float(tol_s) if tol_s else default_tol, False)
         self._run_nav_with_status(goal)
 
     def _menu_set_target(self):
@@ -487,7 +516,7 @@ class MissionCLI:
             a, b, goal_type = input("Latitude:  ").strip(), input("Longitude: ").strip(), 0
         else:
             a, b, goal_type = input("x_m: ").strip(), input("y_m: ").strip(), 1
-        print("Target type:  0=GNSS_ONLY  1=ARUCO_POST  2=OBJECT  3=LOCAL")
+        print("Target type:  0=GNSS_ONLY  1=ARUCO_POST_1  2=ARUCO_POST_2  3=OBJECT  4=LOCAL")
         ttype_s = input("Target type [0]: ").strip()
         tol_s   = input("Arrival tolerance [3.0]: ").strip()
         self._call_set_target(goal_type, tid, a, b,

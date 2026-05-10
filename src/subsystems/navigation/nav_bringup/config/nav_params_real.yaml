@@ -39,6 +39,10 @@ mission_executive:
     planner_event_topic: "/planner_event"
     global_path_topic: "/global_path"
     yolo_detection_topic: "/yolo/target_found"
+    # ArUco approach
+    aruco_confirm_frames: 5      # consecutive frames before trusting pose estimate
+    aruco_stop_dist_m: 1.8       # stop when camera depth < this (m); leaves ~0.2m margin to 2m rule
+    aruco_max_age_s: 0.5         # reject estimate older than this (detection gap reset)
     # Output topics
     goal_pose_topic: "/goal_pose"
     nav_enabled_topic: "/nav_enabled"
