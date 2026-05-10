@@ -59,6 +59,14 @@ def generate_launch_description():
         condition=IfCondition(use_config),
     )
 
+    mag_heading_launch_file = os.path.join(
+        get_package_share_directory('mag_heading'), 'launch', 'mag_heading.launch.py'
+    )
+
+    mag_heading_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(mag_heading_launch_file),
+    )
+
     navigation_launch_file = os.path.join(
         get_package_share_directory('athena_planner'), 'launch', 'navigation.launch.py'
     )
@@ -89,12 +97,12 @@ def generate_launch_description():
         ),
         DeclareLaunchArgument(
             'use_zed_localizer',
-            default_value='false',
+            default_value='true',
             choices=['true', 'false'],
         ),
         DeclareLaunchArgument(
             'enable_gnss',
-            default_value='false',
+            default_value='true',
             choices=['true', 'false'],
             description='Enable GNSS fusion inside the ZED camera',
         ),
@@ -127,6 +135,7 @@ def generate_launch_description():
         ),
     
         robot_state_publisher,
+        mag_heading_launch,
         navigation_launch,
         config_gui,
     ])
