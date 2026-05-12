@@ -29,8 +29,17 @@
     manual_end_effector_gripper_claw_controller:
       type: arm_controllers/ManualEndEffectorGripperClawController
 
-    motor_status_broadcaster:
-      type: general_controllers/MotorStatusBroadcaster
+    two_dof_motor_status_controller:
+      type: general_controllers/MotorStatusController
+
+    three_dof_motor_status_controller:
+      type: general_controllers/MotorStatusController
+
+    cam_position_controller:
+      type: position_controllers/JointGroupPositionController
+
+    rotary_encoder_state_request_controller:
+      type: forward_command_controller/ForwardCommandController
     
 
 /**/twodof_joint_trajectory_controller:
@@ -132,6 +141,21 @@
       - actuator
     interface_name: velocity
 
+/**/cam_position_controller:
+  ros__parameters:
+    joints:
+      - cam_0
+      - cam_1
+    interface_name: position
+
+/**/rotary_encoder_state_request_controller:
+  ros__parameters:
+    joints:
+      - base_yaw_encoder
+      - elbow_pitch_encoder
+      - shoulder_pitch_encoder
+    interface_name: state_request
+
 /**/manual_arm_cylindrical_controller:
   ros__parameters:
     joints:
@@ -196,13 +220,151 @@
     joint_max_positions:
       - 0.03        # Actuator max displacement
 
-/**/motor_status_broadcaster:
+# Default command interfaces: 
+# - status_request
+# - maintenance_request
+# - maintenance_frame_high
+# - maintenance_frame_low
+# - maintenance_data_count
+
+# Default state interfaces:
+# - motor_temperature
+# - torque_current
+# - status
+/**/two_dof_motor_status_controller:
   ros__parameters:
     joints:
       - base_yaw
       - shoulder_pitch
       - elbow_pitch
-    interfaces:
-      - motor_temperature
-      - torque_current
+      - wrist_pitch
+      - wrist_roll
+      - actuator
+      - gripper_claw
+      - cam_0
+      - cam_1
+    gpios:
+      - limit_switch_0
+      - limit_switch_1
+      - limit_switch_2
+      - limit_switch_3
+      - limit_switch_4
+    command_interfaces:
+      gripper_claw:
+        interfaces:
+          - status_request
+      limit_switch_0:
+        interfaces:
+          - status_request
+      limit_switch_1:
+        interfaces:
+          - status_request
+      limit_switch_2:
+        interfaces:
+          - status_request
+      limit_switch_3:
+        interfaces:
+          - status_request
+      limit_switch_4:
+        interfaces:
+          - status_request
+    state_interfaces:
+      actuator:
+        interfaces:
+          - status
+      cam_0:
+        interfaces:
+          - status
+      cam_1:
+        interfaces:
+          - status
+      limit_switch_0:
+        interfaces:
+          - status
+      limit_switch_1:
+        interfaces:
+          - status
+      limit_switch_2:
+        interfaces:
+          - status
+      limit_switch_3:
+        interfaces:
+          - status
+      limit_switch_4:
+        interfaces:
+          - status
+    publish_rate: 10.0
+
+/**/three_dof_motor_status_controller:
+  ros__parameters:
+    joints:
+      - base_yaw
+      - shoulder_pitch
+      - elbow_pitch
+      - wrist_motor_a
+      - wrist_motor_b
+      - wrist_motor_c
+      - actuator
+      - gripper_claw
+      - cam_0
+      - cam_1
+    gpios:
+      - limit_switch_0
+      - limit_switch_1
+      - limit_switch_2
+      - limit_switch_3
+      - limit_switch_4
+    command_interfaces:
+      gripper_claw:
+        interfaces:
+          - status_request
+      wrist_motor_a:
+        interfaces:
+          - status_request
+      wrist_motor_b:
+        interfaces:
+          - status_request
+      wrist_motor_c:
+        interfaces:
+          - status_request
+      limit_switch_0:
+        interfaces:
+          - status_request
+      limit_switch_1:
+        interfaces:
+          - status_request
+      limit_switch_2:
+        interfaces:
+          - status_request
+      limit_switch_3:
+        interfaces:
+          - status_request
+      limit_switch_4:
+        interfaces:
+          - status_request
+    state_interfaces:
+      actuator:
+        interfaces:
+          - status
+      cam_0:
+        interfaces:
+          - status
+      cam_1:
+        interfaces:
+          - status
+      limit_switch_0:
+        interfaces:
+          - status
+      limit_switch_1:
+        interfaces:
+          - status
+      limit_switch_2:
+        interfaces:
+          - status
+      limit_switch_3:
+        interfaces:
+          - status
+      limit_switch_4:
+        interfaces:
+          - status
     publish_rate: 10.0
