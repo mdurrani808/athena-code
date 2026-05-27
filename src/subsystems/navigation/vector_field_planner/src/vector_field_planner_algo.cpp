@@ -17,407 +17,473 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
-#include <queue>
 
 namespace vector_field_planner {
 
-// VFH* Constants (§9.2)
-constexpr double kAlphaDeg = 5.0;
-constexpr double kAlphaRad = kAlphaDeg * M_PI / 180.0;
-constexpr int kNumBins = static_cast<int>(360.0 / kAlphaDeg);
-constexpr int kSmoothL = 3;   // 7-bin smoothing window
-constexpr int kSMax = 18;    // wide valley threshold (bins)
-constexpr int kNg = 5;       // look-ahead depth
-constexpr double kDs = 1.0;  // step distance (meters, ~robot diameter)
-constexpr double kLambda = 0.85;
+namespace {
 
-// Cost weights
-constexpr double kMu1 = 6.0, kMu2 = 3.0, kMu3 = 2.0;   // depth 0
-constexpr double kMu1p = 5.0, kMu2p = 2.0, kMu3p = 1.0; // depth > 0
+inline double wrapAngle(double a) {
+  while (a >  M_PI) a -= 2.0 * M_PI;
+  while (a < -M_PI) a += 2.0 * M_PI;
+  return a;
+}
+
+}  // namespace
 
 // ---------------------------------------------------------------------------
-// Helpers
+// Carrot / lookahead (unchanged behaviour, kept for path following).
 // ---------------------------------------------------------------------------
 
 double VectorFieldPlannerAlgo::effectiveLookaheadDist(double current_speed) const {
-  // Scale linearly from lookahead_dist_m at rest to 2x at max_speed_mps.
-  // Derived entirely from existing params — no extra tuning knobs needed.
   const double t = std::clamp(std::fabs(current_speed) / params_.max_speed_mps, 0.0, 1.0);
   return params_.lookahead_dist_m * (1.0 + t);
 }
 
 double VectorFieldPlannerAlgo::approachVelocityScale(double dist_to_goal) const {
-  // Ramp begins when goal enters the lookahead window (lookahead_dist_m).
   return std::clamp(dist_to_goal / params_.lookahead_dist_m, 0.0, 1.0);
 }
 
-// ---------------------------------------------------------------------------
-// Interpolated lookahead carrot
-// ---------------------------------------------------------------------------
-
 VectorFieldPlannerAlgo::LookaheadResult VectorFieldPlannerAlgo::findLookahead(
-    double rx, double ry, size_t closest_idx, double lookahead_dist) const
+    double rx, double ry, std::size_t closest_idx, double lookahead_dist) const
 {
-  if (path_.empty()) {
-    return {rx, ry, false};
-  }
+  if (path_.empty()) return {rx, ry, false};
 
-  // Walk segments from closest_idx forward. For each segment [path_[i], path_[i+1]]
-  // solve the quadratic |path_[i] + t*(path_[i+1]-path_[i]) - robot|^2 = ld^2.
-  // Take the larger-t root (further along path). If t in [0,1], interpolate and return.
   const double ld2 = lookahead_dist * lookahead_dist;
-
-  for (size_t i = closest_idx; i + 1 < path_.size(); ++i) {
+  for (std::size_t i = closest_idx; i + 1 < path_.size(); ++i) {
     const double dx = path_[i + 1].x - path_[i].x;
     const double dy = path_[i + 1].y - path_[i].y;
     const double fx = path_[i].x - rx;
     const double fy = path_[i].y - ry;
 
     const double a = dx * dx + dy * dy;
-    if (a < 1e-12) continue;  // degenerate segment
+    if (a < 1e-12) continue;
 
     const double b = 2.0 * (fx * dx + fy * dy);
     const double c = fx * fx + fy * fy - ld2;
-
     const double disc = b * b - 4.0 * a * c;
-    if (disc < 0.0) continue;  // circle misses this segment
+    if (disc < 0.0) continue;
 
-    // Prefer the forward intersection (larger t)
     const double t = (-b + std::sqrt(disc)) / (2.0 * a);
     if (t >= 0.0 && t <= 1.0) {
-      return {
-        path_[i].x + t * dx,
-        path_[i].y + t * dy,
-        true
-      };
+      return {path_[i].x + t * dx, path_[i].y + t * dy, true};
     }
   }
-
-  // No segment intersection — robot is within lookahead_dist of the last point,
-  // or path spacing is coarser than lookahead. Return last point.
   return {path_.back().x, path_.back().y, false};
 }
 
-// ---------------------------------------------------------------------------
-// VFH* Internals
-// ---------------------------------------------------------------------------
-
-std::vector<double> VectorFieldPlannerAlgo::buildHistogram(
-    const std::vector<ObstaclePoint>& obs, double rx, double ry) const
-{
-  std::vector<double> h(kNumBins, 0.0);
-  const double d_max = params_.repulsion_cutoff_m;
-
-  for (const auto& p : obs) {
-    const double dx = p.x - rx;
-    const double dy = p.y - ry;
-    const double dist = std::hypot(dx, dy);
-
-    if (dist >= d_max || dist < 0.1) continue;
-
-    // Magnitude calculation (VFH+)
-    // m = c^2 * (a - b*d)
-    // Simplified: weight decreases with distance
-    const double magnitude = (d_max - dist) / d_max;
-    
-    double angle = std::atan2(dy, dx);
-    if (angle < 0) angle += 2.0 * M_PI;
-    
-    int bin = static_cast<int>(angle / kAlphaRad) % kNumBins;
-    h[bin] += magnitude;
-  }
-  return h;
-}
-
-std::vector<double> VectorFieldPlannerAlgo::smoothHistogram(const std::vector<double>& h) const
-{
-  std::vector<double> h_smooth(kNumBins, 0.0);
-  for (int i = 0; i < kNumBins; ++i) {
-    double sum = 0.0;
-    for (int l = -kSmoothL; l <= kSmoothL; ++l) {
-      int idx = (i + l + kNumBins) % kNumBins;
-      // Linear weighting 4, 3, 2, 1 for center to edge
-      sum += h[idx] * (kSmoothL + 1 - std::abs(l));
-    }
-    h_smooth[i] = sum / (kSmoothL + 1);
-  }
-  return h_smooth;
-}
-
-std::vector<int> VectorFieldPlannerAlgo::findCandidates(
-    const std::vector<double>& h, int k_target, int k_prev) const
-{
-  std::vector<int> candidates;
-  
-  // Find valleys (consecutive bins below threshold)
-  std::vector<std::pair<int, int>> valleys;
-  int start = -1;
-  for (int i = 0; i < kNumBins; ++i) {
-    if (h[i] < params_.vfh_threshold) {
-      if (start == -1) start = i;
-    } else {
-      if (start != -1) {
-        valleys.push_back({start, i - 1});
-        start = -1;
-      }
-    }
-  }
-  if (start != -1) {
-    // Handle wrap around valley
-    if (!valleys.empty() && valleys[0].first == 0) {
-      valleys[0].first = start;
-    } else {
-      valleys.push_back({start, kNumBins - 1});
-    }
-  }
-
-  for (auto& v : valleys) {
-    int size = (v.second - v.first + kNumBins) % kNumBins + 1;
-    if (size >= kSMax) {
-      // Wide valley: candidates are edges and goal/prev if inside
-      candidates.push_back((v.first + kSMax/2) % kNumBins);
-      candidates.push_back((v.second - kSMax/2 + kNumBins) % kNumBins);
-      
-      // Check if target or prev is in valley
-      auto in_valley = [&](int k) {
-        if (v.first <= v.second) return k >= v.first && k <= v.second;
-        return k >= v.first || k <= v.second;
-      };
-      if (in_valley(k_target)) candidates.push_back(k_target);
-      if (in_valley(k_prev)) candidates.push_back(k_prev);
-    } else {
-      // Narrow valley: candidate is the middle
-      int mid = (v.first + size / 2) % kNumBins;
-      candidates.push_back(mid);
-    }
-  }
-
-  // Deduplicate and filter candidates that are too far from target? 
-  // No, A* will handle cost. Just deduplicate.
-  std::sort(candidates.begin(), candidates.end());
-  candidates.erase(std::unique(candidates.begin(), candidates.end()), candidates.end());
-
-  return candidates;
-}
-
-static int angular_diff(int k1, int k2) {
-  int diff = std::abs(k1 - k2);
-  if (diff > kNumBins / 2) diff = kNumBins - diff;
-  return diff;
-}
-
-struct VfhNode {
-  double rx, ry, yaw;
-  int k_prev;
-  int root_k;
-  int depth;
-  double g;
-  double f;
-
-  bool operator>(const VfhNode& other) const { return f > other.f; }
-};
-
-int VectorFieldPlannerAlgo::runAstar(double rx, double ry, double yaw,
-                                     int k_target, int k_prev) const
-{
-  std::priority_queue<VfhNode, std::vector<VfhNode>, std::greater<VfhNode>> open;
-
-  auto h0 = buildHistogram(obstacles_, rx, ry);
-  auto h0s = smoothHistogram(h0);
-  auto candidates0 = findCandidates(h0s, k_target, k_prev);
-
-  if (candidates0.empty()) return k_target;
-  if (candidates0.size() == 1) return candidates0[0];
-
-  int current_k = static_cast<int>(std::fmod(yaw + 2.0*M_PI, 2.0*M_PI) / kAlphaRad);
-
-  for (int ck : candidates0) {
-    // cost_primary (depth 0)
-    // g = mu1*delta(ck, kt) + mu2*delta(orient, kt) + mu3*delta(ck, kp)
-    double g = kMu1 * angular_diff(ck, k_target) +
-               kMu2 * angular_diff(current_k, k_target) +
-               kMu3 * angular_diff(ck, k_prev);
-    
-    // Simple admissible heuristic (Dijkstra if h=0, but we'll use a small goal-bias)
-    double h = kMu1p * std::pow(kLambda, 1) * angular_diff(ck, k_target);
-    
-    open.push({rx, ry, yaw, ck, ck, 0, g, g + h});
-  }
-
-  if (open.empty()) return candidates0[0];
-
-  while (!open.empty()) {
-    VfhNode n = open.top();
-    open.pop();
-
-    if (n.depth >= kNg) return n.root_k;
-
-    // Project next position assuming we moved in direction ck
-    double move_yaw = n.k_prev * kAlphaRad;
-    double next_rx = n.rx + kDs * std::cos(move_yaw);
-    double next_ry = n.ry + kDs * std::sin(move_yaw);
-    double next_yaw = move_yaw; // Simple model: orientation becomes direction of motion
-
-    auto hi = buildHistogram(obstacles_, next_rx, next_ry);
-    auto his = smoothHistogram(hi);
-    auto candidatesi = findCandidates(his, k_target, n.k_prev);
-
-    // Branching reduction: pick only the best candidate per side of target (plus target itself)
-    int best_left = -1, best_right = -1;
-    double min_g_left = std::numeric_limits<double>::infinity();
-    double min_g_right = std::numeric_limits<double>::infinity();
-
-    for (int ck : candidatesi) {
-      int next_depth = n.depth + 1;
-      double cost_ck = std::pow(kLambda, next_depth) * (
-          kMu1p * angular_diff(ck, k_target) +
-          kMu2p * angular_diff(static_cast<int>(next_yaw/kAlphaRad), k_target) +
-          kMu3p * angular_diff(ck, n.k_prev)
-      );
-
-      // Simple branching reduction logic
-      int diff = ck - k_target;
-      if (diff > kNumBins/2) diff -= kNumBins;
-      if (diff < -kNumBins/2) diff += kNumBins;
-
-      if (diff < 0 && cost_ck < min_g_left) {
-        best_left = ck; min_g_left = cost_ck;
-      } else if (diff > 0 && cost_ck < min_g_right) {
-        best_right = ck; min_g_right = cost_ck;
-      } else if (diff == 0) {
-        // Target itself is always expanded if found
-        double h_new = kMu1p * std::pow(kLambda, next_depth + 1) * angular_diff(ck, k_target);
-        open.push({next_rx, next_ry, next_yaw, ck, n.root_k, next_depth, n.g + cost_ck, n.g + cost_ck + h_new});
-      }
-    }
-
-    if (best_left != -1) {
-      double h_new = kMu1p * std::pow(kLambda, n.depth + 2) * angular_diff(best_left, k_target);
-      open.push({next_rx, next_ry, next_yaw, best_left, n.root_k, n.depth + 1, n.g + min_g_left, n.g + min_g_left + h_new});
-    }
-    if (best_right != -1) {
-      double h_new = kMu1p * std::pow(kLambda, n.depth + 2) * angular_diff(best_right, k_target);
-      open.push({next_rx, next_ry, next_yaw, best_right, n.root_k, n.depth + 1, n.g + min_g_right, n.g + min_g_right + h_new});
-    }
-    
-    if (open.size() > 200) break;
-  }
-
-  return k_target;
-}
-
-// ---------------------------------------------------------------------------
-// Closest index
-// ---------------------------------------------------------------------------
-
-size_t VectorFieldPlannerAlgo::findClosestIndex(double rx, double ry) const {
-  size_t best = 0;
-  double best_dist2 = std::numeric_limits<double>::infinity();
-
-  for (size_t i = 0; i < path_.size(); ++i) {
+std::size_t VectorFieldPlannerAlgo::findClosestIndex(double rx, double ry) const {
+  std::size_t best = 0;
+  double best_d2 = std::numeric_limits<double>::infinity();
+  for (std::size_t i = 0; i < path_.size(); ++i) {
     const double dx = path_[i].x - rx;
     const double dy = path_[i].y - ry;
     const double d2 = dx * dx + dy * dy;
-    if (d2 < best_dist2) {
-      best_dist2 = d2;
-      best = i;
+    if (d2 < best_d2) { best_d2 = d2; best = i; }
+  }
+  return best;
+}
+
+// ---------------------------------------------------------------------------
+// Tentacle library
+// ---------------------------------------------------------------------------
+
+void VectorFieldPlannerAlgo::ensureTentaclesBuilt() {
+  if (!tentacles_dirty_) return;
+  buildTentacles();
+  buildDiskKernel();
+  tentacles_dirty_ = false;
+}
+
+void VectorFieldPlannerAlgo::buildTentacles() {
+  tentacles_.clear();
+
+  const int n_side = std::max(0, params_.num_tentacles_per_side);
+  const double k_max =
+    (params_.min_turn_radius_m > 1e-6) ? (1.0 / params_.min_turn_radius_m) : 0.0;
+  const double step = std::max(1e-3, params_.tentacle_sample_step_m);
+
+  auto build_one = [&](double curvature, double direction, double length) {
+    Tentacle t;
+    t.curvature = curvature;
+    t.direction = direction;
+    t.length    = length;
+
+    double x = 0.0, y = 0.0, theta = 0.0;
+    t.samples.push_back({x, y});
+    const int n_steps = static_cast<int>(std::floor(length / step));
+    for (int i = 0; i < n_steps; ++i) {
+      x     += direction * step * std::cos(theta);
+      y     += direction * step * std::sin(theta);
+      theta += direction * step * curvature;
+      t.samples.push_back({x, y});
+    }
+    tentacles_.push_back(std::move(t));
+  };
+
+  // Forward family: 2*n_side + 1 curvatures evenly spaced in [-k_max, +k_max].
+  for (int i = -n_side; i <= n_side; ++i) {
+    const double k = (n_side > 0) ? (k_max * static_cast<double>(i) / n_side) : 0.0;
+    build_one(k, +1.0, params_.tentacle_length_forward_m);
+  }
+  // Reverse family.
+  for (int i = -n_side; i <= n_side; ++i) {
+    const double k = (n_side > 0) ? (k_max * static_cast<double>(i) / n_side) : 0.0;
+    build_one(k, -1.0, params_.tentacle_length_reverse_m);
+  }
+}
+
+void VectorFieldPlannerAlgo::buildDiskKernel() {
+  disk_offsets_.clear();
+  const double inflate_r = params_.robot_radius_m + params_.inflate_margin_m;
+  const double res = std::max(1e-3, params_.local_grid_resolution_m);
+  const int r_cells = static_cast<int>(std::ceil(inflate_r / res));
+  const double r2 = (inflate_r / res) * (inflate_r / res);
+  for (int dy = -r_cells; dy <= r_cells; ++dy) {
+    for (int dx = -r_cells; dx <= r_cells; ++dx) {
+      if (static_cast<double>(dx * dx + dy * dy) <= r2) {
+        disk_offsets_.emplace_back(dx, dy);
+      }
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Local grid (base frame, centered on robot)
+// ---------------------------------------------------------------------------
+
+void VectorFieldPlannerAlgo::buildLocalGrid(double rx, double ry, double yaw) {
+  grid_res_ = std::max(1e-3, params_.local_grid_resolution_m);
+  grid_n_   = std::max(2, static_cast<int>(std::round(params_.local_grid_size_m / grid_res_)));
+  // Ensure even count so the robot sits cleanly at cell-center origin.
+  if (grid_n_ % 2 != 0) ++grid_n_;
+
+  grid_.assign(static_cast<std::size_t>(grid_n_) * grid_n_, 0);
+
+  const double c = std::cos(yaw), s = std::sin(yaw);
+  const int half = grid_n_ / 2;
+
+  for (const auto& p : obstacles_) {
+    const double dx = p.x - rx;
+    const double dy = p.y - ry;
+    // Map → base: rotate by -yaw.
+    const double bx =  c * dx + s * dy;
+    const double by = -s * dx + c * dy;
+
+    const int cx = static_cast<int>(std::floor(bx / grid_res_)) + half;
+    const int cy = static_cast<int>(std::floor(by / grid_res_)) + half;
+    if (cx < -half || cx >= grid_n_ + half) continue;  // beyond any reachable inflation
+    paintDisk(cx, cy);
+  }
+}
+
+void VectorFieldPlannerAlgo::paintDisk(int cx, int cy) {
+  for (const auto& off : disk_offsets_) {
+    const int x = cx + off.first;
+    const int y = cy + off.second;
+    if (x < 0 || x >= grid_n_ || y < 0 || y >= grid_n_) continue;
+    grid_[static_cast<std::size_t>(y) * grid_n_ + x] = 1;
+  }
+}
+
+bool VectorFieldPlannerAlgo::gridAt(double x, double y) const {
+  const int half = grid_n_ / 2;
+  const int gx = static_cast<int>(std::floor(x / grid_res_)) + half;
+  const int gy = static_cast<int>(std::floor(y / grid_res_)) + half;
+  if (gx < 0 || gx >= grid_n_ || gy < 0 || gy >= grid_n_) return false;
+  return grid_[static_cast<std::size_t>(gy) * grid_n_ + gx] != 0;
+}
+
+double VectorFieldPlannerAlgo::nearestObstacleDistBase(double rx, double ry, double yaw) const {
+  double best = std::numeric_limits<double>::infinity();
+  const double c = std::cos(yaw), s = std::sin(yaw);
+  for (const auto& p : obstacles_) {
+    const double dx = p.x - rx;
+    const double dy = p.y - ry;
+    const double bx =  c * dx + s * dy;
+    const double by = -s * dx + c * dy;
+    const double d  = std::hypot(bx, by);
+    if (d < best) best = d;
+  }
+  return best;
+}
+
+// ---------------------------------------------------------------------------
+// Tentacle scoring
+// ---------------------------------------------------------------------------
+
+TentacleScore VectorFieldPlannerAlgo::scoreTentacle(const Tentacle& t, int idx,
+                                                    double carrot_bearing_base) const
+{
+  TentacleScore sc;
+  sc.idx = idx;
+
+  const double step = std::max(1e-3, params_.tentacle_sample_step_m);
+
+  // Walk samples (skip the origin) until the first blocked cell.
+  double clearance = t.length;
+  for (std::size_t i = 1; i < t.samples.size(); ++i) {
+    if (gridAt(t.samples[i].x, t.samples[i].y)) {
+      clearance = static_cast<double>(i - 1) * step;
+      break;
+    }
+  }
+  sc.clearance = clearance;
+  sc.collides  = (clearance < params_.r_stop_hard_m);
+
+  // Goal alignment: bearing from origin to tentacle endpoint vs. carrot bearing.
+  // Endpoint bearing is well-defined as long as the tentacle has at least one step.
+  const auto& end = t.samples.back();
+  const double end_bearing = std::atan2(end.y, end.x);
+  sc.goal_align = std::cos(wrapAngle(end_bearing - carrot_bearing_base));
+
+  // Smoothness: penalize curvature change from previous chosen tentacle.
+  const double k_max = (params_.min_turn_radius_m > 1e-6)
+                       ? (1.0 / params_.min_turn_radius_m) : 1.0;
+  const double dk_norm = std::clamp(std::fabs(t.curvature - fsm_.prev_curvature) / (2.0 * k_max),
+                                    0.0, 1.0);
+  sc.smoothness = 1.0 - dk_norm;
+
+  const double clear_norm = (t.length > 1e-6) ? (clearance / t.length) : 0.0;
+  const double reverse_pen = (t.direction < 0.0) ? params_.w_reverse : 0.0;
+
+  sc.total = params_.w_clear  * clear_norm
+           + params_.w_goal   * sc.goal_align
+           + params_.w_smooth * sc.smoothness
+           - reverse_pen;
+
+  // Colliding tentacles get a very low score regardless of other terms, so they
+  // never "win" a pool if any non-colliding option exists.
+  if (sc.collides) {
+    sc.total -= 100.0;
+  }
+  return sc;
+}
+
+// ---------------------------------------------------------------------------
+// FSM
+// ---------------------------------------------------------------------------
+
+void VectorFieldPlannerAlgo::stepFsm(const TentacleScore& best_fwd,
+                                     const TentacleScore& best_rev,
+                                     double approach_vel,
+                                     PlannerResult& res)
+{
+  const double fwd_clear = best_fwd.collides ? 0.0 : best_fwd.clearance;
+  const double rev_clear = best_rev.collides ? 0.0 : best_rev.clearance;
+  const double any_clear = std::max(fwd_clear, rev_clear);
+
+  res.best_forward_clearance = fwd_clear;
+  res.best_reverse_clearance = rev_clear;
+  res.best_forward_idx       = best_fwd.idx;
+  res.best_reverse_idx       = best_rev.idx;
+
+  const NavState prev_state = fsm_.state;
+
+  // ---- transitions ----
+  NavState next = fsm_.state;
+  switch (fsm_.state) {
+    case NavState::NAVIGATE:
+      if (fwd_clear >= params_.r_slow_m)         next = NavState::NAVIGATE;
+      else if (fwd_clear >= params_.r_stop_m)    next = NavState::SLOW;
+      else                                       next = NavState::PROBE;
+      break;
+
+    case NavState::SLOW:
+      if (fwd_clear >= params_.r_slow_m)         next = NavState::NAVIGATE;
+      else if (fwd_clear < params_.r_stop_m)     next = NavState::PROBE;
+      else                                       next = NavState::SLOW;
+      break;
+
+    case NavState::PROBE:
+      if (fwd_clear >= params_.r_stop_m) {
+        next = (fwd_clear >= params_.r_slow_m) ? NavState::NAVIGATE : NavState::SLOW;
+      } else if (rev_clear >= params_.r_stop_m
+                 && fsm_.escape_attempts < params_.max_escape_attempts) {
+        next = NavState::ESCAPE;
+      } else {
+        next = NavState::REPLAN;
+      }
+      break;
+
+    case NavState::ESCAPE: {
+      // Re-enter NAVIGATE as soon as a clean forward arc opens up.
+      if (fwd_clear >= params_.r_slow_m) {
+        next = NavState::NAVIGATE;
+      } else {
+        const double elapsed = fsm_.ticks_in_state * params_.tick_period_s;
+        const bool   improving =
+          (any_clear > fsm_.best_clearance_seen_in_state + 1e-3);
+        if (elapsed > params_.t_escape_max_s && !improving) {
+          next = NavState::REPLAN;
+        } else if (rev_clear < params_.r_stop_m) {
+          // Lost our reverse option mid-escape — re-triage.
+          next = NavState::PROBE;
+        } else {
+          next = NavState::ESCAPE;
+        }
+      }
+      break;
+    }
+
+    case NavState::REPLAN:
+      // Sticky until setPath() resets the FSM.
+      next = NavState::REPLAN;
+      break;
+  }
+
+  // ---- state entry bookkeeping ----
+  if (next != prev_state) {
+    fsm_.state                        = next;
+    fsm_.ticks_in_state               = 0;
+    fsm_.best_clearance_seen_in_state = any_clear;
+    if (next == NavState::ESCAPE) ++fsm_.escape_attempts;
+  } else {
+    ++fsm_.ticks_in_state;
+    if (any_clear > fsm_.best_clearance_seen_in_state) {
+      fsm_.best_clearance_seen_in_state = any_clear;
     }
   }
 
-  return best;
+  // ---- actions ----
+  switch (fsm_.state) {
+    case NavState::NAVIGATE: {
+      const double v = std::min(params_.max_speed_mps, approach_vel);
+      applyTentacleCommand(best_fwd, v, res);
+      break;
+    }
+    case NavState::SLOW: {
+      const double band = std::max(1e-6, params_.r_slow_m - params_.r_stop_m);
+      const double scale = std::clamp((fwd_clear - params_.r_stop_m) / band, 0.0, 1.0);
+      const double v = std::min(params_.max_speed_mps, approach_vel) * scale;
+      applyTentacleCommand(best_fwd, v, res);
+      break;
+    }
+    case NavState::PROBE: {
+      res.linear_vel  = 0.0;
+      res.angular_vel = 0.0;
+      break;
+    }
+    case NavState::ESCAPE: {
+      // Negative linear vel; ω = κ * v handles Ackermann reverse correctly.
+      applyTentacleCommand(best_rev, -std::fabs(params_.v_escape_mps), res);
+      break;
+    }
+    case NavState::REPLAN: {
+      res.linear_vel     = 0.0;
+      res.angular_vel    = 0.0;
+      res.request_replan = true;
+      break;
+    }
+  }
+
+  res.nav_state = fsm_.state;
+}
+
+void VectorFieldPlannerAlgo::applyTentacleCommand(const TentacleScore& sc, double linear_vel,
+                                                  PlannerResult& res)
+{
+  if (sc.idx < 0 || sc.idx >= static_cast<int>(tentacles_.size())) {
+    res.linear_vel  = 0.0;
+    res.angular_vel = 0.0;
+    return;
+  }
+  const auto& t = tentacles_[sc.idx];
+  res.linear_vel        = linear_vel;
+  res.angular_vel       = linear_vel * t.curvature;  // ω = v * κ (Ackermann, signed v)
+  res.chosen_tentacle_idx = sc.idx;
+  res.chosen_curvature    = t.curvature;
+  res.chosen_direction    = t.direction;
+  res.chosen_clearance    = sc.clearance;
+  fsm_.prev_curvature     = t.curvature;
 }
 
 // ---------------------------------------------------------------------------
 // Main compute
 // ---------------------------------------------------------------------------
 
-PlannerResult VectorFieldPlannerAlgo::compute(double rx, double ry, double yaw, double current_speed)
+PlannerResult VectorFieldPlannerAlgo::compute(double rx, double ry, double yaw,
+                                              double current_speed)
 {
   PlannerResult res;
-  res.closest_r = std::numeric_limits<double>::infinity();
+  res.closest_r = -1.0;
 
-  if (path_.empty()) {
-    return res;
-  }
+  if (path_.empty()) return res;
 
   const auto& goal_pos = path_.back();
   const double dist_to_goal = std::hypot(goal_pos.x - rx, goal_pos.y - ry);
   if (dist_to_goal < params_.goal_tolerance_m) {
     res.goal_reached = true;
-    res.linear_vel = 0.0;
-    res.angular_vel = 0.0;
     return res;
   }
 
-  res.closest_idx = findClosestIndex(rx, ry);
-
-  // Feature 2: velocity-scaled lookahead
+  // Path-following intermediates.
+  res.closest_idx              = findClosestIndex(rx, ry);
   res.effective_lookahead_dist = effectiveLookaheadDist(current_speed);
 
-  // Feature 3: interpolated carrot
   const auto lk = findLookahead(rx, ry, res.closest_idx, res.effective_lookahead_dist);
-  res.lookahead_x = lk.x;
-  res.lookahead_y = lk.y;
+  res.lookahead_x            = lk.x;
+  res.lookahead_y            = lk.y;
   res.lookahead_interpolated = lk.interpolated;
 
-  const double fwd_dot = (lk.x - rx) * std::cos(yaw) + (lk.y - ry) * std::sin(yaw);
-  res.lookahead_behind = (fwd_dot < 0.0);
+  const double cyaw = std::cos(yaw), syaw = std::sin(yaw);
+  const double carrot_dx = lk.x - rx;
+  const double carrot_dy = lk.y - ry;
+  res.lookahead_behind = (carrot_dx * cyaw + carrot_dy * syaw < 0.0);
+  res.heading_err      = wrapAngle(std::atan2(carrot_dy, carrot_dx) - yaw);
 
-  res.heading_err = std::atan2(lk.y - ry, lk.x - rx) - yaw;
-  while (res.heading_err > M_PI) res.heading_err -= 2.0 * M_PI;
-  while (res.heading_err < -M_PI) res.heading_err += 2.0 * M_PI;
+  // Approach velocity (used by both pure-pursuit and tentacle paths).
+  res.approach_velocity_scale = approachVelocityScale(dist_to_goal);
+  const double approach_vel = params_.min_approach_linear_velocity +
+    res.approach_velocity_scale *
+    (params_.max_speed_mps - params_.min_approach_linear_velocity);
 
-  // Obstacle avoidance (VFH*)
-  // Skip VFH* when lookahead is behind: the kinematic constraint prevents large
-  // heading corrections and the robot needs a hard turn, not micro-adjustments.
-  if (params_.obstacle_avoidance_enabled && !res.lookahead_behind) {
-    double target_heading = std::atan2(lk.y - ry, lk.x - rx);
-    if (target_heading < 0) target_heading += 2.0 * M_PI;
-    int k_target = static_cast<int>(target_heading / kAlphaRad) % kNumBins;
+  // -------------------------------------------------------------------------
+  // Avoidance OFF → pure-pursuit fallback (legacy behaviour preserved).
+  // -------------------------------------------------------------------------
+  if (!params_.obstacle_avoidance_enabled) {
+    res.steering_unclamped = params_.k_p_steering * res.heading_err;
+    res.angular_vel        = std::clamp(res.steering_unclamped,
+                                        -params_.max_steering_angle_rad,
+                                        params_.max_steering_angle_rad);
+    res.clamped            = std::fabs(res.steering_unclamped) > params_.max_steering_angle_rad;
+    res.linear_vel         = std::min(params_.max_speed_mps, approach_vel);
+    res.nav_state          = NavState::NAVIGATE;
+    return res;
+  }
 
-    // Initialize prev_k_ to current yaw on first call
-    static bool first_run = true;
-    if (first_run) {
-      prev_k_ = static_cast<int>(std::fmod(yaw + 2.0*M_PI, 2.0*M_PI) / kAlphaRad);
-      first_run = false;
-    }
+  // -------------------------------------------------------------------------
+  // Tentacle planner
+  // -------------------------------------------------------------------------
+  ensureTentaclesBuilt();
+  buildLocalGrid(rx, ry, yaw);
 
-    int k_best = runAstar(rx, ry, yaw, k_target, prev_k_);
-    
-    double desired_heading = k_best * kAlphaRad;
-    res.heading_err = desired_heading - yaw;
-    while (res.heading_err > M_PI) res.heading_err -= 2.0 * M_PI;
-    while (res.heading_err < -M_PI) res.heading_err += 2.0 * M_PI;
+  // Carrot bearing in base frame.
+  const double cb_x =  cyaw * carrot_dx + syaw * carrot_dy;
+  const double cb_y = -syaw * carrot_dx + cyaw * carrot_dy;
+  const double carrot_bearing_base = std::atan2(cb_y, cb_x);
 
-    res.vfh_k_best = k_best;
-    prev_k_ = k_best;
-
-    // Track active points and closest_r for diagnostics
-    for (const auto& p : obstacles_) {
-      const double dx = rx - p.x;
-      const double dy = ry - p.y;
-      const double dist = std::hypot(dx, dy);
-      if (dist < params_.repulsion_cutoff_m) {
-        res.closest_r = std::min(res.closest_r, dist);
-        res.active_points++;
-      }
+  TentacleScore best_fwd, best_rev;
+  for (std::size_t i = 0; i < tentacles_.size(); ++i) {
+    const auto sc = scoreTentacle(tentacles_[i], static_cast<int>(i), carrot_bearing_base);
+    if (tentacles_[i].direction > 0.0) {
+      if (sc.total > best_fwd.total) best_fwd = sc;
+    } else {
+      if (sc.total > best_rev.total) best_rev = sc;
     }
   }
 
-  res.steering_unclamped = params_.k_p_steering * res.heading_err;
-  res.angular_vel = std::clamp(res.steering_unclamped,
-                               -params_.max_steering_angle_rad,
-                               params_.max_steering_angle_rad);
-  res.clamped = std::abs(res.steering_unclamped) > params_.max_steering_angle_rad;
+  // Diagnostics (raw obstacle distance — independent of grid dilation).
+  const double nearest = nearestObstacleDistBase(rx, ry, yaw);
+  res.closest_r     = std::isinf(nearest) ? -1.0 : nearest;
+  res.active_points = static_cast<int>(obstacles_.size());
 
-  // Feature 1: approach velocity scaling
-  res.approach_velocity_scale = approachVelocityScale(dist_to_goal);
-  const double approach_vel = params_.min_approach_linear_velocity +
-    res.approach_velocity_scale * (params_.max_speed_mps - params_.min_approach_linear_velocity);
-  res.linear_vel = std::min(params_.max_speed_mps, approach_vel);
+  // FSM picks state + command.
+  stepFsm(best_fwd, best_rev, approach_vel, res);
 
-  if (std::isinf(res.closest_r)) {
-    res.closest_r = -1.0;
+  // Hard safety stop — independent of FSM, last word on forward motion.
+  if (res.closest_r > 0.0 && res.closest_r < params_.r_stop_hard_m && res.linear_vel > 0.0) {
+    res.linear_vel  = 0.0;
+    res.angular_vel = 0.0;
   }
 
   return res;

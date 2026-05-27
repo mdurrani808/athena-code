@@ -14,8 +14,10 @@
 
 #pragma once
 
-#include <vector>
 #include <cstddef>
+#include <cstdint>
+#include <limits>
+#include <vector>
 
 namespace vector_field_planner {
 
@@ -25,141 +27,219 @@ struct Pose2D {
 };
 
 struct ObstaclePoint {
-  double x;
-  double y;
-  // We can add a timestamp if needed, but eviction is currently handled
-  // by the ROS node before passing to the algorithm.
+  double x;  // map frame
+  double y;  // map frame
+};
+
+enum class NavState : std::uint8_t {
+  NAVIGATE = 0,
+  SLOW     = 1,
+  PROBE    = 2,
+  ESCAPE   = 3,
+  REPLAN   = 4,
 };
 
 struct PlannerParams {
-  double lookahead_dist_m = 3.0;
-  double k_p_steering = 1.5;
-  double max_steering_angle_rad = 0.5;
-  double max_speed_mps = 1.5;
-  double goal_tolerance_m = 1.5;
+  // --- path following ---
+  double lookahead_dist_m              = 3.0;
+  double k_p_steering                  = 1.5;  // pure-pursuit fallback (avoidance off)
+  double max_steering_angle_rad        = 0.5;
+  double max_speed_mps                 = 1.5;
+  double goal_tolerance_m              = 1.5;
+  double min_approach_linear_velocity  = 0.3;
 
-  bool obstacle_avoidance_enabled = false;
-  double repulsion_gain = 0.5;
-  double repulsion_cutoff_m = 3.0;
-  double vfh_threshold = 0.5;
+  // --- avoidance master switch ---
+  bool   obstacle_avoidance_enabled    = false;
 
-  // Approach velocity scaling: ramp speed down to min_approach_linear_velocity
-  // as the robot closes within lookahead_dist_m of the goal. The velocity-scaled
-  // lookahead and approach window are both derived from lookahead_dist_m and
-  // max_speed_mps so no additional parameters are needed.
-  double min_approach_linear_velocity = 0.3;
+  // --- robot footprint / kinematics ---
+  double robot_radius_m                = 0.35;
+  double min_turn_radius_m             = 1.0;   // tightest physically reachable arc
+
+  // --- local grid ---
+  double local_grid_size_m             = 10.0;  // square, base-frame, centered on robot
+  double local_grid_resolution_m       = 0.1;
+  double inflate_margin_m              = 0.15;  // added to robot_radius for dilation
+  double scan_buffer_max_dist_m        = 5.0;   // node-side scan filter; surfaced here for parity
+
+  // --- tentacles ---
+  double tentacle_length_forward_m     = 3.0;
+  double tentacle_length_reverse_m     = 1.5;
+  double tentacle_sample_step_m        = 0.1;
+  int    num_tentacles_per_side        = 6;     // total per direction = 2*N + 1 (incl. straight)
+
+  // --- safety / FSM thresholds ---
+  double r_stop_hard_m                 = 0.55;  // hard zero-vel floor
+  double r_stop_m                      = 0.70;  // NAVIGATE/SLOW → PROBE
+  double r_slow_m                      = 1.35;  // SLOW band upper edge
+  double v_escape_mps                  = 0.4;   // reverse speed magnitude in ESCAPE
+  double t_escape_max_s                = 4.0;
+  int    max_escape_attempts           = 3;
+  double tick_period_s                 = 0.05;  // matches node timer
+
+  // --- tentacle scoring weights ---
+  double w_clear                       = 1.0;
+  double w_goal                        = 0.6;
+  double w_smooth                      = 0.15;
+  double w_reverse                     = 0.3;
 };
 
 struct PlannerResult {
-  double linear_vel = 0.0;
-  double angular_vel = 0.0;
-  bool goal_reached = false;
-  double lookahead_x = 0.0;
-  double lookahead_y = 0.0;
-  size_t closest_idx = 0;
-  double heading_err = 0.0;
-  double repulsion_steering = 0.0;
-  double steering_unclamped = 0.0;
-  bool clamped = false;
-  bool lookahead_behind = false;
+  double linear_vel               = 0.0;
+  double angular_vel              = 0.0;
+  bool   goal_reached             = false;
 
-  // Debug info for obstacle avoidance
-  double lateral_sum = 0.0;
-  double lateral_left = 0.0;
-  double lateral_right = 0.0;
-  int active_points = 0;
-  double closest_r = -1.0;
+  // Pure-pursuit / carrot diagnostics (unchanged).
+  double lookahead_x              = 0.0;
+  double lookahead_y              = 0.0;
+  bool   lookahead_interpolated   = false;
+  bool   lookahead_behind         = false;
+  std::size_t closest_idx         = 0;
+  double heading_err              = 0.0;
+  double steering_unclamped       = 0.0;
+  bool   clamped                  = false;
+  double effective_lookahead_dist = 0.0;
+  double approach_velocity_scale  = 1.0;
 
-  // VFH* debug info
-  int vfh_k_best = -1;
-  int vfh_candidates_n = 0;
+  // Avoidance diagnostics.
+  double closest_r                = -1.0;  // nearest inflated obstacle, m; -1 if none
+  int    active_points            = 0;     // obstacles within local grid
 
-  // Debug info for new features
-  double effective_lookahead_dist = 0.0;  // actual lookahead used this tick
-  bool lookahead_interpolated = false;     // true when carrot was interpolated between waypoints
-  double approach_velocity_scale = 1.0;   // fraction applied by approach scaling (1.0 = full speed)
+  // Tentacle / FSM diagnostics.
+  NavState nav_state              = NavState::NAVIGATE;
+  int    chosen_tentacle_idx      = -1;
+  double chosen_curvature         = 0.0;
+  double chosen_direction         = 1.0;   // +1 forward, -1 reverse
+  double chosen_clearance         = 0.0;
+  double best_forward_clearance   = 0.0;
+  double best_reverse_clearance   = 0.0;
+  // Indices into VectorFieldPlannerAlgo::tentacles() of the best-scoring
+  // forward/reverse arcs this tick. Always populated (even in PROBE/REPLAN
+  // when no command was applied), so consumers can derive an escape
+  // direction without re-running the scoring pass.
+  int    best_forward_idx         = -1;
+  int    best_reverse_idx         = -1;
+  bool   request_replan           = false; // raised in REPLAN until a new path arrives
+};
+
+// ---------------------------------------------------------------------------
+// Internal types — exposed for testability / debug consumers.
+// ---------------------------------------------------------------------------
+
+struct Tentacle {
+  double curvature;                // signed, 1/m (body-frame)
+  double direction;                // +1 forward, -1 reverse
+  double length;                   // m
+  std::vector<Pose2D> samples;     // base-frame, evenly spaced; samples[0] = origin
+};
+
+struct TentacleScore {
+  int    idx        = -1;
+  double clearance  = 0.0;
+  double goal_align = 0.0;
+  double smoothness = 0.0;
+  double total      = -std::numeric_limits<double>::infinity();
+  bool   collides   = true;        // true if tentacle hits within r_stop_hard_m
+};
+
+struct FsmContext {
+  NavState state                          = NavState::NAVIGATE;
+  int      ticks_in_state                 = 0;
+  double   best_clearance_seen_in_state   = 0.0;
+  int      escape_attempts                = 0;
+  double   prev_curvature                 = 0.0;
 };
 
 class VectorFieldPlannerAlgo {
-public:
+ public:
   VectorFieldPlannerAlgo() = default;
 
   /*
-   * Sets the parameters for the vector field planner, such as speeds and lookahead distance.
-   * Param: params - The new planner configuration.
+   * Sets planner parameters. Rebuilds the tentacle library on the next compute().
    */
   void setParams(const PlannerParams& params) {
-    params_ = params;
+    params_       = params;
+    tentacles_dirty_ = true;
   }
 
-  /*
-   * Returns the current planner parameters.
-   */
-  const PlannerParams& getParams() const {
-    return params_;
-  }
+  const PlannerParams& getParams() const { return params_; }
 
   /*
-   * Sets the path that the planner should follow.
-   * Param: path - Sequence of 2D poses constituting the path.
+   * Sets the path to follow. Resets the FSM (and escape counter) — a new path
+   * is treated as a fresh start, including after a REPLAN cycle.
    */
   void setPath(const std::vector<Pose2D>& path) {
     path_ = path;
+    fsm_  = FsmContext{};
   }
 
   /*
-   * Updates the local obstacle map used for repulsive avoidance.
-   * Expects valid (non-stale) points in the map frame.
-   * Param: obstacles - A list of obstacle points.
+   * Updates the local obstacle set (map-frame points, already age-filtered by node).
    */
   void updateObstacles(const std::vector<ObstaclePoint>& obstacles) {
     obstacles_ = obstacles;
   }
 
   /*
-   * Computes the velocity and steering commands to follow the path and avoid obstacles.
-   * Param: rx           - Current robot X position (map frame).
-   * Param: ry           - Current robot Y position (map frame).
-   * Param: yaw          - Current robot heading (yaw, radians).
-   * Param: current_speed - Current linear speed (m/s), used for velocity-scaled lookahead.
-   * Returns: PlannerResult containing commanded linear/angular velocities and diagnostic info.
+   * Compute velocity + steering commands.
+   *   rx, ry, yaw   — robot pose in map frame
+   *   current_speed — last commanded linear speed (m/s), used for velocity-scaled lookahead
    */
   PlannerResult compute(double rx, double ry, double yaw, double current_speed);
 
-  // Exposed for testing and debugging
-  size_t findClosestIndex(double rx, double ry) const;
+  // -- exposed for tests --
+  std::size_t findClosestIndex(double rx, double ry) const;
 
-  /*
-   * Finds the lookahead carrot point at exactly lookahead_dist from the robot by
-   * linearly interpolating between waypoints.  Falls back to the last path point
-   * when no segment intersection is found (i.e. near goal).
-   * Returns {x, y, interpolated} where interpolated=true when the point lies between waypoints.
-   */
   struct LookaheadResult {
     double x;
     double y;
-    bool interpolated;
+    bool   interpolated;
   };
-  LookaheadResult findLookahead(double rx, double ry, size_t closest_idx,
+  LookaheadResult findLookahead(double rx, double ry, std::size_t closest_idx,
                                 double lookahead_dist) const;
 
-private:
-  PlannerParams params_;
-  std::vector<Pose2D> path_;
-  std::vector<ObstaclePoint> obstacles_;
-  int prev_k_{0};
+  const std::vector<Tentacle>& tentacles() const { return tentacles_; }
+  const FsmContext& fsm() const { return fsm_; }
 
+ private:
+  PlannerParams                params_;
+  std::vector<Pose2D>          path_;
+  std::vector<ObstaclePoint>   obstacles_;
+  FsmContext                   fsm_;
+
+  // Tentacle library (rebuilt on param change).
+  std::vector<Tentacle>        tentacles_;
+  bool                         tentacles_dirty_ = true;
+
+  // Local grid (rebuilt every compute()).
+  std::vector<std::uint8_t>    grid_;          // 0=free, 1=blocked; row-major
+  int                          grid_n_         = 0;
+  double                       grid_res_       = 0.1;
+  // Disk kernel cell offsets used for obstacle dilation (recomputed with params).
+  std::vector<std::pair<int,int>> disk_offsets_;
+
+  // ----- helpers -----
   double effectiveLookaheadDist(double current_speed) const;
   double approachVelocityScale(double dist_to_goal) const;
 
-  // VFH* internals
-  std::vector<double> buildHistogram(const std::vector<ObstaclePoint>& obs,
-                                     double rx, double ry) const;
-  std::vector<double> smoothHistogram(const std::vector<double>& h) const;
-  std::vector<int>    findCandidates(const std::vector<double>& h,
-                                     int k_target, int k_prev) const;
-  int                 runAstar(double rx, double ry, double yaw,
-                               int k_target, int k_prev) const;
+  void          ensureTentaclesBuilt();
+  void          buildTentacles();
+  void          buildDiskKernel();
+
+  void          buildLocalGrid(double rx, double ry, double yaw);
+  bool          gridAt(double x, double y) const;
+  void          paintDisk(int cx, int cy);
+
+  TentacleScore scoreTentacle(const Tentacle& t, int idx, double carrot_bearing_base) const;
+
+  void          stepFsm(const TentacleScore& best_fwd,
+                        const TentacleScore& best_rev,
+                        double approach_vel,
+                        PlannerResult& res);
+
+  void          applyTentacleCommand(const TentacleScore& sc, double linear_vel,
+                                     PlannerResult& res);
+
+  double        nearestObstacleDistBase(double rx, double ry, double yaw) const;
 };
 
 }  // namespace vector_field_planner

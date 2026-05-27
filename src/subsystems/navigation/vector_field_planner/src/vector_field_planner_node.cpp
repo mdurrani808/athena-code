@@ -25,12 +25,15 @@
 
 #include "rclcpp/rclcpp.hpp"
 #include "geometry_msgs/msg/point.hpp"
+#include "geometry_msgs/msg/pose_stamped.hpp"
 #include "geometry_msgs/msg/twist_stamped.hpp"
 #include "nav_msgs/msg/path.hpp"
 #include "sensor_msgs/msg/laser_scan.hpp"
 #include "std_msgs/msg/bool.hpp"
+#include "std_msgs/msg/header.hpp"
 #include "visualization_msgs/msg/marker.hpp"
 #include "visualization_msgs/msg/marker_array.hpp"
+#include "msgs/msg/local_planner_stuck.hpp"
 #include "tf2_ros/buffer.h"
 #include "tf2_ros/transform_listener.h"
 #include "tf2/exceptions.h"
@@ -52,38 +55,51 @@ public:
     declare_parameter("base_frame",             std::string("base_link"));
     declare_parameter("cmd_vel_topic",          std::string("/front_ackermann_controller/reference"));
     declare_parameter("tf_timeout_s",           0.1);
-    declare_parameter("max_speed_mps",          1.5);
-    declare_parameter("max_steering_angle_rad", 0.5);
-    declare_parameter("lookahead_dist_m",       3.0);
-    declare_parameter("k_p_steering",           1.5);
-    declare_parameter("repulsion_gain",               0.5);
-    declare_parameter("repulsion_cutoff_m",           3.0);
-    declare_parameter("vfh_threshold",                0.5);
-    declare_parameter("obstacle_memory_time_s",       3.0);
-    declare_parameter("obstacle_max_points",          2000);
+
+    // Operator-facing knobs only. Algorithm internals (grid resolution,
+    // tentacle count, scoring weights, FSM thresholds) live as defaults
+    // in PlannerParams / constants in the algo.
+    declare_parameter("max_speed_mps",                1.5);
+    declare_parameter("max_steering_angle_rad",       0.5);   // pure-pursuit fallback
+    declare_parameter("min_turn_radius_m",            1.0);   // tentacle kinematics
+    declare_parameter("lookahead_dist_m",             3.0);
+    declare_parameter("k_p_steering",                 1.5);   // pure-pursuit fallback
+    declare_parameter("goal_tolerance_m",             1.5);
+    declare_parameter("min_approach_linear_velocity", 0.3);
+    declare_parameter("robot_radius_m",               0.35);
+
     declare_parameter("obstacle_avoidance_enabled",   false);
     declare_parameter("scan_topic",                   std::string("/scan"));
     declare_parameter("scan_max_age_s",               0.5);
-    declare_parameter("goal_tolerance_m",             1.5);
+    declare_parameter("obstacle_memory_time_s",       3.0);
+    declare_parameter("obstacle_max_points",          2000);
     declare_parameter("publish_debug_markers",        true);
-    declare_parameter("min_approach_linear_velocity",  0.3);
 
     map_frame_                  = get_parameter("map_frame").as_string();
     base_frame_                 = get_parameter("base_frame").as_string();
     cmd_vel_topic_              = get_parameter("cmd_vel_topic").as_string();
     tf_timeout_s_               = get_parameter("tf_timeout_s").as_double();
-    
-    vector_field_planner::PlannerParams p;
-    p.max_speed_mps              = get_parameter("max_speed_mps").as_double();
-    p.max_steering_angle_rad     = get_parameter("max_steering_angle_rad").as_double();
-    p.lookahead_dist_m           = get_parameter("lookahead_dist_m").as_double();
-    p.k_p_steering               = get_parameter("k_p_steering").as_double();
-    p.repulsion_gain             = get_parameter("repulsion_gain").as_double();
-    p.repulsion_cutoff_m         = get_parameter("repulsion_cutoff_m").as_double();
-    p.vfh_threshold              = get_parameter("vfh_threshold").as_double();
-    p.obstacle_avoidance_enabled = get_parameter("obstacle_avoidance_enabled").as_bool();
-    p.goal_tolerance_m           = get_parameter("goal_tolerance_m").as_double();
+
+    vector_field_planner::PlannerParams p;  // start from defaults
+    p.max_speed_mps                = get_parameter("max_speed_mps").as_double();
+    p.max_steering_angle_rad       = get_parameter("max_steering_angle_rad").as_double();
+    p.min_turn_radius_m            = get_parameter("min_turn_radius_m").as_double();
+    p.lookahead_dist_m             = get_parameter("lookahead_dist_m").as_double();
+    p.k_p_steering                 = get_parameter("k_p_steering").as_double();
+    p.goal_tolerance_m             = get_parameter("goal_tolerance_m").as_double();
     p.min_approach_linear_velocity = get_parameter("min_approach_linear_velocity").as_double();
+    p.robot_radius_m               = get_parameter("robot_radius_m").as_double();
+    p.obstacle_avoidance_enabled   = get_parameter("obstacle_avoidance_enabled").as_bool();
+
+    // Derive safety bands from robot_radius so they scale with the rover.
+    p.r_stop_hard_m = p.robot_radius_m + 0.20;
+    p.r_stop_m      = p.robot_radius_m + 0.35;
+    p.r_slow_m      = p.robot_radius_m + 1.00;
+    // Tentacle horizon tracks lookahead.
+    p.tentacle_length_forward_m = p.lookahead_dist_m;
+    p.tentacle_length_reverse_m = 0.5 * p.lookahead_dist_m;
+    // Scan buffer covers the local grid plus a small margin.
+    p.scan_buffer_max_dist_m    = 0.5 * p.local_grid_size_m;
 
     algo_.setParams(p);
 
@@ -98,6 +114,15 @@ public:
 
     cmd_pub_ = create_publisher<geometry_msgs::msg::TwistStamped>(cmd_vel_topic_, 10);
 
+    // Stuck/replan signal — consumed by mission_executive (and, in the future,
+    // the new waypoint manager / web GUI). Reliable QoS + transient_local so
+    // a late subscriber (operator dashboard, restarted mission_executive)
+    // receives the last value on connect. See LocalPlannerStuck.msg for the
+    // protocol; this node is the sole publisher.
+    stuck_pub_ = create_publisher<msgs::msg::LocalPlannerStuck>(
+      "/local_planner/stuck",
+      rclcpp::QoS(1).reliable().transient_local());
+
     if (publish_debug_markers_) {
       marker_pub_ = create_publisher<visualization_msgs::msg::MarkerArray>(
         "~/debug_markers", 10);
@@ -111,6 +136,10 @@ public:
         tick_count_ = 0;
         consecutive_clamped_ = 0;
         obstacle_map_.clear();
+        // setPath() inside the algo resets the FSM; mirror that here so the
+        // edge detector emits a clean "stuck=false" if we were mid-REPLAN.
+        prev_nav_state_ = vector_field_planner::NavState::NAVIGATE;
+        ticks_since_last_stuck_pub_ = 0;
 
         std::vector<vector_field_planner::Pose2D> algo_path;
         algo_path.reserve(msg->poses.size());
@@ -199,7 +228,7 @@ public:
             msg->range_min, msg->range_max,
             valid,
             std::isinf(min_r) ? -1.0f : min_r,
-            static_cast<float>(p.repulsion_cutoff_m));
+            static_cast<float>(p.scan_buffer_max_dist_m));
         }
         latest_scan_ = msg;
 
@@ -231,7 +260,7 @@ public:
         for (size_t i = 0; i < msg->ranges.size(); ++i) {
           const float r = msg->ranges[i];
           if (r < msg->range_min || r > msg->range_max) continue;
-          if (static_cast<double>(r) >= p.repulsion_cutoff_m) continue;
+          if (static_cast<double>(r) >= p.scan_buffer_max_dist_m) continue;
           const double alpha = msg->angle_min +
             static_cast<double>(i) * msg->angle_increment;
           const double bx = r * std::cos(alpha);
@@ -260,11 +289,14 @@ public:
       current_params.max_speed_mps, current_params.max_steering_angle_rad, current_params.lookahead_dist_m,
       current_params.k_p_steering, current_params.goal_tolerance_m);
     RCLCPP_INFO(get_logger(),
-      "[AVOIDANCE CONFIG] enabled=%d scan_topic='%s' cutoff=%.2fm gain=%.3f"
+      "[AVOIDANCE CONFIG] enabled=%d scan_topic='%s' scan_buffer=%.2fm"
+      " r_stop_hard=%.2fm r_stop=%.2fm r_slow=%.2fm robot_r=%.2fm"
       " memory_time=%.1fs max_points=%d  — publish true/false to /obstacle_avoidance_enabled to toggle",
       static_cast<int>(current_params.obstacle_avoidance_enabled),
       scan_topic_.c_str(),
-      current_params.repulsion_cutoff_m, current_params.repulsion_gain,
+      current_params.scan_buffer_max_dist_m,
+      current_params.r_stop_hard_m, current_params.r_stop_m, current_params.r_slow_m,
+      current_params.robot_radius_m,
       obstacle_memory_time_s_, obstacle_max_points_);
   }
 
@@ -312,10 +344,7 @@ private:
     const auto p = algo_.getParams();
     
     if (p.obstacle_avoidance_enabled) {
-      if (p.repulsion_gain <= 0.0) {
-        RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 5000,
-          "[AVOIDANCE] avoidance enabled but repulsion_gain=%.3f — no effect.", p.repulsion_gain);
-      } else if (!latest_scan_) {
+      if (!latest_scan_) {
         RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000,
           "[AVOIDANCE] avoidance enabled but NO scan received yet on '%s'.", scan_topic_.c_str());
       } else {
@@ -378,16 +407,19 @@ private:
 
     if (p.obstacle_avoidance_enabled && latest_scan_) {
       const double scan_age = (now_time - latest_scan_->header.stamp).seconds();
+      const char* state_str = navStateStr(res.nav_state);
       RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 500,
-        "[AVOIDANCE age=%.3fs] buffered=%zu in_range=%d closest=%.2fm "
-        "vfh_k_best=%d heading_err=%.1fd",
-        scan_age, obstacle_map_.size(), res.active_points, res.closest_r,
-        res.vfh_k_best, res.heading_err * 180.0 / M_PI);
+        "[AVOIDANCE age=%.3fs] state=%s buffered=%zu in_range=%d closest=%.2fm "
+        "fwd_clear=%.2fm rev_clear=%.2fm tent=%d kappa=%.2f dir=%+.0f",
+        scan_age, state_str, obstacle_map_.size(), res.active_points, res.closest_r,
+        res.best_forward_clearance, res.best_reverse_clearance,
+        res.chosen_tentacle_idx, res.chosen_curvature, res.chosen_direction);
 
-      if (res.active_points > 0) {
-        RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 250,
-          "[AVOIDANCE ACTIVE] %d pts within %.1fm  k_best=%d  steer=%.4f",
-          res.active_points, p.repulsion_cutoff_m, res.vfh_k_best, res.angular_vel);
+      if (res.request_replan) {
+        RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000,
+          "[REPLAN_REQUEST] local planner stuck — fwd_clear=%.2fm rev_clear=%.2fm "
+          "(mission_executive integration pending)",
+          res.best_forward_clearance, res.best_reverse_clearance);
       }
     }
 
@@ -395,10 +427,10 @@ private:
       ++consecutive_clamped_;
       if (consecutive_clamped_ == 40) {
         RCLCPP_WARN(get_logger(),
-          "[STEER_SAT] steering saturated for %u consecutive ticks (%.1f s). "
-          "err=%.1fd repulsion=%.3f unclamped=%.3f max=%.3f.",
+          "[STEER_SAT] pure-pursuit steering saturated for %u consecutive ticks (%.1f s). "
+          "err=%.1fd unclamped=%.3f max=%.3f.",
           consecutive_clamped_, consecutive_clamped_ / 20.0,
-          res.heading_err * 180.0 / M_PI, res.repulsion_steering, 
+          res.heading_err * 180.0 / M_PI,
           res.steering_unclamped, p.max_steering_angle_rad);
       }
     } else {
@@ -420,7 +452,7 @@ private:
       res.approach_velocity_scale, res.linear_vel, res.angular_vel,
       res.clamped   ? " CLAMPED"   : "",
       res.lookahead_behind ? " LK_BEHIND" : "",
-      (p.obstacle_avoidance_enabled && p.repulsion_gain > 0.0) ? " AVOID_ON" : "");
+      p.obstacle_avoidance_enabled ? " AVOID_ON" : "");
 
     geometry_msgs::msg::TwistStamped cmd;
     cmd.header.stamp    = now();
@@ -430,9 +462,136 @@ private:
     cmd_pub_->publish(cmd);
     last_cmd_linear_vel_ = res.linear_vel;
 
+    // Drive the stuck/replan topic. Lifecycle:
+    //   - rising edge into REPLAN  → publish stuck=true once + snapshot detour
+    //   - while in REPLAN           → republish stuck=true at ~1 Hz heartbeat
+    //   - falling edge out of REPLAN → publish stuck=false once
+    publishStuckIfNeeded(rx, ry, yaw, res);
+
     if (publish_debug_markers_) {
       publishDebugMarkers(rx, ry, res.lookahead_x, res.lookahead_y);
     }
+  }
+
+  // -----------------------------------------------------------------------
+  // Stuck publisher
+  //
+  // Future waypoint manager / mission executive will subscribe to
+  // `/local_planner/stuck` and react by inserting a detour goal, marking the
+  // current waypoint as failed after N attempts, etc. See LocalPlannerStuck.msg
+  // for the contract. This node is the sole publisher and should treat the
+  // topic as write-only.
+  // -----------------------------------------------------------------------
+  void publishStuckIfNeeded(double rx, double ry, double yaw,
+                            const vector_field_planner::PlannerResult& res)
+  {
+    using ::vector_field_planner::NavState;
+    const bool now_stuck    = (res.nav_state == NavState::REPLAN);
+    const bool was_stuck    = (prev_nav_state_ == NavState::REPLAN);
+    const bool rising_edge  =  now_stuck && !was_stuck;
+    const bool falling_edge = !now_stuck &&  was_stuck;
+
+    // 1 Hz heartbeat while stuck; derive tick count from the algo's tick
+    // period so a control-loop rate change doesn't silently break cadence.
+    const auto p = algo_.getParams();
+    const unsigned int heartbeat_ticks = std::max(
+      1u, static_cast<unsigned int>(std::round(1.0 / std::max(1e-3, p.tick_period_s))));
+    ++ticks_since_last_stuck_pub_;
+
+    const bool heartbeat_due = now_stuck && (ticks_since_last_stuck_pub_ >= heartbeat_ticks);
+
+    if (!(rising_edge || falling_edge || heartbeat_due)) {
+      prev_nav_state_ = res.nav_state;
+      return;
+    }
+
+    msgs::msg::LocalPlannerStuck msg;
+    msg.header.stamp    = now();
+    msg.header.frame_id = map_frame_;
+    msg.stuck           = now_stuck;
+
+    msg.stuck_pose.header = msg.header;
+    if (rising_edge) {
+      // Freeze the entry pose for the duration of this REPLAN cycle.
+      stuck_entry_rx_ = rx;
+      stuck_entry_ry_ = ry;
+    }
+    msg.stuck_pose.pose.position.x    = stuck_entry_rx_;
+    msg.stuck_pose.pose.position.y    = stuck_entry_ry_;
+    msg.stuck_pose.pose.orientation.w = 1.0;
+
+    msg.best_forward_clearance_m = res.best_forward_clearance;
+    msg.best_reverse_clearance_m = res.best_reverse_clearance;
+
+    // Derive suggested detour from the better of (forward, reverse) tentacles.
+    // Endpoint of the chosen tentacle is in base frame; transform to map.
+    const auto& tents = algo_.tentacles();
+    const bool prefer_fwd = res.best_forward_clearance >= res.best_reverse_clearance;
+    const int  idx       = prefer_fwd ? res.best_forward_idx : res.best_reverse_idx;
+
+    geometry_msgs::msg::PoseStamped detour;
+    detour.header = msg.header;
+    detour.pose.orientation.w = 1.0;
+
+    if (idx >= 0 && idx < static_cast<int>(tents.size()) && !tents[idx].samples.empty()) {
+      const auto& end_b = tents[idx].samples.back();
+      const double mag  = std::hypot(end_b.x, end_b.y);
+      if (mag > 1e-6) {
+        // Clamp suggested distance to the measured clearance — never suggest a
+        // detour past terrain we couldn't actually see along that arc.
+        const double clearance   = prefer_fwd ? res.best_forward_clearance
+                                              : res.best_reverse_clearance;
+        const double detour_max  = 0.4 * p.local_grid_size_m;
+        const double detour_dist = std::min(detour_max, clearance);
+        const double ux_b = end_b.x / mag;
+        const double uy_b = end_b.y / mag;
+        const double dx_b = ux_b * detour_dist;
+        const double dy_b = uy_b * detour_dist;
+        const double c = std::cos(yaw), s = std::sin(yaw);
+        detour.pose.position.x = rx + c * dx_b - s * dy_b;
+        detour.pose.position.y = ry + s * dx_b + c * dy_b;
+      } else {
+        detour.pose.position.x = rx;
+        detour.pose.position.y = ry;
+      }
+    } else {
+      // No tentacle had a usable direction — fall back to current pose so
+      // consumers can still parse the message but treat the suggestion as
+      // advisory (best_*_clearance_m will both be ~0).
+      detour.pose.position.x = rx;
+      detour.pose.position.y = ry;
+    }
+    msg.suggested_detour = detour;
+
+    stuck_pub_->publish(msg);
+    ticks_since_last_stuck_pub_ = 0;
+
+    if (rising_edge) {
+      RCLCPP_WARN(get_logger(),
+        "[STUCK_PUB] entered REPLAN at (%.2f,%.2f) fwd_clear=%.2fm rev_clear=%.2fm "
+        "suggested_detour=(%.2f,%.2f)",
+        rx, ry, res.best_forward_clearance, res.best_reverse_clearance,
+        detour.pose.position.x, detour.pose.position.y);
+    } else if (falling_edge) {
+      RCLCPP_INFO(get_logger(),
+        "[STUCK_PUB] cleared REPLAN at (%.2f,%.2f) — consumers may resume original goal",
+        rx, ry);
+    }
+
+    prev_nav_state_ = res.nav_state;
+  }
+
+  static const char* navStateStr(::vector_field_planner::NavState s)
+  {
+    using ::vector_field_planner::NavState;
+    switch (s) {
+      case NavState::NAVIGATE: return "NAVIGATE";
+      case NavState::SLOW:     return "SLOW";
+      case NavState::PROBE:    return "PROBE";
+      case NavState::ESCAPE:   return "ESCAPE";
+      case NavState::REPLAN:   return "REPLAN";
+    }
+    return "?";
   }
 
   void publishStop()
@@ -497,6 +656,7 @@ private:
 
   rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr       cmd_pub_;
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr   marker_pub_;
+  rclcpp::Publisher<msgs::msg::LocalPlannerStuck>::SharedPtr           stuck_pub_;
   rclcpp::Subscription<nav_msgs::msg::Path>::SharedPtr                 path_sub_;
   rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr                 nav_enabled_sub_;
   rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr                 obstacle_avoidance_sub_;
@@ -514,6 +674,13 @@ private:
   double                                     last_cmd_linear_vel_{0.0};
   std::vector<StampedObstaclePoint>          obstacle_map_;
   vector_field_planner::VectorFieldPlannerAlgo algo_;
+
+  // Stuck publisher state. prev_nav_state_ drives edge detection;
+  // ticks_since_last_stuck_pub_ throttles the heartbeat to ~1 Hz.
+  vector_field_planner::NavState  prev_nav_state_{vector_field_planner::NavState::NAVIGATE};
+  unsigned int                    ticks_since_last_stuck_pub_{0};
+  double                          stuck_entry_rx_{0.0};
+  double                          stuck_entry_ry_{0.0};
 };
 
 int main(int argc, char ** argv)

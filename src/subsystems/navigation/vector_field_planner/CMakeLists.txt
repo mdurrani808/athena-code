@@ -14,6 +14,7 @@ find_package(std_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2 REQUIRED)
+find_package(msgs REQUIRED)
 
 add_library(vector_field_planner_algo src/vector_field_planner_algo.cpp)
 target_include_directories(vector_field_planner_algo PUBLIC
@@ -35,6 +36,7 @@ target_link_libraries(vector_field_planner_node
   ${sensor_msgs_TARGETS}
   ${std_msgs_TARGETS}
   ${visualization_msgs_TARGETS}
+  ${msgs_TARGETS}
   tf2_ros::tf2_ros
   tf2::tf2
 )
