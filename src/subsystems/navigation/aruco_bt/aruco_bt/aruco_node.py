@@ -39,7 +39,7 @@ class ArUcoNode(Node):
         aruco_params = cv2.aruco.DetectorParameters()
 
         # Tightening up parameters to reduce false positives
-        aruco_params.minMarkerPerimeterRate = 0.04 # rejects markers that are too small, default 0.03
+        aruco_params.minMarkerPerimeterRate = 0.01 # accept smaller/farther markers (lower = detect at range)
         aruco_params.maxMarkerPerimeterRate = 2.0 # rejects markers that are too large, default 4.0
         aruco_params.polygonalApproxAccuracyRate = 0.02 # controls how loosely the detected contour is approximated to a quadrilateral, default 0.03
         aruco_params.errorCorrectionRate = 0.4 # controls how much error correction is applied, default 0.6

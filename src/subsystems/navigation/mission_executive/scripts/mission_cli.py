@@ -242,10 +242,11 @@ class MissionCLI:
     def _run_nav_with_status(self, goal: NavigateToTarget.Goal):
         target_type = goal.target_type
         if target_type in (1, 2):
-            print(f"  {CYN}Note: ArUco post — rover drives to GPS vicinity, then enters{RST}")
-            print(f"  {CYN}      ARUCO_APPROACH once the tag is confirmed for {CYN}aruco_confirm_frames{RST}")
-            print(f"  {CYN}      consecutive frames. Stops when camera depth < aruco_stop_dist_m.{RST}")
-            print(f"  {CYN}      Falls back to SPIRAL_COVERAGE if GPS arrived without tag lock.{RST}")
+            print(f"  {CYN}Note: ArUco post — rover drives TO the given GPS point, then spirals{RST}")
+            print(f"  {CYN}      outward from it (SPIRAL_COVERAGE) to search for the tag.{RST}")
+            print(f"  {CYN}      If the tag is confirmed for aruco_confirm_frames consecutive{RST}")
+            print(f"  {CYN}      frames at any time, it switches to ARUCO_APPROACH and stops{RST}")
+            print(f"  {CYN}      when camera depth < aruco_stop_dist_m.{RST}")
             print()
         elif target_type == 3:
             print(f"  {CYN}Note: OBJECT — after GPS arrival the node enters SPIRAL_COVERAGE{RST}")

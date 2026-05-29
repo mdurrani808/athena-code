@@ -304,8 +304,8 @@ private:
   void controlLoop()
   {
     if (!nav_enabled_ || !path_ || path_->poses.empty()) {
-      RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 2000,
-        "[NAV_IDLE] nav_enabled=%d has_path=%d",
+      RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 5000,
+        "[NAV_IDLE] waiting — nav_enabled=%d has_path=%d",
         static_cast<int>(nav_enabled_), static_cast<int>(path_ && !path_->poses.empty()));
       return;
     }
@@ -379,14 +379,14 @@ private:
     }
 
     if (res.closest_idx < last_closest_idx_ && last_closest_idx_ != std::numeric_limits<size_t>::max()) {
-      RCLCPP_WARN(get_logger(),
+      RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000,
         "[closest_idx] BACKWARDS JUMP: %zu → %zu — robot may be closer to an earlier path segment",
         last_closest_idx_, res.closest_idx);
     }
     last_closest_idx_ = res.closest_idx;
 
     if (res.lookahead_behind) {
-      RCLCPP_WARN(get_logger(),
+      RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000,
         "[LK_BEHIND] lookahead=(%.2f,%.2f) is BEHIND robot at (%.2f,%.2f) yaw=%.1fd closest_idx=%zu",
         res.lookahead_x, res.lookahead_y, rx, ry, yaw * 180.0 / M_PI, res.closest_idx);
     }
@@ -407,13 +407,17 @@ private:
 
     if (p.obstacle_avoidance_enabled && latest_scan_) {
       const double scan_age = (now_time - latest_scan_->header.stamp).seconds();
-      const char* state_str = navStateStr(res.nav_state);
-      RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 500,
-        "[AVOIDANCE age=%.3fs] state=%s buffered=%zu in_range=%d closest=%.2fm "
-        "fwd_clear=%.2fm rev_clear=%.2fm tent=%d kappa=%.2f dir=%+.0f",
-        scan_age, state_str, obstacle_map_.size(), res.active_points, res.closest_r,
-        res.best_forward_clearance, res.best_reverse_clearance,
-        res.chosen_tentacle_idx, res.chosen_curvature, res.chosen_direction);
+      // Only worth a line when there is actually something to avoid — otherwise
+      // the 1 Hz [NAV] heartbeat already covers the nominal case.
+      if (res.active_points > 0) {
+        RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 1000,
+          "[AVOIDANCE %s] closest=%.2fm in_range=%d fwd_clear=%.2fm rev_clear=%.2fm "
+          "tent=%d kappa=%.2f dir=%+.0f (buffered=%zu age=%.2fs)",
+          navStateStr(res.nav_state), res.closest_r, res.active_points,
+          res.best_forward_clearance, res.best_reverse_clearance,
+          res.chosen_tentacle_idx, res.chosen_curvature, res.chosen_direction,
+          obstacle_map_.size(), scan_age);
+      }
 
       if (res.request_replan) {
         RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000,
@@ -437,20 +441,19 @@ private:
       consecutive_clamped_ = 0;
     }
 
-    const double lookahead_dist = std::hypot(res.lookahead_x - rx, res.lookahead_y - ry);
-    
-    RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 250,
-      "[NAV t=%u pos=(%.2f,%.2f) yaw=%.1fd goal=%.2fm idx=%zu/%zu "
-      "lk=(%.2f,%.2f) lk_dist=%.2fm(eff=%.2fm%s) err=%.1fd "
-      "approach_scale=%.2f lin=%.3f steer=%.3f%s%s%s]",
-      tick_count_, rx, ry, yaw * 180.0 / M_PI, dist_to_goal,
-      res.closest_idx, path_->poses.size() - 1,
-      res.lookahead_x, res.lookahead_y, lookahead_dist,
-      res.effective_lookahead_dist,
-      res.lookahead_interpolated ? "/interp" : "/snap",
+    // Heartbeat telemetry — one line at 1 Hz. Leads with the FSM state and the
+    // numbers an operator watches in the field (progress to goal, heading error,
+    // and the actual command being sent). Raw lookahead coordinates and other
+    // internals stay out; flags surface only when something is off-nominal.
+    RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 1000,
+      "[NAV t=%u %s] goal=%.2fm idx=%zu/%zu err=%+.0fd lin=%.2f steer=%+.3f"
+      " pos=(%.2f,%.2f) yaw=%.0fd%s%s%s",
+      tick_count_, navStateStr(res.nav_state),
+      dist_to_goal, res.closest_idx, path_->poses.size() - 1,
       res.heading_err * 180.0 / M_PI,
-      res.approach_velocity_scale, res.linear_vel, res.angular_vel,
-      res.clamped   ? " CLAMPED"   : "",
+      res.linear_vel, res.angular_vel,
+      rx, ry, yaw * 180.0 / M_PI,
+      res.clamped          ? " CLAMPED"   : "",
       res.lookahead_behind ? " LK_BEHIND" : "",
       p.obstacle_avoidance_enabled ? " AVOID_ON" : "");
 

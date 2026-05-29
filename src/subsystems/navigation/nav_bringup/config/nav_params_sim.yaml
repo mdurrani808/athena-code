@@ -4,7 +4,7 @@ gps_pose_publisher:
   ros__parameters:
     use_sim_time: true
     heading_topic: "/gps/heading"
-    heading_offset_deg: 0.0       # set to 180 if sensor is mounted backwards
+    heading_offset_deg: 180.0     # sim /gps/heading reports ~180° off from body x-axis
     use_start_gate_ref: false     # if true, waits for /start_gate_ref NavSatFix to set origin
     origin_lat: .nan              # set to a fixed lat/lon to skip first-fix origin logic
     origin_lon: .nan
@@ -39,6 +39,18 @@ mission_executive:
     planner_event_topic: "/planner_event"
     global_path_topic: "/global_path"
     yolo_detection_topic: "/yolo/target_found"
+    # ArUco approach
+    aruco_detection_topic: "/aruco_detection"  # Detection2D (bbox) from aruco_bt
+    camera_info_topic: "/zed/zed_node/left/camera_info"  # image centre/size for the servo
+    cmd_vel_topic: "/front_ackermann_controller/reference"  # servo drives this during approach
+    aruco_confirm_frames: 5      # consecutive frames before trusting a sighting
+    aruco_max_age_s: 0.5         # tag considered lost if no detection for this long
+    aruco_lost_timeout_s: 1.0    # after this long lost mid-approach, finalize/resume
+    # Visual-servo approach (image-based: centre the bbox, drive forward)
+    aruco_servo_kp: 0.8          # yaw gain on normalized bbox-centre error
+    aruco_servo_linear_mps: 0.4  # forward speed while homing
+    aruco_servo_max_angular: 0.6 # clamp on commanded yaw rate (rad/s)
+    aruco_bbox_stop_frac: 0.45   # stop when bbox height exceeds this fraction of the image
     # Output topics
     goal_pose_topic: "/goal_pose"
     nav_enabled_topic: "/nav_enabled"

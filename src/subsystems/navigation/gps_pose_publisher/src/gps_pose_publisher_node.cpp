@@ -166,7 +166,12 @@ private:
     geometry_msgs::msg::TransformStamped tf;
     tf.header.stamp = msg->header.stamp;
     tf.header.frame_id = "map";
-    tf.child_frame_id = "base_link";
+    // Broadcast to base_footprint (the URDF root), NOT base_link. base_link has
+    // a static parent (base_footprint->base_link) from the URDF; publishing
+    // map->base_link here would give base_link two parents, detaching
+    // base_footprint and every sensor hanging off it (IMU/GNSS/ZED) into a
+    // separate TF tree. map->base_footprint keeps the whole tree connected.
+    tf.child_frame_id = "base_footprint";
     tf.transform.translation.x = x;
     tf.transform.translation.y = y;
     tf.transform.translation.z = z;

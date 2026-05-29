@@ -20,6 +20,11 @@
   <exec_depend>vector_field_planner</exec_depend>
   <exec_depend>mission_executive</exec_depend>
   <exec_depend>pointcloud_to_laserscan</exec_depend>
+  <exec_depend>mag_heading</exec_depend>
+  <exec_depend>yolo_ros_bt</exec_depend>
+  <exec_depend>aruco_bt</exec_depend>
+  <exec_depend>led_indicator</exec_depend>
+  <exec_depend>point_cloud_filterer</exec_depend>
 
   <export>
     <build_type>ament_cmake</build_type>

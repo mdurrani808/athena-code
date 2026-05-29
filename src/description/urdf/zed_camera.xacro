@@ -52,15 +52,15 @@
 
         <sensor name="${camera_name}_rgb_sensor" type="camera">
           <always_on>1</always_on>
-          <update_rate>15</update_rate>
+          <update_rate>30</update_rate>
           <visualize>true</visualize>
           <topic>${camera_name}/zed_node/left/image_rect_color</topic>
           <ign_frame_id>${camera_name}_left_camera_frame_optical</ign_frame_id>
           <camera name="${camera_name}_rgb">
             <horizontal_fov>1.8151</horizontal_fov>
             <image>
-              <width>672</width>
-              <height>376</height>
+              <width>1280</width>
+              <height>720</height>
               <format>RGB_INT8</format>
             </image>
             <clip>

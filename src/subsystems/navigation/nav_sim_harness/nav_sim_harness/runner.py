@@ -18,6 +18,16 @@ Scenario schema
     setup:                            # optional, spawned before any step
       - spawn: {type: aruco_post, name: post1, pose: [12, 3, 0]}
       - spawn: {type: box, name: rock, pose: [6, 0, 0.5], size: [1, 1, 1]}
+
+Spawn height is terrain-relative
+────────────────────────────────
+The robot ("athena") is spawned above the terrain and drops onto it, so its
+settled world Z (queried from Gazebo via ``ign model -m athena -p``) is the
+terrain surface height. The runner adds that Z to each spawn's ``pose`` z, so
+``z: 0`` lands the artifact ON the terrain (``z: 0.5`` = 0.5 m above it). This
+keeps scenarios world-agnostic — e.g. terrain_world's ground is ~24 m below the
+world origin, where a literal ``z: 0`` would float the post in mid-air. If the
+robot pose can't be queried, the runner falls back to the literal (absolute) z.
     steps:
       - cli: nav post1 38.42392 -110.78484 13
         assert: {kind: aruco_post, target: post1, max_dist_m: 2.0,
@@ -32,7 +42,9 @@ Assert kinds
                 ground-truth distance to the spawned post < max_dist_m
 """
 import math
+import re
 import shlex
+import shutil
 import subprocess
 import sys
 import threading
@@ -123,6 +135,45 @@ def _is_flash_green(led: LedStatus) -> bool:
     return (led is not None
             and led.cmd == LedStatus.CMD_FLASH
             and led.g > 100 and led.r < 80 and led.b < 80)
+
+
+def query_model_world_z(model: str = "athena", timeout: float = 10.0) -> Optional[float]:
+    """Return the world-frame Z (m) of a Gazebo model, or None if unavailable.
+
+    Shells out to ``ign model -m <model> -p`` and parses the first ``[x y z]``
+    bracket line of the pose block, e.g.::
+
+        - Pose [ XYZ (m) ] [ RPY (rad) ]:
+          [13.640800 -9.359040 -24.241900]   <- this line; z = -24.2419
+          [-0.008763  0.004592  -0.694177]
+
+    The robot drops onto the terrain after spawning, so its settled Z is the
+    terrain surface height — used to place artifacts on the ground rather than
+    at world z=0.
+    """
+    exe = shutil.which("ign")
+    if exe is None:
+        return None
+    try:
+        out = subprocess.run(
+            [exe, "model", "-m", model, "-p"],
+            capture_output=True, text=True, timeout=timeout,
+        ).stdout
+    except (subprocess.TimeoutExpired, OSError):
+        return None
+
+    num = r"(-?\d+(?:\.\d+)?)"
+    xyz = re.compile(rf"\[\s*{num}\s+{num}\s+{num}\s*\]")
+    lines = out.splitlines()
+    for i, ln in enumerate(lines):
+        if "Pose" not in ln:
+            continue
+        for nxt in lines[i + 1:]:              # first numeric bracket = XYZ
+            m = xyz.search(nxt)
+            if m:
+                return float(m.group(3))
+        break
+    return None
 
 
 # ── scenario model ───────────────────────────────────────────────────────────
@@ -235,17 +286,33 @@ class Runner:
         if not self.scenario.setup:
             return True
         hdr("Spawning scenario artifacts")
+
+        # The robot drops onto the terrain, so its settled world Z is the ground
+        # height. Treat each spawn's pose z as an offset above that, so z=0 lands
+        # the artifact on the terrain (world z=0 would float it ~24 m up in
+        # terrain_world). Falls back to absolute z if the robot pose is unknown.
+        terrain_z = query_model_world_z("athena")
+        if terrain_z is None:
+            warn("could not query athena world pose from ign — spawning at absolute z")
+        else:
+            info(f"terrain reference z (athena world z) = {terrain_z:.3f} m")
+
         for sp in self.scenario.setup:
+            pose = list(sp.pose)
+            if terrain_z is not None:
+                while len(pose) < 3:
+                    pose.append(0.0)
+                pose[2] = terrain_z + pose[2]
             try:
                 if sp.kind in ("aruco_post", "aruco"):
-                    self.spawner.spawn_aruco_post(sp.name, sp.pose)
+                    self.spawner.spawn_aruco_post(sp.name, pose)
                 elif sp.kind == "box":
-                    self.spawner.spawn_box(sp.name, sp.pose, sp.size)
+                    self.spawner.spawn_box(sp.name, pose, sp.size)
                 else:
                     err(f"unknown spawn type '{sp.kind}'")
                     return False
-                self._spawned[sp.name] = sp.pose
-                info(f"spawned {sp.kind} '{sp.name}' at {sp.pose}")
+                self._spawned[sp.name] = pose
+                info(f"spawned {sp.kind} '{sp.name}' at {pose}")
             except SpawnError as e:
                 err(str(e))
                 return False

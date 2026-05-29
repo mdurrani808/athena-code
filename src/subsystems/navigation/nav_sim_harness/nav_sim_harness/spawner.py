@@ -20,6 +20,7 @@ this module's ``main()`` sets up that executor itself, e.g.::
     python3 -m nav_sim_harness.spawner --world default aruco --pose 12 3 0
 """
 import argparse
+import math
 import sys
 import threading
 import time
@@ -29,6 +30,7 @@ import rclpy
 from rclpy.executors import SingleThreadedExecutor
 from rclpy.node import Node
 
+from geometry_msgs.msg import Pose
 from ros_gz_interfaces.srv import SpawnEntity
 
 
@@ -40,6 +42,27 @@ def _pose_str(pose: Pose6) -> str:
     """Format a 6-DoF pose for an SDF ``<pose>`` element."""
     vals = list(pose) + [0.0] * (6 - len(pose))
     return " ".join(f"{v:.6g}" for v in vals[:6])
+
+
+def _to_ros_pose(pose: Pose6) -> Pose:
+    """Convert an (x, y, z, roll, pitch, yaw) tuple to a geometry_msgs/Pose.
+
+    Set on ``EntityFactory.pose``, which is authoritative for spawn placement —
+    the create service ignores the SDF ``<pose>`` and uses this (defaulting to
+    the origin if left unset, which is why an unset pose spawns at 0,0,0).
+    """
+    vals = list(pose) + [0.0] * (6 - len(pose))
+    x, y, z, roll, pitch, yaw = vals[:6]
+    cr, sr = math.cos(roll * 0.5), math.sin(roll * 0.5)
+    cp, sp = math.cos(pitch * 0.5), math.sin(pitch * 0.5)
+    cy, sy = math.cos(yaw * 0.5), math.sin(yaw * 0.5)
+    p = Pose()
+    p.position.x, p.position.y, p.position.z = x, y, z
+    p.orientation.w = cr * cp * cy + sr * sp * sy
+    p.orientation.x = sr * cp * cy - cr * sp * sy
+    p.orientation.y = cr * sp * cy + sr * cp * sy
+    p.orientation.z = cr * cp * sy - sr * sp * cy
+    return p
 
 
 def _box_sdf(name: str, pose: Pose6, size: Sequence[float],
@@ -110,7 +133,8 @@ class Spawner:
 
     # ── low-level call ──────────────────────────────────────────────────────
 
-    def _spawn_sdf(self, name: str, sdf: str, timeout: float = 15.0) -> None:
+    def _spawn_sdf(self, name: str, sdf: str, pose: Pose6,
+                   timeout: float = 15.0) -> None:
         if not self.wait_for_service(timeout):
             raise SpawnError(f"create service {self._srv_name} not available "
                              f"(is the harness create-bridge running?)")
@@ -118,6 +142,8 @@ class Spawner:
         req.entity_factory.name = name
         req.entity_factory.sdf = sdf
         req.entity_factory.allow_renaming = False
+        # Authoritative spawn pose — the service uses this, not the SDF <pose>.
+        req.entity_factory.pose = _to_ros_pose(pose)
 
         future = self._client.call_async(req)
         deadline = time.monotonic() + timeout
@@ -138,7 +164,7 @@ class Spawner:
                   rgba: Sequence[float] = (0.85, 0.2, 0.2, 1.0),
                   timeout: float = 15.0) -> None:
         """Drop a static coloured box centred at ``pose`` with the given size."""
-        self._spawn_sdf(name, _box_sdf(name, pose, size, rgba), timeout)
+        self._spawn_sdf(name, _box_sdf(name, pose, size, rgba), pose, timeout)
 
     def spawn_aruco_post(self, name: str, pose: Pose6,
                          timeout: float = 15.0) -> None:
@@ -147,7 +173,7 @@ class Spawner:
         The model origin is the base of the post (z=0), so ``pose`` z is the
         ground height at the drop point.
         """
-        self._spawn_sdf(name, _include_sdf(name, "model://aruco_post", pose), timeout)
+        self._spawn_sdf(name, _include_sdf(name, "model://aruco_post", pose), pose, timeout)
 
 
 # ── standalone CLI ──────────────────────────────────────────────────────────
