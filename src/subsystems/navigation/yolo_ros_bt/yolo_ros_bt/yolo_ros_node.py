@@ -29,7 +29,6 @@ class YoloRosNode(Node):
         pkg_share = get_package_share_directory('yolo_ros_bt')
         default_model_path = os.path.join(pkg_share, 'models', 'bestNoPreProcessingStep.pt')
 
-        self.declare_parameter('use_sim_time', False)
         self.declare_parameter('conf_thres', 0.5)
         self.declare_parameter('model_path', default_model_path)
         self.declare_parameter('image_topic', '/camera/image_raw')

@@ -9,6 +9,7 @@
 #include "athena_planner/get_aruco_pose_node.hpp"
 #include "athena_planner/spiral_coverage_action_node.hpp"
 #include "athena_planner/object_detected_node.hpp"
+#include "athena_planner/led_status_node.hpp"
 
 #include "rclcpp/rclcpp.hpp"
 
@@ -81,4 +82,5 @@ BT_REGISTER_NODES(factory)
   factory.registerNodeType<bt_nodes::GetArucoPose>("GetArucoPose");
   factory.registerNodeType<bt_nodes::SpiralCoverageAction>("SpiralCoverageAction");
   factory.registerNodeType<bt_nodes::ObjectDetected>("ObjectDetected");
+  factory.registerNodeType<bt_nodes::LedStatusNode>("LedStatus");
 }

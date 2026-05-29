@@ -39,6 +39,9 @@
   <exec_depend>localizer</exec_depend>
   <exec_depend>gps_goal</exec_depend>
   <exec_depend>point_cloud_filterer</exec_depend>
+  <exec_depend>aruco_bt</exec_depend>
+  <exec_depend>waypoint_manager</exec_depend>
+  <exec_depend>yolo_ros_bt</exec_depend>
   <exec_depend>topic_tools</exec_depend>
 
   <test_depend>ament_lint_auto</test_depend>

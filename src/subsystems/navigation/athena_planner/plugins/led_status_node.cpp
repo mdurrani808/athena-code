@@ -1,5 +1,8 @@
 #include "athena_planner/led_status_node.hpp"
 
+#include <algorithm>
+#include <string>
+
 namespace bt_nodes
 {
 
@@ -26,6 +29,8 @@ BT::NodeStatus LedStatusNode::tick()
     return BT::NodeStatus::FAILURE;
   }
 
+  std::transform(color.begin(), color.end(), color.begin(), ::tolower);
+
   msgs::msg::LedStatus msg;
   msg.cmd = msgs::msg::LedStatus::CMD_SOLID;
   msg.r = 0;
@@ -33,12 +38,12 @@ BT::NodeStatus LedStatusNode::tick()
   msg.b = 0;
   msg.param = 0;
 
-  if (color == "red" || color == "RED") {
+  if (color == "red") {
     msg.cmd = msgs::msg::LedStatus::CMD_SOLID;
     msg.r = 255;
     msg.g = 0;
     msg.b = 0;
-  } else if (color == "green" || color == "GREEN") {
+  } else if (color == "green") {
     msg.cmd = msgs::msg::LedStatus::CMD_FLASH;
     msg.r = 0;
     msg.g = 255;
@@ -53,13 +58,17 @@ BT::NodeStatus LedStatusNode::tick()
 
   led_pub_->publish(msg);
 
-  RCLCPP_INFO(
-    node_->get_logger(),
-    "Published LED status: color=%s rgb=[%u, %u, %u]",
-    color.c_str(),
-    msg.r,
-    msg.g,
-    msg.b);
+  if (color != last_logged_color_) {
+    RCLCPP_INFO(
+      node_->get_logger(),
+      "Published LED status: color=%s rgb=[%u, %u, %u]",
+      color.c_str(),
+      msg.r,
+      msg.g,
+      msg.b);
+
+    last_logged_color_ = color;
+  }
 
   return BT::NodeStatus::SUCCESS;
 }

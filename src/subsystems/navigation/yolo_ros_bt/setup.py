@@ -21,6 +21,10 @@ setup(
             os.path.join('share', package_name, 'launch'),
             glob('launch/*.py')
         ),
+        (
+            os.path.join('share', package_name, 'models'),
+            glob('models/*')
+        ),
     ],
     install_requires=['setuptools'],
     zip_safe=True,

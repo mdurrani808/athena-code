@@ -5,7 +5,7 @@ def generate_launch_description():
     return LaunchDescription([
         Node(
             package='yolo_ros_bt',
-            executable='yolo_ros_node',
+            executable='yolo_node',
             name='yolo_node',
             output='screen',
             parameters=[{
