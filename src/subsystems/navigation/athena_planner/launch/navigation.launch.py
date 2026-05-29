@@ -32,6 +32,9 @@ def generate_launch_description():
 
     waypoint_share = get_package_share_directory('waypoint_manager')
     waypoint_launch_file = os.path.join(waypoint_share, 'launch', 'waypoint_manager.launch.py')
+    
+    yolo_ros_bt_share = get_package_share_directory('yolo_ros_bt')
+    yolo_ros_launch_file = os.path.join(yolo_ros_bt_share, 'launch', 'yolo.ros.launch.py')
 
     default_params = PathJoinSubstitution([
         FindPackageShare('athena_planner'), 'config', 'nav2_params.yaml'
@@ -56,6 +59,11 @@ def generate_launch_description():
     publish_zed_odom = PythonExpression(
         ["'true' if '", use_localizer, "' == 'false' else 'false'"]
     )
+    
+    cmd_vel_out_topic = PythonExpression([
+        "'/front_ackermann_controller/reference' if '", sim,
+        "' == 'true' else '/rear_ackermann_controller/reference'"
+    ])
 
     twist_stamper_node = Node(
         package='twist_stamper',
@@ -64,7 +72,7 @@ def generate_launch_description():
         parameters=[{'use_sim_time': sim}],
         remappings=[
             ('cmd_vel_in', '/cmd_vel_nav'),
-            ('cmd_vel_out', '/rear_ackermann_controller/reference'),
+            ('cmd_vel_out', cmd_vel_out_topic),
         ],
     )
 
@@ -108,6 +116,12 @@ def generate_launch_description():
         PythonLaunchDescriptionSource(gps_goal_launch_file),
         launch_arguments={'use_sim_time': sim}.items(),
     )
+    
+    yolo_ros_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(yolo_ros_launch_file),
+        launch_arguments={'use_sim_time': sim}.items(),
+        condition=IfCondition(sim),
+    )   
 
     point_cloud_filterer_sim = Node(
         package='point_cloud_filterer',
@@ -180,6 +194,7 @@ def generate_launch_description():
         sensors_launch,
         aruco_launch,
         waypoint_launch,
+        yolo_ros_launch,
         point_cloud_filterer_sim,
         point_cloud_relay,
         gps_goal_launch,

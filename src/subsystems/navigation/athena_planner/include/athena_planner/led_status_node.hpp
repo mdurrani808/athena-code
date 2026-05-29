@@ -34,6 +34,7 @@ private:
   rclcpp::Publisher<msgs::msg::LedStatus>::SharedPtr led_pub_;
 
   std::string topic_name_;
+  std::string last_logged_color_;
 };
 
 }  // namespace bt_nodes

@@ -29,9 +29,6 @@ class YoloRosNode(Node):
         pkg_share = get_package_share_directory('yolo_ros_bt')
         default_model_path = os.path.join(pkg_share, 'models', 'bestNoPreProcessingStep.pt')
 
-        # NOTE: 'use_sim_time' is auto-declared by rclpy for every node — do not
-        # re-declare it here (raises ParameterAlreadyDeclaredException). Set it
-        # via launch args / params instead.
         self.declare_parameter('conf_thres', 0.5)
         self.declare_parameter('model_path', default_model_path)
         self.declare_parameter('image_topic', '/camera/image_raw')

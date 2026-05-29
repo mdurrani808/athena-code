@@ -48,15 +48,15 @@ planner_server:
     planner_plugins: ["GridBased"]
 
     GridBased:
-      plugin: "nav2_smac_planner/SmacPlannerHybrid"
-      tolerance: 0.5
+      plugin: "nav2_smac_planner/SmacPlanner2D"
+      tolerance: 2.0
       downsample_costmap: false
       downsampling_factor: 1
       allow_unknown: true
       max_iterations: 1000000
       max_planning_time: 7.5
 
-      motion_model_for_search: "REEDS_SHEPP"
+      motion_model_for_search: "DUBIN"
       angle_quantization_bins: 72
       analytic_expansion_ratio: 3.5
       analytic_expansion_max_length: 3.0
@@ -90,10 +90,10 @@ controller_server:
       movement_time_allowance: 10.0
 
     general_goal_checker:
-      stateful: true
+      stateful: false
       plugin: "nav2_controller::SimpleGoalChecker"
-      xy_goal_tolerance: 0.5
-      yaw_goal_tolerance: 0.3
+      xy_goal_tolerance: 1.0
+      yaw_goal_tolerance: 6.283
 
     FollowPath:
       plugin: "nav2_regulated_pure_pursuit_controller::RegulatedPurePursuitController"
@@ -114,7 +114,7 @@ controller_server:
       regulated_linear_scaling_min_radius: 1.5
       regulated_linear_scaling_min_speed: 0.25
       use_rotate_to_heading: false
-      allow_reversing: true
+      allow_reversing: false
       rotate_to_heading_min_angle: 0.785
       max_linear_accel: 1.0
       max_linear_decel: 1.5
