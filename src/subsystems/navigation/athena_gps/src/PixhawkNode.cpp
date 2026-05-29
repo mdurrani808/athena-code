@@ -7,6 +7,8 @@
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/imu.hpp"
 #include "sensor_msgs/msg/nav_sat_fix.hpp"
+#include "geometry_msgs/msg/quaternion_stamped.hpp"
+#include "msgs/msg/heading.hpp"
 #include <mavsdk/mavsdk.h>
 #include <mavsdk/plugins/telemetry/telemetry.h>
 
@@ -31,6 +33,8 @@ public:
         this->declare_parameter("gps_frame_id", "gps_link");
         this->declare_parameter("imu_topic", "imu/data");
         this->declare_parameter("gps_topic", "gps/fix");
+        this->declare_parameter("quaternion_topic", "imu/quaternion");
+        this->declare_parameter("heading_topic", "imu/heading");
         this->declare_parameter("mavsdk_system_id", 10);
         this->declare_parameter("mavsdk_component_id", 1);
         this->declare_parameter("mavsdk_always_send_heartbeats", false);
@@ -43,6 +47,8 @@ public:
         gps_frame_id_ = this->get_parameter("gps_frame_id").as_string();
         std::string imu_topic = this->get_parameter("imu_topic").as_string();
         std::string gps_topic = this->get_parameter("gps_topic").as_string();
+        std::string quaternion_topic = this->get_parameter("quaternion_topic").as_string();
+        std::string heading_topic = this->get_parameter("heading_topic").as_string();
         int mavsdk_system_id = this->get_parameter("mavsdk_system_id").as_int();
         int mavsdk_component_id = this->get_parameter("mavsdk_component_id").as_int();
         bool mavsdk_always_send_heartbeats = this->get_parameter("mavsdk_always_send_heartbeats").as_bool();
@@ -50,6 +56,8 @@ public:
         // Create publishers unconditionally so they're always valid
         imu_publisher_ = this->create_publisher<sensor_msgs::msg::Imu>(imu_topic, 10);
         gps_publisher_ = this->create_publisher<sensor_msgs::msg::NavSatFix>(gps_topic, 10);
+        quaternion_publisher_ = this->create_publisher<geometry_msgs::msg::QuaternionStamped>(quaternion_topic, 10);
+        heading_publisher_ = this->create_publisher<msgs::msg::Heading>(heading_topic, 10);
 
         // Create MAVSDK instance
         mavsdk_ = std::make_unique<Mavsdk>(Mavsdk::Configuration{
@@ -73,6 +81,8 @@ private:
 
     rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr imu_publisher_;
     rclcpp::Publisher<sensor_msgs::msg::NavSatFix>::SharedPtr gps_publisher_;
+    rclcpp::Publisher<geometry_msgs::msg::QuaternionStamped>::SharedPtr quaternion_publisher_;
+    rclcpp::Publisher<msgs::msg::Heading>::SharedPtr heading_publisher_;
     rclcpp::TimerBase::SharedPtr init_timer_;
 
     Telemetry::GpsInfo last_gps_info_;
@@ -144,6 +154,7 @@ private:
 
         telemetry_->subscribe_attitude_quaternion([this](const Telemetry::Quaternion &quaternion) {
             last_attitude_quaternion_ = quaternion;
+            attitude_quaternion_callback(quaternion);
         });
 
         telemetry_->subscribe_raw_gps([this](const Telemetry::RawGps &raw_gps) {
@@ -206,6 +217,45 @@ private:
         }
 
         imu_publisher_->publish(msg);
+    }
+
+    void attitude_quaternion_callback(const Telemetry::Quaternion quaternion) {
+        auto msg = geometry_msgs::msg::QuaternionStamped();
+        msg.header.stamp = this->now();
+        msg.header.frame_id = imu_frame_id_;
+
+        quaternion_frd_to_flu(quaternion,
+                             msg.quaternion.w,
+                             msg.quaternion.x,
+                             msg.quaternion.y,
+                             msg.quaternion.z);
+
+        quaternion_publisher_->publish(msg);
+
+        // Derive heading from the FLU (ENU-referenced) orientation. The yaw
+        // about the up axis is already in ROS convention: 0=East, CCW, radians.
+        const double w = msg.quaternion.w;
+        const double x = msg.quaternion.x;
+        const double y = msg.quaternion.y;
+        const double z = msg.quaternion.z;
+        double yaw = std::atan2(2.0 * (w * z + x * y),
+                                1.0 - 2.0 * (y * y + z * z));
+
+        auto heading_msg = msgs::msg::Heading();
+        heading_msg.header.stamp = msg.header.stamp;
+        heading_msg.header.frame_id = imu_frame_id_;
+        heading_msg.heading = yaw;
+        heading_msg.heading_acc = 0.0;  // not provided by the fused attitude
+
+        // compass_bearing: 0=North, CW, degrees. Convert from ENU heading and
+        // wrap into [0, 360). Does not account for magnetic declination.
+        double bearing_deg = std::fmod(90.0 - yaw * 180.0 / M_PI, 360.0);
+        if (bearing_deg < 0.0) {
+            bearing_deg += 360.0;
+        }
+        heading_msg.compass_bearing = bearing_deg;
+
+        heading_publisher_->publish(heading_msg);
     }
 
     void raw_gps_callback(const Telemetry::RawGps raw_gps) {
