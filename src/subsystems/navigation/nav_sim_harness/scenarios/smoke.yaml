@@ -1,0 +1,23 @@
+# smoke.yaml — minimal end-to-end smoke test.
+#
+# Brings the stack up and runs one short metre-frame GNSS nav. Datum-independent
+# (no GPS conversion involved). This is THE smoke test — it runs through the same
+# run.sh / runner path as every other scenario, so a green run proves the action
+# server, /nav_status, the planner/executive loop and arrival detection all work.
+#
+# Uses the flat empty.sdf world on purpose: the robot spawns at z=3 and drops to
+# the ground plane at ~origin, so a metre-frame goal is a clean straight drive.
+# (terrain_world.sdf spawns the rover 3 m above sloped terrain ~27 m below the
+# world origin, so it slides far from origin before nav starts — wrong for a
+# smoke test. Terrain scenarios need a terrain-matched spawn height first.)
+name: smoke
+world: empty.sdf
+world_name: default
+timeout_s: 120
+
+steps:
+  - cli: nav meter 5 0 3
+    assert:
+      kind: gnss
+      expect_state: STOPPED_AT_TARGET
+      max_dist_m: 3.0

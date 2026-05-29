@@ -1,0 +1,127 @@
+<?xml version="1.0" ?>
+<sdf version="1.6">
+  <!--
+    3-sided ArUco post (URC mission post).
+
+    Geometry:
+      * Support post: cylinder, r=0.03 m, from ground (z=0) up to z=0.9 m.
+      * Three identical tag faces forming a triangular prism, centred at z=1.0 m.
+        Each face is a thin 0.20 x 0.20 m panel (X=thickness, Y=width, Z=height)
+        textured with the same DICT_4X4_50 marker on its outward face.
+        The three panels sit at yaw 0 / 120 / 240 deg, offset radially by the
+        equilateral-triangle apothem (0.20 / (2*sqrt(3)) = 0.057735 m) so their
+        edges meet to form a closed prism.
+
+    Texture: materials/textures/aruco_4x4_50_id4.png — pre-baked, NOT generated
+    at spawn time. Regenerate for a different id with
+    nav_sim_harness/scripts/gen_aruco_texture.py and re-commit the PNG.
+
+    Model origin is the base of the post (z=0), so when spawned you set the
+    include <pose> z to the ground height at the drop point.
+  -->
+  <model name="aruco_post">
+    <static>true</static>
+    <link name="link">
+
+      <!-- Support post -->
+      <visual name="post_visual">
+        <pose>0 0 0.45 0 0 0</pose>
+        <geometry>
+          <cylinder>
+            <radius>0.03</radius>
+            <length>0.9</length>
+          </cylinder>
+        </geometry>
+        <material>
+          <ambient>0.5 0.5 0.5 1</ambient>
+          <diffuse>0.6 0.6 0.6 1</diffuse>
+          <specular>0.1 0.1 0.1 1</specular>
+        </material>
+      </visual>
+      <collision name="post_collision">
+        <pose>0 0 0.45 0 0 0</pose>
+        <geometry>
+          <cylinder>
+            <radius>0.03</radius>
+            <length>0.9</length>
+          </cylinder>
+        </geometry>
+      </collision>
+
+      <!-- Tag face 0 (yaw 0) -->
+      <visual name="tag_face_0">
+        <pose>0.057735 0 1.0 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>0.005 0.20 0.20</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 1 1 1</ambient>
+          <diffuse>1 1 1 1</diffuse>
+          <pbr>
+            <metal>
+              <albedo_map>materials/textures/aruco_4x4_50_id4.png</albedo_map>
+              <metalness>0.0</metalness>
+              <roughness>1.0</roughness>
+            </metal>
+          </pbr>
+        </material>
+      </visual>
+
+      <!-- Tag face 1 (yaw 120 deg) -->
+      <visual name="tag_face_1">
+        <pose>-0.0288675 0.05 1.0 0 0 2.0943951</pose>
+        <geometry>
+          <box>
+            <size>0.005 0.20 0.20</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 1 1 1</ambient>
+          <diffuse>1 1 1 1</diffuse>
+          <pbr>
+            <metal>
+              <albedo_map>materials/textures/aruco_4x4_50_id4.png</albedo_map>
+              <metalness>0.0</metalness>
+              <roughness>1.0</roughness>
+            </metal>
+          </pbr>
+        </material>
+      </visual>
+
+      <!-- Tag face 2 (yaw 240 deg) -->
+      <visual name="tag_face_2">
+        <pose>-0.0288675 -0.05 1.0 0 0 4.1887902</pose>
+        <geometry>
+          <box>
+            <size>0.005 0.20 0.20</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 1 1 1</ambient>
+          <diffuse>1 1 1 1</diffuse>
+          <pbr>
+            <metal>
+              <albedo_map>materials/textures/aruco_4x4_50_id4.png</albedo_map>
+              <metalness>0.0</metalness>
+              <roughness>1.0</roughness>
+            </metal>
+          </pbr>
+        </material>
+      </visual>
+
+      <!-- Prism collision (bounding cylinder around the three faces) -->
+      <collision name="prism_collision">
+        <pose>0 0 1.0 0 0 0</pose>
+        <geometry>
+          <cylinder>
+            <radius>0.063</radius>
+            <length>0.20</length>
+          </cylinder>
+        </geometry>
+      </collision>
+
+    </link>
+  </model>
+</sdf>

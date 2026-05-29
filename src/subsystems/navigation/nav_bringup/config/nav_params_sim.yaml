@@ -83,7 +83,7 @@ vector_field_planner:
     # ── Obstacle avoidance ──────────────────────────────────────────────────
     obstacle_avoidance_enabled: true   # set true or publish to /obstacle_avoidance_enabled
     scan_topic: "/scan"                 # LaserScan source (from pointcloud_to_laserscan)
-    scan_max_age_s: 0.5                 # reject scans older than this (seconds)
+    scan_max_age_s: 1.5                 # reject scans older than this (seconds)
     repulsion_gain: 2.5                 # lateral force scale; tune up to ~1.5 for strong avoidance
     repulsion_cutoff_m: 5.0             # obstacles beyond this range are ignored (meters)
     obstacle_memory_time_s: 3.0         # how long (s) to remember obstacle hits after they leave the scan FoV

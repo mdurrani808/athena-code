@@ -15,12 +15,14 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <cstdlib>
+#include <filesystem>
+#include <fstream>
 #include <limits>
 #include <memory>
 #include <mutex>
 #include <optional>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
 #include "rclcpp/rclcpp.hpp"
@@ -32,15 +34,19 @@
 #include "tf2/time.h"
 #include "tf2_ros/buffer.h"
 #include "tf2_ros/transform_listener.h"
+#include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
 #include "std_msgs/msg/bool.hpp"
 #include "std_msgs/msg/string.hpp"
 #include "std_srvs/srv/set_bool.hpp"
 #include "std_srvs/srv/trigger.hpp"
 #include "vision_msgs/msg/detection2_d.hpp"
 
+#include <nlohmann/json.hpp>
+
 #include "msgs/action/navigate_to_target.hpp"
 #include "msgs/msg/active_target.hpp"
 #include "msgs/msg/led_status.hpp"
+#include "msgs/msg/local_planner_stuck.hpp"
 #include "msgs/msg/nav_status.hpp"
 #include "msgs/msg/planner_event.hpp"
 #include "msgs/srv/lat_lon_to_enu.hpp"
@@ -102,7 +108,95 @@ struct TargetEntry {
   uint8_t goal_source{0};
   double tolerance_m{3.0};
   bool visited{false};
+  bool skipped{false};
 };
+
+// ── Waypoint persistence (single JSON file, atomic save) ────────────────────
+
+static const char* targetTypeStr(uint8_t t) {
+  switch (t) {
+    case 0: return "GNSS";
+    case 1: return "ARUCO_1";
+    case 2: return "ARUCO_2";
+    case 3: return "OBJ_DETECT";
+    default: return "UNKNOWN";
+  }
+}
+
+static nlohmann::json entryToJson(const TargetEntry& e) {
+  return nlohmann::json{
+    {"id",          e.id},
+    {"x",           e.x_m},
+    {"y",           e.y_m},
+    {"type",        targetTypeStr(e.target_type)},
+    {"type_code",   e.target_type},
+    {"goal_source", e.goal_source},
+    {"tolerance",   e.tolerance_m},
+    {"visited",     e.visited},
+    {"skipped",     e.skipped},
+  };
+}
+
+static std::optional<TargetEntry> jsonToEntry(const nlohmann::json& j) {
+  try {
+    TargetEntry e;
+    e.id          = j.at("id").get<std::string>();
+    e.x_m         = j.at("x").get<double>();
+    e.y_m         = j.at("y").get<double>();
+    e.target_type = j.at("type_code").get<uint8_t>();
+    e.goal_source = j.at("goal_source").get<uint8_t>();
+    e.tolerance_m = j.at("tolerance").get<double>();
+    e.visited     = j.value("visited", false);
+    e.skipped     = j.value("skipped", false);
+    return e;
+  } catch (const std::exception&) {
+    return std::nullopt;
+  }
+}
+
+static std::vector<TargetEntry> loadQueueFromFile(const std::string& path) {
+  std::vector<TargetEntry> out;
+  std::ifstream in(path);
+  if (!in.is_open()) return out;
+  try {
+    nlohmann::json j;
+    in >> j;
+    if (!j.is_array()) return out;
+    for (const auto& je : j) {
+      if (auto e = jsonToEntry(je)) out.push_back(*e);
+    }
+  } catch (const std::exception&) {}
+  return out;
+}
+
+static bool saveQueueToFile(const std::string& path,
+                            const std::vector<TargetEntry>& q) {
+  try {
+    std::filesystem::path p(path);
+    if (p.has_parent_path()) {
+      std::filesystem::create_directories(p.parent_path());
+    }
+    const std::string tmp = path + ".tmp";
+    {
+      std::ofstream out(tmp, std::ios::trunc);
+      if (!out.is_open()) return false;
+      nlohmann::json arr = nlohmann::json::array();
+      for (const auto& e : q) arr.push_back(entryToJson(e));
+      out << arr.dump(2);
+    }
+    std::filesystem::rename(tmp, path);
+    return true;
+  } catch (const std::exception&) {
+    return false;
+  }
+}
+
+static std::string expandTilde(const std::string& p) {
+  if (p.empty() || p[0] != '~') return p;
+  const char* home = std::getenv("HOME");
+  if (!home) return p;
+  return std::string(home) + p.substr(1);
+}
 
 struct MissionParams {
   double stop_angular_vel_threshold{0.05};
@@ -175,6 +269,10 @@ public:
     declare_parameter("active_target_topic", std::string("/active_target"));
     declare_parameter("nav_status_topic",    std::string("/nav_status"));
     declare_parameter("led_status_topic",    std::string("/led_status"));
+    declare_parameter("local_planner_stuck_topic", std::string("/local_planner/stuck"));
+    declare_parameter("waypoint_queue_topic",      std::string("/waypoint_queue"));
+    declare_parameter("waypoint_cache_path",       std::string("~/.athena/waypoints.json"));
+    declare_parameter("replan_throttle_s",         3.0);
 
     params_.stop_angular_vel_threshold  = get_parameter("stop_angular_vel_threshold").as_double();
     params_.arrival_hold_time           = get_parameter("arrival_hold_time").as_double();
@@ -200,6 +298,14 @@ public:
     const auto active_target_topic  = get_parameter("active_target_topic").as_string();
     const auto nav_status_topic     = get_parameter("nav_status_topic").as_string();
     const auto led_status_topic     = get_parameter("led_status_topic").as_string();
+    const auto stuck_topic          = get_parameter("local_planner_stuck_topic").as_string();
+    const auto waypoint_queue_topic = get_parameter("waypoint_queue_topic").as_string();
+    waypoint_cache_path_            = expandTilde(get_parameter("waypoint_cache_path").as_string());
+    replan_throttle_s_              = get_parameter("replan_throttle_s").as_double();
+
+    queue_ = loadQueueFromFile(waypoint_cache_path_);
+    RCLCPP_INFO(get_logger(), "Loaded %zu waypoints from %s",
+      queue_.size(), waypoint_cache_path_.c_str());
 
     reentrant_group_ = create_callback_group(rclcpp::CallbackGroupType::Reentrant);
 
@@ -215,6 +321,8 @@ public:
       nav_status_topic, rclcpp::QoS(1).reliable());
     led_status_pub_    = create_publisher<msgs::msg::LedStatus>(
       led_status_topic, rclcpp::QoS(1).reliable());
+    waypoint_queue_pub_ = create_publisher<std_msgs::msg::String>(
+      waypoint_queue_topic, rclcpp::QoS(1).reliable().transient_local());
 
     latlon_client_ = create_client<msgs::srv::LatLonToENU>(
       latlon_svc,
@@ -255,6 +363,32 @@ public:
       { onSetTarget(req, res); },
       rmw_qos_profile_services_default,
       reentrant_group_);
+
+    advance_srv_ = create_service<std_srvs::srv::Trigger>(
+      "~/advance",
+      [this](
+        const std_srvs::srv::Trigger::Request::SharedPtr,
+        std_srvs::srv::Trigger::Response::SharedPtr res)
+      {
+        std::lock_guard<std::mutex> lk(mutex_);
+        auto cmd = onAdvance();
+        res->success = cmd.success;
+        res->message = cmd.message;
+        if (cmd.success) { publishNavEnabled(); publishNavMode(); publishLedStatus(); publishStatus(); }
+      });
+
+    skip_srv_ = create_service<std_srvs::srv::Trigger>(
+      "~/skip",
+      [this](
+        const std_srvs::srv::Trigger::Request::SharedPtr,
+        std_srvs::srv::Trigger::Response::SharedPtr res)
+      {
+        std::lock_guard<std::mutex> lk(mutex_);
+        auto cmd = onSkip();
+        res->success = cmd.success;
+        res->message = cmd.message;
+        if (cmd.success) { publishNavEnabled(); publishNavMode(); publishLedStatus(); publishStatus(); }
+      });
 
     teleop_srv_ = create_service<std_srvs::srv::SetBool>(
       "~/teleop",
@@ -318,6 +452,13 @@ public:
         if (msg->data) onDetection();
       });
 
+    stuck_sub_ = create_subscription<msgs::msg::LocalPlannerStuck>(
+      stuck_topic, rclcpp::QoS(1).reliable().transient_local(),
+      [this](const msgs::msg::LocalPlannerStuck::SharedPtr msg) {
+        std::lock_guard<std::mutex> lk(mutex_);
+        onPlannerStuck(*msg);
+      });
+
     status_timer_ = create_wall_timer(
       500ms,
       [this]() {
@@ -336,6 +477,7 @@ public:
     publishNavEnabled();
     publishNavMode();
     publishLedStatus();
+    publishWaypointQueue();
     RCLCPP_INFO(get_logger(), "MissionExecutive ready — state: IDLE");
   }
 
@@ -427,8 +569,10 @@ private:
           transition(State::STOPPED_AT_RETURN);
         } else {
           if (active_target_.has_value()) {
-            auto it = target_registry_.find(active_target_->id);
-            if (it != target_registry_.end()) it->second.visited = true;
+            if (auto* e = findEntry(active_target_->id)) {
+              e->visited = true;
+              persistAndPublishQueue();
+            }
           }
           transition(State::STOPPED_AT_TARGET);
         }
@@ -486,8 +630,78 @@ private:
     }
   }
 
+  TargetEntry* findEntry(const std::string& id) {
+    for (auto& e : queue_) if (e.id == id) return &e;
+    return nullptr;
+  }
+
+  // Re-sort the not-yet-acted-on entries (excluding the currently active one)
+  // by distance from current robot pose. Visited/skipped entries keep their
+  // slot positions so the GUI sees a stable history list.
+  void sortPending() {
+    if (!robot_pose_.has_value()) return;
+    const double rx = robot_pose_->x;
+    const double ry = robot_pose_->y;
+    std::vector<size_t> idx;
+    idx.reserve(queue_.size());
+    for (size_t i = 0; i < queue_.size(); ++i) {
+      const auto& e = queue_[i];
+      if (e.visited || e.skipped) continue;
+      if (active_target_.has_value() && active_target_->id == e.id) continue;
+      idx.push_back(i);
+    }
+    if (idx.size() < 2) return;
+    std::vector<TargetEntry> entries;
+    entries.reserve(idx.size());
+    for (auto i : idx) entries.push_back(queue_[i]);
+    std::sort(entries.begin(), entries.end(),
+      [rx, ry](const TargetEntry& a, const TargetEntry& b) {
+        return std::hypot(a.x_m - rx, a.y_m - ry) <
+               std::hypot(b.x_m - rx, b.y_m - ry);
+      });
+    for (size_t k = 0; k < idx.size(); ++k) queue_[idx[k]] = entries[k];
+  }
+
+  std::optional<TargetEntry> popNextPending() {
+    for (const auto& e : queue_) {
+      if (!e.visited && !e.skipped) {
+        if (active_target_.has_value() && active_target_->id == e.id) continue;
+        return e;
+      }
+    }
+    return std::nullopt;
+  }
+
+  std::optional<TargetEntry> lastVisitedBefore(const std::string& current_id) {
+    std::optional<TargetEntry> last;
+    for (const auto& e : queue_) {
+      if (e.id == current_id) break;
+      if (e.visited) last = e;
+    }
+    return last;
+  }
+
+  void persistAndPublishQueue() {
+    if (!waypoint_cache_path_.empty()) {
+      if (!saveQueueToFile(waypoint_cache_path_, queue_)) {
+        RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 5000,
+          "Failed to persist waypoint cache to '%s'", waypoint_cache_path_.c_str());
+      }
+    }
+    publishWaypointQueue();
+  }
+
   CommandResult setTarget(const TargetEntry& entry) {
-    target_registry_[entry.id] = entry;
+    if (auto* existing = findEntry(entry.id)) {
+      const bool was_terminal = existing->visited || existing->skipped;
+      *existing = entry;
+      // Update of an in-progress entry keeps its slot; only pending re-sort.
+      if (!was_terminal) sortPending();
+    } else {
+      queue_.push_back(entry);
+      sortPending();
+    }
+    persistAndPublishQueue();
     return {true, "Target '" + entry.id + "' registered"};
   }
 
@@ -497,14 +711,14 @@ private:
     StartNavResult res;
     TargetEntry entry;
     if (!target_id.empty()) {
-      auto it = target_registry_.find(target_id);
-      if (it == target_registry_.end()) {
+      auto* found = findEntry(target_id);
+      if (!found) {
         return {false, "Unknown target_id: " + target_id};
       }
-      if (is_return && !it->second.visited) {
+      if (is_return && !found->visited) {
         return {false, "Target not yet visited — cannot RETURN"};
       }
-      entry = it->second;
+      entry = *found;
     } else if (inline_target.has_value()) {
       entry = inline_target.value();
     } else {
@@ -550,6 +764,56 @@ private:
     }
     transition(State::ABORTING);
     return {true, "Aborting"};
+  }
+
+  CommandResult onAdvance() {
+    const bool advanceable = (state_ == State::IDLE ||
+                              state_ == State::STOPPED_AT_TARGET ||
+                              state_ == State::STOPPED_AT_RETURN ||
+                              state_ == State::SPIRAL_DONE);
+    if (!advanceable) {
+      return {false, "Cannot advance from state " + stateToStr(state_)};
+    }
+    auto next = popNextPending();
+    if (!next.has_value()) {
+      return {false, "No pending waypoints"};
+    }
+    auto nav = startNav(next->id, std::nullopt, /*is_return=*/false);
+    if (!nav.accepted) return {false, nav.message};
+    if (nav.publish_goal) {
+      publishGoal(nav.goal_to_publish);
+      publishActiveTarget();
+    }
+    persistAndPublishQueue();
+    return {true, "Advanced to '" + next->id + "'"};
+  }
+
+  CommandResult onSkip() {
+    if (!active_target_.has_value()) {
+      return {false, "No active waypoint to skip"};
+    }
+    if (auto* e = findEntry(active_target_->id)) {
+      e->skipped = true;
+    }
+    active_target_.reset();
+    transition(State::IDLE);
+    persistAndPublishQueue();
+    return {true, "Skipped — call ~/advance for next waypoint"};
+  }
+
+  void onPlannerStuck(const msgs::msg::LocalPlannerStuck& msg) {
+    const bool rising = msg.stuck && !prev_stuck_;
+    prev_stuck_ = msg.stuck;
+    if (!rising) return;
+    if (!active_target_.has_value()) return;
+    if (state_ != State::NAVIGATING && state_ != State::RETURNING) return;
+    const double now_s = now().seconds();
+    if (now_s - last_replan_pub_s_ < replan_throttle_s_) return;
+    last_replan_pub_s_ = now_s;
+    publishGoal({active_target_->x_m, active_target_->y_m, 0.0});
+    RCLCPP_WARN(get_logger(),
+      "[REPLAN] /local_planner/stuck rising edge — re-publishing goal for '%s'",
+      active_target_->id.c_str());
   }
 
   CommandResult setTeleop(bool enable) {
@@ -751,6 +1015,26 @@ private:
     std_msgs::msg::String msg;
     msg.data = getNavMode();
     nav_mode_pub_->publish(msg);
+  }
+
+  void publishWaypointQueue() {
+    if (!waypoint_queue_pub_) return;
+    nlohmann::json arr = nlohmann::json::array();
+    for (const auto& e : queue_) {
+      auto je = entryToJson(e);
+      const bool is_active = active_target_.has_value() &&
+                             active_target_->id == e.id &&
+                             !e.visited && !e.skipped;
+      std::string status = "PENDING";
+      if (e.skipped)       status = "SKIPPED";
+      else if (e.visited)  status = "VISITED";
+      else if (is_active)  status = "ACTIVE";
+      je["status"] = status;
+      arr.push_back(je);
+    }
+    std_msgs::msg::String s;
+    s.data = arr.dump();
+    waypoint_queue_pub_->publish(s);
   }
 
   void publishLedStatus() {
@@ -983,7 +1267,8 @@ private:
   MissionParams params_;
   State state_{State::IDLE};
 
-  std::unordered_map<std::string, TargetEntry> target_registry_;
+  std::vector<TargetEntry> queue_;
+  std::string waypoint_cache_path_;
   std::optional<TargetEntry> active_target_;
   bool is_return_{false};
 
@@ -1024,10 +1309,13 @@ private:
   rclcpp::Publisher<msgs::msg::ActiveTarget>::SharedPtr         active_target_pub_;
   rclcpp::Publisher<msgs::msg::NavStatus>::SharedPtr            nav_status_pub_;
   rclcpp::Publisher<msgs::msg::LedStatus>::SharedPtr            led_status_pub_;
+  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr           waypoint_queue_pub_;
 
   rclcpp_action::Server<NavAction>::SharedPtr action_server_;
 
   rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr  abort_srv_;
+  rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr  advance_srv_;
+  rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr  skip_srv_;
   rclcpp::Service<msgs::srv::SetTarget>::SharedPtr     set_target_srv_;
   rclcpp::Service<std_srvs::srv::SetBool>::SharedPtr   teleop_srv_;
 
@@ -1036,6 +1324,12 @@ private:
   rclcpp::Subscription<nav_msgs::msg::Path>::SharedPtr             global_path_sub_;
   rclcpp::Subscription<vision_msgs::msg::Detection2D>::SharedPtr   aruco_sub_;
   rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr             yolo_sub_;
+  rclcpp::Subscription<msgs::msg::LocalPlannerStuck>::SharedPtr    stuck_sub_;
+
+  // Replan-on-stuck state
+  bool   prev_stuck_{false};
+  double last_replan_pub_s_{0.0};
+  double replan_throttle_s_{3.0};
 
   rclcpp::Client<msgs::srv::LatLonToENU>::SharedPtr latlon_client_;
 

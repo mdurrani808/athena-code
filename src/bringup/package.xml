@@ -19,6 +19,9 @@
   <exec_depend>science_bringup</exec_depend>
   <exec_depend>description</exec_depend>
   <exec_depend>athena_planner</exec_depend>
+  <exec_depend>led_indicator</exec_depend>
+  <exec_depend>aruco_bt</exec_depend>
+  <exec_depend>yolo_ros_bt</exec_depend>
   <exec_depend>robot_state_publisher</exec_depend>
   <exec_depend>xacro</exec_depend>
 

@@ -52,6 +52,12 @@ ARGUMENTS = [
         choices=['true', 'false'],
         description='Run heading_publisher.py to derive heading from simulated magnetometer'
     ),
+    DeclareLaunchArgument(
+        'headless',
+        default_value='false',
+        choices=['true', 'false'],
+        description='Run Gazebo server-only (no GUI). Sensors still render.'
+    ),
 ]
 
 def generate_launch_description():
@@ -72,6 +78,7 @@ def generate_launch_description():
         PythonLaunchDescriptionSource([gazebo_launch]),
         launch_arguments=[
             ('world', LaunchConfiguration('world')),                    # World file taken from description/worlds/
+            ('headless', LaunchConfiguration('headless')),
         ]
     )
 

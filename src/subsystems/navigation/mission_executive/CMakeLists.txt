@@ -18,6 +18,7 @@ find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(vision_msgs REQUIRED)
 find_package(msgs REQUIRED)
+find_package(nlohmann_json REQUIRED)
 
 add_executable(mission_executive_node src/mission_executive_node.cpp)
 target_compile_features(mission_executive_node PUBLIC cxx_std_17)
@@ -34,6 +35,7 @@ target_link_libraries(mission_executive_node
   tf2_geometry_msgs::tf2_geometry_msgs
   ${vision_msgs_TARGETS}
   ${msgs_TARGETS}
+  nlohmann_json::nlohmann_json
 )
 
 install(TARGETS mission_executive_node
